@@ -11,7 +11,7 @@ server = "srv2.humlab.lu.se"
 port = 445
 domain = "UW"
 username = "huml-dkn"
-password = "***"
+password = ""
 
 access_flags = smbprotocol.structure.FlagField(
     size=4,
@@ -27,6 +27,11 @@ def check_access(access_flags: smbprotocol.structure.FlagField):
         (flags & impacket.smb3structs.FILE_WRITE_DATA) and
         (flags & impacket.smb3structs.FILE_EXECUTE)
         )
+
+
+if not password:
+    from getpass import getpass
+    password = getpass(f'Password for {domain}\{username}: ')
 
 
 # get all shares on the server
