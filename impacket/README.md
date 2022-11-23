@@ -1,10 +1,17 @@
+# Note
+This is a copy of [impacket](https://github.com/SecureAuthCorp/impacket), specifically v0.10.1-dev, commit
+3c6713e3. One code modifications has been performed (see below), for the rest only some files that i did
+not need have been deleted (which makes part of the notes below incorrect, since listed support is not
+available in this local copy). Impacket code remains under its original license, please see
+[Licensing](#licensing) below.
+
+## Modifications
+1. In `smb3.py`, SMB3._Session['TreeConnectTable'] entries (i.e. TREE_CONNECT instances) now contain the
+   MaximalAccess field returned in a SMB2TreeConnect_Response packet. The value is set upon receipt of a
+   `SMB2TreeConnect_Response` when connecting to a tree.
+
 Impacket
 ========
-
-This is a copy of [impacket](https://github.com/SecureAuthCorp/impacket), specifically v0.10.1-dev, commit
-3c6713e3. No code modifications have been performed, only some files that i did not need have been deleted
-(which makes part of the notes below incorrect, since listed support is not available in this local copy).
-Impacket code remains under its original license, please see [Licensing](#licensing) below.
 
 SECUREAUTH LABS. Copyright (C) 2022 SecureAuth Corporation. All rights reserved.
 

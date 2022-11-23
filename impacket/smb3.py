@@ -66,6 +66,7 @@ TREE_CONNECT = {
     'TreeConnectId'   : 0,
     'Session'         : 0,
     'IsDfsShare'      : False,
+    'MaximalAccess'   : 0,
     # If the client implements the SMB 3.0 dialect,
     # the client MUST also implement the following
     'IsCAShare'       : False,
@@ -1099,6 +1100,7 @@ class SMB3:
            treeEntry['ShareName']     = share
            treeEntry['TreeConnectId'] = packet['TreeID']
            treeEntry['Session']       = packet['SessionID']
+           treeEntry['MaximalAccess'] = treeConnectResponse['MaximalAccess']
            treeEntry['NumberOfUses'] += 1
            if (treeConnectResponse['Capabilities'] & SMB2_SHARE_CAP_DFS) == SMB2_SHARE_CAP_DFS:
                treeEntry['IsDfsShare'] = True
