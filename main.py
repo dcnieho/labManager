@@ -3,6 +3,7 @@ import logging
 
 import impacket.smbconnection
 import impacket.dcerpc.v5.srvs
+import impacket.smb3structs
 import smbprotocol.open
 import smbprotocol.structure
 
@@ -12,10 +13,20 @@ domain = "UW"
 username = "huml-dkn"
 password = "***"
 
-access = smbprotocol.structure.FlagField(
+access_flags = smbprotocol.structure.FlagField(
     size=4,
-    flag_type=smbprotocol.open.DirectoryAccessMask#FilePipePrinterAccessMask
+    flag_type=smbprotocol.open.FilePipePrinterAccessMask
 )
+
+def check_access(access_flags: smbprotocol.structure.FlagField):
+    flags = access_flags.get_value()
+    return bool(
+        # these flags are a bit arbitrary, but this seems like pretty complete access, good enough
+        (flags & impacket.smb3structs.DELETE) and
+        (flags & impacket.smb3structs.FILE_READ_DATA) and
+        (flags & impacket.smb3structs.FILE_WRITE_DATA) and
+        (flags & impacket.smb3structs.FILE_EXECUTE)
+        )
 
 
 # get all shares on the server
@@ -28,9 +39,9 @@ for i in range(len(all_shares)):
         continue
     tid = smb_client.connectTree(share)
     tree_info = smb_client._SMBConnection._Session['TreeConnectTable'][share]
-    access.set_value(tree_info['MaximalAccess'])
-    
-    #print(share, all_shares[i]['shi1_remark'][:-1], access)
-    print(share, access)
+    access_flags.set_value(tree_info['MaximalAccess'])
     smb_client.disconnectTree(tid)
+    
+    have_access = check_access(access_flags)
+    print(f'{share}: {have_access} ({access_flags})')
     
