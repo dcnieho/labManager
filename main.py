@@ -7,9 +7,9 @@ import impacket.smb3structs
 import smbprotocol.open
 import smbprotocol.structure
 
-server = "srv2.humlab.lu.se"
-port = 445
-domain = "UW"
+server   = "srv2.humlab.lu.se"
+port     = 445
+domain   = "UW"
 username = "huml-dkn"
 password = ""
 
