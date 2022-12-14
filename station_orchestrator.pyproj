@@ -4,7 +4,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>1fd62eb9-e660-454a-b9fe-8e5edeb35b11</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>main.py</StartupFile>
+    <StartupFile>test_server.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -97,6 +97,7 @@
     <Compile Include="impacket\winregistry.py" />
     <Compile Include="impacket\__init__.py" />
     <Compile Include="main.py" />
+    <Compile Include="test_server.py" />
   </ItemGroup>
   <ItemGroup>
     <Interpreter Include="venv\">
