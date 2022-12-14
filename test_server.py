@@ -11,92 +11,6 @@ import struct
 import threading
 import traceback
 
-async def read_with_length(reader):
-    # protocol: first the size of a message is sent so 
-    # receiver knows what to expect. Then the message itself
-    # is sent
-    try:
-        try:
-            msg_size = await reader.readexactly(SIZE_MESSAGE_SIZE)
-        except asyncio.IncompleteReadError:
-            # connection broken
-            return ''
-        msg_size = struct.unpack(SIZE_MESSAGE_FMT, msg_size)[0]
-
-        buf = ''
-        left_over = msg_size
-        while left_over>0:
-            received = (await reader.read(min(4096, left_over))).decode('utf8')
-            if not received:    # connection broken
-                return ''
-            buf += received
-            left_over = msg_size-len(buf)
-        return buf
-
-    except ConnectionError:
-        return 'ConnectionError'
-
-async def send_with_length(writer, message) -> bool:
-    try:
-        to_send = message.encode('utf8')
-
-        # first notify end point of message length
-        writer.write(struct.pack(SIZE_MESSAGE_FMT, len(to_send)))
-
-        # then send message
-        writer.write(to_send)
-
-        await writer.drain()
-        return True
-    except ConnectionError:
-        return False
-
-client_list = []
-async def handle_client(reader, writer):
-    sock = writer.get_extra_info('socket')
-    set_keepalive_windows(sock)
-
-    client_addr = writer.get_extra_info('peername')
-    print('received connection from {}:{}'.format(*client_addr))
-    
-    message = None
-    while message != 'quit':
-        try:
-            message = await read_with_length(reader)
-            if message:
-                print(f'<{client_addr[0]}:{client_addr[1]}> {message}')
-
-                response = message+message
-                if not await send_with_length(writer, response):
-                    # connection broken, close
-                    break
-            else:
-                # connection broken, close
-                break
- 
-        except Exception as exc:
-            tb_lines = traceback.format_exception(exc)
-            print("".join(tb_lines))
-            continue
-
-    writer.close()
-
-async_addr = None
-async def run_server(server_address):
-    global async_addr
-
-    server = await asyncio.start_server(handle_client, *server_address)
-    async_addr = [sock.getsockname() for sock in server.sockets]
-    if len(async_addr[0])!=2:
-        async_addr[0],async_addr[1] = async_addr[1],async_addr[0]
-    print('serving on {}:{}'.format(*async_addr[0]))
-
-    async with server:
-        await server.serve_forever()    # docs say cancelling this coroutine causes server to stop
-
-
-
-
 # to allow clients to discover server:
 # Both connect to muticast on their configged subnet
 # server sends periodic (1s?) announcements
@@ -154,6 +68,102 @@ def set_keepalive(after_idle_sec=1, interval_sec=3, max_fails=5):
 
 SIZE_MESSAGE_FMT  = '!i'
 SIZE_MESSAGE_SIZE = struct.calcsize(SIZE_MESSAGE_FMT)
+client_list = []
+server_addr = None
+
+async def read_with_length(reader) -> str:
+    # protocol: first the size of a message is sent so 
+    # receiver knows what to expect. Then the message itself
+    # is sent
+    try:
+        try:
+            msg_size = await reader.readexactly(SIZE_MESSAGE_SIZE)
+        except asyncio.IncompleteReadError:
+            # connection broken
+            return ''
+        msg_size = struct.unpack(SIZE_MESSAGE_FMT, msg_size)[0]
+
+        buf = ''
+        left_over = msg_size
+        while left_over>0:
+            received = (await reader.read(min(4096, left_over))).decode('utf8')
+            if not received:    # connection broken
+                return ''
+            buf += received
+            left_over = msg_size-len(buf)
+        return buf
+
+    except ConnectionError:
+        return ''
+
+async def send_with_length(writer, message) -> bool:
+    try:
+        to_send = message.encode('utf8')
+
+        # first notify end point of message length
+        writer.write(struct.pack(SIZE_MESSAGE_FMT, len(to_send)))
+
+        # then send message
+        writer.write(to_send)
+
+        await writer.drain()
+        return True
+    except ConnectionError:
+        return False
+
+async def handle_client(reader, writer):
+    sock = writer.get_extra_info('socket')
+    set_keepalive_windows(sock)
+
+    client_addr = writer.get_extra_info('peername')
+    print('received connection from {}:{}'.format(*client_addr))
+
+    client_list.append((client_addr, writer, sock))
+    
+    message = None
+    while message != 'quit':
+        try:
+            message = await read_with_length(reader)
+            if message:
+                print(f'<{client_addr[0]}:{client_addr[1]}> {message}')
+
+                response = message+message
+                if not await send_with_length(writer, response):
+                    # connection broken, close
+                    break
+            else:
+                # connection broken, close
+                break
+ 
+        except Exception as exc:
+            tb_lines = traceback.format_exception(exc)
+            print("".join(tb_lines))
+            continue
+
+    writer.close()
+    client_list.remove((client_addr, writer, sock))
+
+async def broadcast(message):
+    for _,writer,_ in client_list:
+        await send_with_length(writer, message)
+
+async def run_server(server_address):
+    global server_addr
+
+    server = await asyncio.start_server(handle_client, *server_address)
+
+    server_addr = [sock.getsockname() for sock in server.sockets]
+    if len(server_addr[0])!=2:
+        server_addr[0],server_addr[1] = server_addr[1],server_addr[0]
+    print('serving on {}:{}'.format(*server_addr[0]))
+
+    async with server:
+        await server.serve_forever()    # docs say cancelling this coroutine causes server to stop
+
+
+
+
+
 def send_message_with_length(sock: socket.socket, message) -> bool:
     try:
         to_send = bytes(message, 'utf-8')
@@ -193,15 +203,12 @@ def receive_message_with_length(sock: socket.socket) -> str:
         return ''
     
 
-def client(ip, port, message):
+def client(ip, port, id, message):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.connect((ip, port))
         send_message_with_length(sock, message)
-        print("Received: {}".format(receive_message_with_length(sock)))
-
-
-def await_clients(loop, futures):
-    loop.run_until_complete(asyncio.gather(*futures))
+        print("{} Received: {}".format(id, receive_message_with_length(sock)))
+        print("{} Received: {}".format(id, receive_message_with_length(sock)))
 
 if __name__ == "__main__":
     # Port 0 means to select an arbitrary unused port
@@ -219,25 +226,36 @@ if __name__ == "__main__":
         
     asyncio.run_coroutine_threadsafe(run_server(("localhost", 0)), loop)
 
-    while async_addr is None:
+    while server_addr is None:
         time.sleep(.01)
-    ip,port = async_addr[0]
+    ip,port = server_addr[0]
     
     if True:
         aas = []
-        aas.append(loop.run_in_executor(None, client, ip, port, "Hello World 1, more text"))
-        aas.append(loop.run_in_executor(None, client, ip, port, "Hello World 2"))
-        aas.append(loop.run_in_executor(None, client, ip, port, "Hello World 3"))
+        aas.append(loop.run_in_executor(None, client, ip, port, 1, "Hello World 1, more text"))
+        aas.append(loop.run_in_executor(None, client, ip, port, 2, "Hello World 2"))
+        aas.append(loop.run_in_executor(None, client, ip, port, 3, "Hello World 3"))
         
-        done,pending = asyncio.run_coroutine_threadsafe(
+        clients_fut = asyncio.run_coroutine_threadsafe(
                 asyncio.wait(aas, return_when=asyncio.ALL_COMPLETED)
-            , loop).result()
+            , loop)
 
+        time.sleep(.5)
+
+        for c in client_list:
+            print(c)
+
+
+        asyncio.run_coroutine_threadsafe(send_with_length(client_list[1][1],'sup'),loop)
+
+        asyncio.run_coroutine_threadsafe(broadcast('quit'),loop)
+        done,pending = clients_fut.result()
+        print(client_list)
     else:
         ts = []
-        ts.append(threading.Thread(target = client, args=[ip, port, "Hello World 1, more text"], daemon=True))
-        ts.append(threading.Thread(target = client, args=[ip, port, "Hello World 2"], daemon=True))
-        ts.append(threading.Thread(target = client, args=[ip, port, "Hello World 3"], daemon=True))
+        ts.append(threading.Thread(target = client, args=[ip, port, 1, "Hello World 1, more text"], daemon=True))
+        ts.append(threading.Thread(target = client, args=[ip, port, 2, "Hello World 2"], daemon=True))
+        ts.append(threading.Thread(target = client, args=[ip, port, 3, "Hello World 3"], daemon=True))
         for t in ts:
             t.start()
 
