@@ -6,6 +6,8 @@ import concurrent
 import traceback
 
 import utils
+import structs
+import typing
 
 # to allow clients to discover server:
 # Both connect to muticast on their configged subnet
@@ -17,7 +19,7 @@ import utils
 
 SIZE_MESSAGE_FMT  = '!I'
 SIZE_MESSAGE_SIZE = struct.calcsize(SIZE_MESSAGE_FMT)
-client_list = []
+client_list: typing.List[structs.Client] = []
 
 async def read_with_length(reader) -> str:
     # protocol: first the size of a message is sent so 
@@ -28,7 +30,7 @@ async def read_with_length(reader) -> str:
             msg_size = await reader.readexactly(SIZE_MESSAGE_SIZE)
         except asyncio.IncompleteReadError:
             # connection broken
-            return ''
+            return None
         msg_size = struct.unpack(SIZE_MESSAGE_FMT, msg_size)[0]
 
         buf = ''
@@ -45,6 +47,15 @@ async def read_with_length(reader) -> str:
     except ConnectionError:
         return ''
 
+async def receive_typed_message(reader) -> typing.Tuple[structs.Message,str]:
+    type    = await read_with_length(reader)
+    if not type:
+        return None,''
+
+    message = await read_with_length(reader)
+    
+    return structs.Message.get(type), message
+
 async def send_with_length(writer, message) -> bool:
     try:
         to_send = message.encode('utf8')
@@ -52,37 +63,44 @@ async def send_with_length(writer, message) -> bool:
         # first notify end point of message length
         writer.write(struct.pack(SIZE_MESSAGE_FMT, len(to_send)))
 
-        # then send message
-        writer.write(to_send)
+        # then send message, if anything
+        if to_send:
+            writer.write(to_send)
 
         await writer.drain()
         return True
     except ConnectionError:
         return False
 
+async def send_typed_message(writer, type: structs.Message, message=''):
+    await send_with_length(writer,type.value)
+    await send_with_length(writer,message)
+
 async def handle_client(reader, writer):
-    sock = writer.get_extra_info('socket')
-    utils.set_keepalive(sock)
+    global client_list
+    utils.set_keepalive(writer.get_extra_info('socket'))
 
-    client_addr = writer.get_extra_info('peername')
-    print('received connection from {}:{}'.format(*client_addr))
+    me = structs.Client(writer)
+    client_list.append(me)
 
-    client_list.append((client_addr, writer, sock))
+    # request info about client
+    await send_typed_message(writer, structs.Message.IDENTIFY)
     
-    message = None
-    while message != 'quit':
+    # process incoming messages
+    type = None
+    while type != structs.Message.QUIT:
         try:
-            message = await read_with_length(reader)
-            if message:
-                print(f'<{client_addr[0]}:{client_addr[1]}> {message}')
-
-                response = message+message
-                if not await send_with_length(writer, response):
-                    # connection broken, close
-                    break
-            else:
+            type, message = await receive_typed_message(reader)
+            if not type:
                 # connection broken, close
                 break
+
+            match type:
+                case structs.Message.IDENTIFY:
+                    me.name = message
+                    print(f'setting name for {me.host}:{me.port} to: {message}')
+                case structs.Message.INFO:
+                    print(f'{me.host}:{me.port}: {message}')
  
         except Exception as exc:
             tb_lines = traceback.format_exception(exc)
@@ -90,11 +108,13 @@ async def handle_client(reader, writer):
             continue
 
     writer.close()
-    client_list.remove((client_addr, writer, sock))
 
-async def broadcast(message):
-    for _,writer,_ in client_list:
-        await send_with_length(writer, message)
+    # remove from client list
+    client_list = [c for c in client_list if c.name!=me.name]
+
+async def broadcast(type, message=''):
+    for c in client_list:
+        await send_typed_message(c.writer, type, message)
 
 async def run_server(server_address):
     server = await asyncio.start_server(handle_client, *server_address)
@@ -110,9 +130,24 @@ async def run_server(server_address):
 
 
 async def client_loop(id, reader, writer):
-    response = None
-    while response != 'quit':
-        print("{} Received: {}".format(id, (response := await read_with_length(reader))))
+    type = None
+    while type != structs.Message.QUIT:
+        try:
+            type, message = await receive_typed_message(reader)
+            if not type:
+                # connection broken, close
+                break
+
+            match type:
+                case structs.Message.IDENTIFY:
+                    await send_typed_message(writer, structs.Message.IDENTIFY, f'client{id}')
+                case structs.Message.INFO:
+                    print(f'client {id} received: {message}')
+ 
+        except Exception as exc:
+            tb_lines = traceback.format_exception(exc)
+            print("".join(tb_lines))
+            continue
 
     writer.close()
 
@@ -121,7 +156,7 @@ async def start_client(loop, ip, port, id, message):
     await loop.sock_connect(sock, (ip, port))
     reader, writer = await asyncio.open_connection(sock=sock)
 
-    await send_with_length(writer, message)
+    await send_typed_message(writer, structs.Message.INFO, message)
 
     return asyncio.run_coroutine_threadsafe(client_loop(id, reader, writer), loop)
 
@@ -156,18 +191,13 @@ async def main():
     aas = [f.result() for f in concurrent.futures.as_completed(aas)]
 
     # send some messages to clients
-    asyncio.run_coroutine_threadsafe(send_with_length(client_list[1][1],'sup'),loop)
-    asyncio.run_coroutine_threadsafe(broadcast('quit'),loop)
+    asyncio.run_coroutine_threadsafe(send_typed_message(client_list[1].writer, structs.Message.INFO, 'sup'),loop)
+    asyncio.run_coroutine_threadsafe(broadcast(structs.Message.QUIT),loop)
         
+
     # wait for clients to finish
     for a in aas:
         a.result()
-
-    # give server some time to detect clients have closed connection
-    await asyncio.sleep(.01)
-    
-    # see what clients we have left, should be empty if above wait was long enough
-    print(client_list)
 
 if __name__ == "__main__":
     setup_async()

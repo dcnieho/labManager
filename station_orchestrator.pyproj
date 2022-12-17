@@ -97,6 +97,7 @@
     <Compile Include="impacket\winregistry.py" />
     <Compile Include="impacket\__init__.py" />
     <Compile Include="main.py" />
+    <Compile Include="structs.py" />
     <Compile Include="test_server.py" />
     <Compile Include="utils.py" />
   </ItemGroup>
