@@ -23,61 +23,62 @@ import labManager.utils.network as network
 
 
 
-client_list: typing.List[structs.Client] = []
+class Server:
+    def __init__(self):
+        self.client_list: typing.List[structs.Client] = []
+        self.server_address = None
 
+    async def start(self,server_address):
+        self.server = await asyncio.start_server(self.handle_client, *server_address)
 
+        addr = [sock.getsockname() for sock in self.server.sockets]
+        if len(addr[0])!=2:
+            addr[0], addr[1] = addr[1], addr[0]
+        self.server_address = addr
+        print('serving on {}:{}'.format(*addr[0]))
 
-async def handle_client(reader, writer):
-    global client_list
-    utils.keepalive.set(writer.get_extra_info('socket'))
+        asyncio.run_coroutine_threadsafe(self.server.serve_forever(), loop)
 
-    me = structs.Client(writer)
-    client_list.append(me)
+        return addr
 
-    # request info about client
-    await network.send_typed_message(writer, structs.Message.IDENTIFY)
+    async def handle_client(self, reader, writer):
+        utils.keepalive.set(writer.get_extra_info('socket'))
+
+        me = structs.Client(writer)
+        self.client_list.append(me)
+
+        # request info about client
+        await network.send_typed_message(writer, structs.Message.IDENTIFY)
     
-    # process incoming messages
-    type = None
-    while type != structs.Message.QUIT:
-        try:
-            type, message = await network.receive_typed_message(reader)
-            if not type:
-                # connection broken, close
-                break
+        # process incoming messages
+        type = None
+        while type != structs.Message.QUIT:
+            try:
+                type, message = await network.receive_typed_message(reader)
+                if not type:
+                    # connection broken, close
+                    break
 
-            match type:
-                case structs.Message.IDENTIFY:
-                    me.name = message
-                    print(f'setting name for {me.host}:{me.port} to: {message}')
-                case structs.Message.INFO:
-                    print(f'{me.host}:{me.port}: {message}')
+                match type:
+                    case structs.Message.IDENTIFY:
+                        me.name = message
+                        print(f'setting name for {me.host}:{me.port} to: {message}')
+                    case structs.Message.INFO:
+                        print(f'{me.host}:{me.port}: {message}')
  
-        except Exception as exc:
-            tb_lines = traceback.format_exception(exc)
-            print("".join(tb_lines))
-            continue
+            except Exception as exc:
+                tb_lines = traceback.format_exception(exc)
+                print("".join(tb_lines))
+                continue
 
-    writer.close()
+        writer.close()
 
-    # remove from client list
-    client_list = [c for c in client_list if c.name!=me.name]
+        # remove from client list
+        self.client_list = [c for c in self.client_list if c.name!=me.name]
 
-async def broadcast(type, message=''):
-    for c in client_list:
-        await network.send_typed_message(c.writer, type, message)
-
-async def run_server(server_address):
-    server = await asyncio.start_server(handle_client, *server_address)
-
-    server_addr = [sock.getsockname() for sock in server.sockets]
-    if len(server_addr[0])!=2:
-        server_addr[0],server_addr[1] = server_addr[1],server_addr[0]
-    print('serving on {}:{}'.format(*server_addr[0]))
-
-    asyncio.run_coroutine_threadsafe(server.serve_forever(), loop)
-
-    return server_addr
+    async def broadcast(self, type, message=''):
+        for c in self.client_list:
+            await network.send_typed_message(c.writer, type, message)
 
 
 async def client_loop(id, reader, writer):
@@ -126,8 +127,9 @@ def setup_async():
 
 async def main():
     # start server
-    server_addr = asyncio.run_coroutine_threadsafe(run_server(("localhost", 0)), loop)
-    ip,port = server_addr.result()[0]
+    server = Server()
+    server_address = asyncio.run_coroutine_threadsafe(server.start(("localhost", 0)), loop)
+    ip,port = server_address.result()[0]
     
     # start clients
     aas = [
@@ -140,8 +142,8 @@ async def main():
     aas = [f.result() for f in concurrent.futures.as_completed(aas)]
 
     # send some messages to clients
-    asyncio.run_coroutine_threadsafe(network.send_typed_message(client_list[1].writer, structs.Message.INFO, 'sup'),loop)
-    asyncio.run_coroutine_threadsafe(broadcast(structs.Message.QUIT),loop)
+    asyncio.run_coroutine_threadsafe(network.send_typed_message(server.client_list[1].writer, structs.Message.INFO, 'sup'),loop)
+    asyncio.run_coroutine_threadsafe(server.broadcast(structs.Message.QUIT),loop)
         
 
     # wait for clients to finish
