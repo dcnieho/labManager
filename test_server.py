@@ -1,6 +1,5 @@
 import asyncio
 import socket
-import threading
 import concurrent
 import traceback
 import typing
@@ -12,8 +11,7 @@ if not src_path in sys.path:
     sys.path.append(src_path)
 
 import labManager.utils as utils
-import labManager.utils.structs as structs
-import labManager.utils.network as network
+from labManager.utils import async_thread, structs, network
 
 # to allow clients to discover server:
 # Both connect to muticast on their configged subnet
@@ -28,6 +26,8 @@ class Server:
         self.client_list: typing.List[structs.Client] = []
         self.server_address = None
 
+        self._server_fut: concurrent.futures.Future = None
+
     async def start(self,server_address):
         self.server = await asyncio.start_server(self.handle_client, *server_address)
 
@@ -37,9 +37,13 @@ class Server:
         self.server_address = addr
         print('serving on {}:{}'.format(*addr[0]))
 
-        asyncio.run_coroutine_threadsafe(self.server.serve_forever(), loop)
+        self._server_fut = async_thread.run(self.server.serve_forever())
 
         return addr
+
+    def stop(self):
+        # cancelling the serve_forever coroutine stops the server
+        self._server_fut.cancel()
 
     async def handle_client(self, reader, writer):
         utils.keepalive.set(writer.get_extra_info('socket'))
@@ -103,55 +107,43 @@ async def client_loop(id, reader, writer):
 
     writer.close()
 
-async def start_client(loop, ip, port, id):
+async def start_client(ip, port, id):
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    await loop.sock_connect(sock, (ip, port))
+    await async_thread.loop.sock_connect(sock, (ip, port))
     reader, writer = await asyncio.open_connection(sock=sock)
 
-    return asyncio.run_coroutine_threadsafe(client_loop(id, reader, writer), loop)
-
-loop = None
-def setup_async():
-    global loop
-    def run_loop(loop: asyncio.AbstractEventLoop):
-        asyncio.set_event_loop(loop)
-        try:
-            loop.run_forever()
-        finally:
-            loop.run_until_complete(loop.shutdown_asyncgens())
-            loop.close()
-            
-    loop = asyncio.new_event_loop()
-    thread = threading.Thread(target=run_loop, args=(loop,), daemon=True)
-    thread.start()
+    return async_thread.run(client_loop(id, reader, writer))
 
 async def main():
     # start server
     server = Server()
-    server_address = asyncio.run_coroutine_threadsafe(server.start(("localhost", 0)), loop)
+    server_address = async_thread.run(server.start(("localhost", 0)))
     ip,port = server_address.result()[0]
     
     # start clients
     aas = [
-        asyncio.run_coroutine_threadsafe(start_client(loop, ip, port, 1),loop),
-        asyncio.run_coroutine_threadsafe(start_client(loop, ip, port, 2),loop),
-        asyncio.run_coroutine_threadsafe(start_client(loop, ip, port, 3),loop)
+        async_thread.run(start_client(ip, port, 1)),
+        async_thread.run(start_client(ip, port, 2)),
+        async_thread.run(start_client(ip, port, 3))
     ]
 
     # wait till clients have started, get futures to their processing loop tasks
     aas = [f.result() for f in concurrent.futures.as_completed(aas)]
 
     # send some messages to clients
-    asyncio.run_coroutine_threadsafe(network.send_typed_message(server.client_list[1].writer, structs.Message.INFO, 'sup'),loop)
-    asyncio.run_coroutine_threadsafe(server.broadcast(structs.Message.QUIT),loop)
+    async_thread.run(network.send_typed_message(server.client_list[1].writer, structs.Message.INFO, 'sup'))
+    async_thread.run(server.broadcast(structs.Message.QUIT))
         
 
     # wait for clients to finish
     for a in aas:
         a.result()
 
+    server.stop()
+
 if __name__ == "__main__":
-    setup_async()
+    async_thread.setup()
     asyncio.run(main())
+    async_thread.cleanup()
         
     
