@@ -61,7 +61,7 @@ def set_keepalive(after_idle_sec=1, interval_sec=3, max_fails=5):
               "You can let me know on GitHub, or you can try porting yourself ;)")
         sys.exit(1)
 
-SIZE_MESSAGE_FMT  = '!i'
+SIZE_MESSAGE_FMT  = '!I'
 SIZE_MESSAGE_SIZE = struct.calcsize(SIZE_MESSAGE_FMT)
 client_list = []
 
