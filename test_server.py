@@ -1,10 +1,11 @@
-import sys
 import asyncio
 import socket
 import struct
 import threading
 import concurrent
 import traceback
+
+import utils
 
 # to allow clients to discover server:
 # Both connect to muticast on their configged subnet
@@ -13,53 +14,6 @@ import traceback
 # or look into what zeroconf does
 
 
-def set_keepalive_linux(sock, after_idle_sec=1, interval_sec=3, max_fails=5):
-    """Set TCP keepalive on an open socket.
-
-    It activates after 1 second (after_idle_sec) of idleness,
-    then sends a keepalive ping once every 3 seconds (interval_sec),
-    and closes the connection after 5 failed ping (max_fails), or 15 seconds
-    """
-    sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
-    sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, after_idle_sec)
-    sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, interval_sec)
-    sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPCNT, max_fails)
-
-def set_keepalive_osx(sock, after_idle_sec=1, interval_sec=3, max_fails=5):
-    """Set TCP keepalive on an open socket.
-
-    sends a keepalive ping once every 3 seconds (interval_sec)
-    """
-    sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
-    sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPALIVE, interval_sec) # socket.TCP_KEEPALIVE was added in 3.10
-
-def set_keepalive_windows(sock, after_idle_sec=1, interval_sec=3, max_fails=5):
-    """Set TCP keepalive on an open socket.
-
-    It activates after after_idle_sec seconds of idleness, then
-    sends a keepalive ping once every interval_sec seconds.
-    On Windowds Vista and later, the connection is closed after
-    10 failed ping attempts, see:
-    https://learn.microsoft.com/en-us/windows/win32/winsock/sio-keepalive-vals
-    """
-    sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
-    if hasattr(socket,'TCP_KEEPIDLE'):
-        sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, after_idle_sec)
-        sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, interval_sec)
-    else:
-        sock.ioctl(socket.SIO_KEEPALIVE_VALS, (1, int(after_idle_sec*1000), int(interval_sec*1000)))
-
-def set_keepalive(after_idle_sec=1, interval_sec=3, max_fails=5):
-    if sys.platform.startswith("win"):
-        set_keepalive_windows(after_idle_sec, interval_sec, max_fails)
-    elif sys.platform.startswith("linux"):
-        set_keepalive_linux(after_idle_sec, interval_sec, max_fails)
-    elif sys.platform.startswith("darwin"):
-        set_keepalive_osx(after_idle_sec, interval_sec, max_fails)
-    else:
-        print("Your system is not officially supported at the moment!\n"
-              "You can let me know on GitHub, or you can try porting yourself ;)")
-        sys.exit(1)
 
 SIZE_MESSAGE_FMT  = '!I'
 SIZE_MESSAGE_SIZE = struct.calcsize(SIZE_MESSAGE_FMT)
@@ -108,7 +62,7 @@ async def send_with_length(writer, message) -> bool:
 
 async def handle_client(reader, writer):
     sock = writer.get_extra_info('socket')
-    set_keepalive(sock)
+    utils.set_keepalive(sock)
 
     client_addr = writer.get_extra_info('peername')
     print('received connection from {}:{}'.format(*client_addr))
