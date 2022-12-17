@@ -55,8 +55,8 @@ async def start_client(ip, port, id):
 async def main():
     # start server
     server = network.Server()
-    server_address = async_thread.run(server.start(("localhost", 0)))
-    ip,port = server_address.result()[0]
+    async_thread.wait(server.start(("localhost", 0)))
+    ip,port = server.address[0]
     
     # start clients
     aas = [

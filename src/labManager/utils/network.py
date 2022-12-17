@@ -69,22 +69,19 @@ async def send_typed_message(writer: asyncio.streams.StreamWriter, type: structs
 class Server:
     def __init__(self):
         self.client_list: List[structs.Client] = []
-        self.server_address = None
+        self.address = None
 
         self._server_fut: concurrent.futures.Future = None
 
-    async def start(self, server_address: Tuple[str,int]):
-        self.server = await asyncio.start_server(self.handle_client, *server_address)
+    async def start(self, address: Tuple[str,int]):
+        self.server = await asyncio.start_server(self.handle_client, *address)
 
         addr = [sock.getsockname() for sock in self.server.sockets]
         if len(addr[0])!=2:
             addr[0], addr[1] = addr[1], addr[0]
-        self.server_address = addr
-        print('serving on {}:{}'.format(*addr[0]))
+        self.address = addr
 
         self._server_fut = async_thread.run(self.server.serve_forever())
-
-        return addr
 
     def stop(self):
         # cancelling the serve_forever coroutine stops the server
