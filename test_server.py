@@ -1,6 +1,5 @@
 import asyncio
 import socket
-import struct
 import threading
 import concurrent
 import traceback
@@ -14,6 +13,7 @@ if not src_path in sys.path:
 
 import labManager.utils as utils
 import labManager.utils.structs as structs
+import labManager.utils.network as network
 
 # to allow clients to discover server:
 # Both connect to muticast on their configged subnet
@@ -23,80 +23,25 @@ import labManager.utils.structs as structs
 
 
 
-SIZE_MESSAGE_FMT  = '!I'
-SIZE_MESSAGE_SIZE = struct.calcsize(SIZE_MESSAGE_FMT)
 client_list: typing.List[structs.Client] = []
 
-async def read_with_length(reader) -> str:
-    # protocol: first the size of a message is sent so 
-    # receiver knows what to expect. Then the message itself
-    # is sent
-    try:
-        try:
-            msg_size = await reader.readexactly(SIZE_MESSAGE_SIZE)
-        except asyncio.IncompleteReadError:
-            # connection broken
-            return None
-        msg_size = struct.unpack(SIZE_MESSAGE_FMT, msg_size)[0]
 
-        buf = ''
-        left_over = msg_size
-        while left_over>0:
-            received = (await reader.read(min(4096, left_over))).decode('utf8')
-            if not received:
-                # connection broken
-                return ''
-            buf += received
-            left_over = msg_size-len(buf)
-        return buf
-
-    except ConnectionError:
-        return ''
-
-async def receive_typed_message(reader) -> typing.Tuple[structs.Message,str]:
-    type    = await read_with_length(reader)
-    if not type:
-        return None,''
-
-    message = await read_with_length(reader)
-    
-    return structs.Message.get(type), message
-
-async def send_with_length(writer, message) -> bool:
-    try:
-        to_send = message.encode('utf8')
-
-        # first notify end point of message length
-        writer.write(struct.pack(SIZE_MESSAGE_FMT, len(to_send)))
-
-        # then send message, if anything
-        if to_send:
-            writer.write(to_send)
-
-        await writer.drain()
-        return True
-    except ConnectionError:
-        return False
-
-async def send_typed_message(writer, type: structs.Message, message=''):
-    await send_with_length(writer,type.value)
-    await send_with_length(writer,message)
 
 async def handle_client(reader, writer):
     global client_list
-    utils.set_keepalive(writer.get_extra_info('socket'))
+    utils.keepalive.set(writer.get_extra_info('socket'))
 
     me = structs.Client(writer)
     client_list.append(me)
 
     # request info about client
-    await send_typed_message(writer, structs.Message.IDENTIFY)
+    await network.send_typed_message(writer, structs.Message.IDENTIFY)
     
     # process incoming messages
     type = None
     while type != structs.Message.QUIT:
         try:
-            type, message = await receive_typed_message(reader)
+            type, message = await network.receive_typed_message(reader)
             if not type:
                 # connection broken, close
                 break
@@ -120,7 +65,7 @@ async def handle_client(reader, writer):
 
 async def broadcast(type, message=''):
     for c in client_list:
-        await send_typed_message(c.writer, type, message)
+        await network.send_typed_message(c.writer, type, message)
 
 async def run_server(server_address):
     server = await asyncio.start_server(handle_client, *server_address)
@@ -139,14 +84,14 @@ async def client_loop(id, reader, writer):
     type = None
     while type != structs.Message.QUIT:
         try:
-            type, message = await receive_typed_message(reader)
+            type, message = await network.receive_typed_message(reader)
             if not type:
                 # connection broken, close
                 break
 
             match type:
                 case structs.Message.IDENTIFY:
-                    await send_typed_message(writer, structs.Message.IDENTIFY, f'client{id}')
+                    await network.send_typed_message(writer, structs.Message.IDENTIFY, f'client{id}')
                 case structs.Message.INFO:
                     print(f'client {id} received: {message}')
  
@@ -157,12 +102,10 @@ async def client_loop(id, reader, writer):
 
     writer.close()
 
-async def start_client(loop, ip, port, id, message):
+async def start_client(loop, ip, port, id):
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     await loop.sock_connect(sock, (ip, port))
     reader, writer = await asyncio.open_connection(sock=sock)
-
-    await send_typed_message(writer, structs.Message.INFO, message)
 
     return asyncio.run_coroutine_threadsafe(client_loop(id, reader, writer), loop)
 
@@ -188,16 +131,16 @@ async def main():
     
     # start clients
     aas = [
-        asyncio.run_coroutine_threadsafe(start_client(loop, ip, port, 1, "Hello World 1, more text"),loop),
-        asyncio.run_coroutine_threadsafe(start_client(loop, ip, port, 2, "Hello World 2"),loop),
-        asyncio.run_coroutine_threadsafe(start_client(loop, ip, port, 3, "Hello World 3"),loop)
+        asyncio.run_coroutine_threadsafe(start_client(loop, ip, port, 1),loop),
+        asyncio.run_coroutine_threadsafe(start_client(loop, ip, port, 2),loop),
+        asyncio.run_coroutine_threadsafe(start_client(loop, ip, port, 3),loop)
     ]
 
     # wait till clients have started, get futures to their processing loop tasks
     aas = [f.result() for f in concurrent.futures.as_completed(aas)]
 
     # send some messages to clients
-    asyncio.run_coroutine_threadsafe(send_typed_message(client_list[1].writer, structs.Message.INFO, 'sup'),loop)
+    asyncio.run_coroutine_threadsafe(network.send_typed_message(client_list[1].writer, structs.Message.INFO, 'sup'),loop)
     asyncio.run_coroutine_threadsafe(broadcast(structs.Message.QUIT),loop)
         
 

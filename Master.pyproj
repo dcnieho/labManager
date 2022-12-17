@@ -5,7 +5,7 @@
     <ProjectGuid>1fd62eb9-e660-454a-b9fe-8e5edeb35b11</ProjectGuid>
     <ProjectHome>
     </ProjectHome>
-    <StartupFile>main.py</StartupFile>
+    <StartupFile>test_server.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -98,6 +98,8 @@
     <Compile Include="src\labManager\utils\impacket\version.py" />
     <Compile Include="src\labManager\utils\impacket\winregistry.py" />
     <Compile Include="src\labManager\utils\impacket\__init__.py" />
+    <Compile Include="src\labManager\utils\keepalive.py" />
+    <Compile Include="src\labManager\utils\network.py" />
     <Compile Include="src\labManager\utils\structs.py" />
     <Compile Include="src\labManager\utils\__init__.py" />
     <Compile Include="src\labManager\version.py" />
