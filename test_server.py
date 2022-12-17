@@ -4,10 +4,16 @@ import struct
 import threading
 import concurrent
 import traceback
-
-import utils
-import structs
 import typing
+
+import sys
+import pathlib
+src_path = str(pathlib.Path(__file__).parent/"src")
+if not src_path in sys.path:
+    sys.path.append(src_path)
+
+import labManager.utils as utils
+import labManager.utils.structs as structs
 
 # to allow clients to discover server:
 # Both connect to muticast on their configged subnet
