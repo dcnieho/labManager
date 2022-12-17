@@ -9,8 +9,7 @@ import pathlib
 src_path = str(pathlib.Path(__file__).parent/"src")
 if not src_path in sys.path:
     sys.path.append(src_path)
-
-import labManager.utils as utils
+    
 from labManager.utils import async_thread, structs, network
 
 # to allow clients to discover server:
@@ -21,68 +20,7 @@ from labManager.utils import async_thread, structs, network
 
 
 
-class Server:
-    def __init__(self):
-        self.client_list: typing.List[structs.Client] = []
-        self.server_address = None
 
-        self._server_fut: concurrent.futures.Future = None
-
-    async def start(self,server_address):
-        self.server = await asyncio.start_server(self.handle_client, *server_address)
-
-        addr = [sock.getsockname() for sock in self.server.sockets]
-        if len(addr[0])!=2:
-            addr[0], addr[1] = addr[1], addr[0]
-        self.server_address = addr
-        print('serving on {}:{}'.format(*addr[0]))
-
-        self._server_fut = async_thread.run(self.server.serve_forever())
-
-        return addr
-
-    def stop(self):
-        # cancelling the serve_forever coroutine stops the server
-        self._server_fut.cancel()
-
-    async def handle_client(self, reader, writer):
-        utils.keepalive.set(writer.get_extra_info('socket'))
-
-        me = structs.Client(writer)
-        self.client_list.append(me)
-
-        # request info about client
-        await network.send_typed_message(writer, structs.Message.IDENTIFY)
-    
-        # process incoming messages
-        type = None
-        while type != structs.Message.QUIT:
-            try:
-                type, message = await network.receive_typed_message(reader)
-                if not type:
-                    # connection broken, close
-                    break
-
-                match type:
-                    case structs.Message.IDENTIFY:
-                        me.name = message
-                        print(f'setting name for {me.host}:{me.port} to: {message}')
-                    case structs.Message.INFO:
-                        print(f'{me.host}:{me.port}: {message}')
- 
-            except Exception as exc:
-                tb_lines = traceback.format_exception(exc)
-                print("".join(tb_lines))
-                continue
-
-        writer.close()
-
-        # remove from client list
-        self.client_list = [c for c in self.client_list if c.name!=me.name]
-
-    async def broadcast(self, type, message=''):
-        for c in self.client_list:
-            await network.send_typed_message(c.writer, type, message)
 
 
 async def client_loop(id, reader, writer):
@@ -116,7 +54,7 @@ async def start_client(ip, port, id):
 
 async def main():
     # start server
-    server = Server()
+    server = network.Server()
     server_address = async_thread.run(server.start(("localhost", 0)))
     ip,port = server_address.result()[0]
     
