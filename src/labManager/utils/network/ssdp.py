@@ -284,6 +284,7 @@ class SimpleServiceDiscoveryProtocol(asyncio.DatagramProtocol):
 class Base:
     def __init__(self, 
                  is_server,
+                 address,
                  device_type=None,
                  verbose=False):
         self._is_server = is_server
@@ -296,6 +297,7 @@ class Base:
             else:
                 device_type = "ssdp:all"
         self.device_type = device_type
+        self.address = address
         self.verbose = verbose
 
         # for server mode
@@ -330,8 +332,8 @@ class Base:
         self._is_started = False
 
 class Server(Base):
-    def __init__(self, host, usn, device_type=None, respond_to_all=False, allow_loopback=False, verbose=False):
-        super().__init__(True, device_type, verbose)
+    def __init__(self, host, usn, address='0.0.0.0', device_type=None, respond_to_all=False, allow_loopback=False, verbose=False):
+        super().__init__(True, address, device_type, verbose)
         self.advertised_host = host
         self.usn = usn
         self.respond_to_all = respond_to_all
@@ -350,15 +352,19 @@ class Server(Base):
     def _get_socket(self):
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        mreq = struct.pack("4sl", socket.inet_aton(MULTICAST_ADDRESS_IPV4), socket.INADDR_ANY)
+        mreq = socket.inet_aton(MULTICAST_ADDRESS_IPV4)
+        if self.address is not None:
+            mreq += socket.inet_aton(self.address)
+        else:
+            mreq += struct.pack(b"@I", socket.INADDR_ANY)
         sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
         sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_LOOP, 1 if self.allow_loopback else 0)
         sock.bind(("0.0.0.0", PORT))
         return sock
 
 class Client(Base):
-    def __init__(self, device_type=None, verbose=False):
-        super().__init__(False, device_type, verbose)
+    def __init__(self, address='0.0.0.0', device_type=None, verbose=False):
+        super().__init__(False, address, device_type, verbose)
         self._responses = []
         self._response_callback = self._store_response
         self._response_future = async_thread.loop.create_future()
@@ -374,7 +380,7 @@ class Client(Base):
     def _get_socket(self):
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        sock.bind(("0.0.0.0", 0))
+        sock.bind((self.address, 0))
         return sock
 
     def _store_response(self, response):
