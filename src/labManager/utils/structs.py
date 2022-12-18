@@ -2,6 +2,7 @@ import asyncio
 import dataclasses
 
 
+SSDP_DEVICE_TYPE = "urn:schemas-upnp-org:device:labManager"
 
 @dataclasses.dataclass
 class Client:

@@ -52,10 +52,26 @@ async def start_client(ip, port, id):
     return async_thread.run(client_loop(id, reader, writer))
 
 async def main():
+    ## start servers
     # start server
     server = network.manager.Server()
     async_thread.wait(server.start(("localhost", 0)))
     ip,port = server.address[0]
+
+    # start SSDP server
+    ssdp_server = network.ssdp.Server(
+        (ip,port),
+        "humlab-b055-master::"+structs.SSDP_DEVICE_TYPE,
+        device_type=structs.SSDP_DEVICE_TYPE,
+        testing=True)
+    async_thread.wait(ssdp_server.start())
+
+    
+    # start SSDP client
+    ssdp_client = network.ssdp.Client(structs.SSDP_DEVICE_TYPE, testing=True)
+    async_thread.wait(ssdp_client.start())
+    ssdp_client.send_request()
+    
     
     # start clients
     aas = [
@@ -75,7 +91,10 @@ async def main():
     # wait for clients to finish
     for a in aas:
         a.result()
-
+        
+    # stop servers
+    async_thread.run(ssdp_client.stop()).result()
+    async_thread.run(ssdp_server.stop()).result()
     server.stop()
 
 if __name__ == "__main__":
