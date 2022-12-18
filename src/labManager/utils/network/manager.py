@@ -23,9 +23,10 @@ class Server:
 
         self._server_fut = async_thread.run(self.server.serve_forever())
 
-    def stop(self):
+    async def stop(self):
         # cancelling the serve_forever coroutine stops the server
         self._server_fut.cancel()
+        await self.server.wait_closed()
 
     async def handle_client(self, reader: asyncio.streams.StreamReader, writer: asyncio.streams.StreamWriter):
         keepalive.set(writer.get_extra_info('socket'))

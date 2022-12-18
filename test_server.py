@@ -100,7 +100,7 @@ async def main():
         
     # stop servers
     async_thread.run(ssdp_server.stop()).result()
-    server.stop()
+    async_thread.run(server.stop()).result()
 
 if __name__ == "__main__":
     async_thread.setup()
