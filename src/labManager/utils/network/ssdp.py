@@ -183,7 +183,7 @@ class SimpleServiceDiscoveryProtocol(asyncio.DatagramProtocol):
                  is_server,
                  device_type,
                  usn=None,
-                 advertised_host=None,
+                 advertised_host_ip_port=None,
                  respond_to_all=False,
                  response_callback=None,
                  verbose=False):
@@ -193,7 +193,7 @@ class SimpleServiceDiscoveryProtocol(asyncio.DatagramProtocol):
         self.device_type = device_type
         # for server mode
         self.usn = usn
-        self.advertised_host = advertised_host
+        self.advertised_host_ip_port = advertised_host_ip_port
         self.respond_to_all = respond_to_all
         # for client mode
         self.response_callback = response_callback
@@ -259,7 +259,7 @@ class SimpleServiceDiscoveryProtocol(asyncio.DatagramProtocol):
             ssdp_response = SSDPResponse(
                 headers={
                     "Cache-Control": "max-age=30",
-                    "Host": "{}:{}".format(*self.advertised_host),
+                    "Host": "{}:{}".format(*self.advertised_host_ip_port),
                     "Location": "",
                     "Server": "Python UPnP/1.0 SSDP",
                     "ST": self.device_type,
@@ -302,7 +302,7 @@ class Base:
 
         # for server mode
         self.usn = None
-        self.advertised_host = None
+        self.advertised_host_ip_port = None
         self.respond_to_all = None
 
         self._is_started = False
@@ -332,9 +332,9 @@ class Base:
         self._is_started = False
 
 class Server(Base):
-    def __init__(self, host, usn, address='0.0.0.0', device_type=None, respond_to_all=False, allow_loopback=False, verbose=False):
+    def __init__(self, host_ip_port, usn, address='0.0.0.0', device_type=None, respond_to_all=False, allow_loopback=False, verbose=False):
         super().__init__(True, address, device_type, verbose)
-        self.advertised_host = host
+        self.advertised_host_ip_port = host_ip_port
         self.usn = usn
         self.respond_to_all = respond_to_all
         self.allow_loopback = allow_loopback
@@ -344,7 +344,7 @@ class Server(Base):
             is_server=self._is_server,
             device_type=self.device_type,
             usn=self.usn,
-            advertised_host=self.advertised_host,
+            advertised_host_ip_port=self.advertised_host_ip_port,
             respond_to_all=self.respond_to_all,
             verbose=self.verbose
         )

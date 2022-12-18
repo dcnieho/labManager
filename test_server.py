@@ -47,7 +47,7 @@ async def client_loop(id, reader, writer):
 async def start_client(id):
     # 1. discover master
     # start SSDP client
-    ssdp_client = network.ssdp.Client(structs.SSDP_DEVICE_TYPE)
+    ssdp_client = network.ssdp.Client(device_type=structs.SSDP_DEVICE_TYPE)
     await ssdp_client.start()
     # send search request and wait for reply
     responses = await ssdp_client.do_discovery()
@@ -73,8 +73,8 @@ async def main():
 
     # start SSDP server
     ssdp_server = network.ssdp.Server(
-        (ip,port),
-        "humlab-b055-master::"+structs.SSDP_DEVICE_TYPE,
+        host_ip_port=(ip,port),
+        usn="humlab-b055-master::"+structs.SSDP_DEVICE_TYPE,
         device_type=structs.SSDP_DEVICE_TYPE,
         allow_loopback=True)
     async_thread.wait(ssdp_server.start())
