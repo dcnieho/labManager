@@ -45,9 +45,12 @@ async def client_loop(id, reader, writer):
     writer.close()
 
 async def start_client(id):
-    # 1. discover master
+    # 1. get interfaces we can work with
+    interfaces = sorted(network.ifs.get_ifaces('192.168.1.0/24'))
+
+    # 2. discover master
     # start SSDP client
-    ssdp_client = network.ssdp.Client(device_type=structs.SSDP_DEVICE_TYPE)
+    ssdp_client = network.ssdp.Client(address=interfaces[0], device_type=structs.SSDP_DEVICE_TYPE)
     await ssdp_client.start()
     # send search request and wait for reply
     responses = await ssdp_client.do_discovery()
@@ -57,7 +60,7 @@ async def start_client(id):
     ip, _, port = responses[0].headers['HOST'].rpartition(':')
     port = int(port) # convert to integer
 
-    # connect to master
+    # 3. connect to master
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     await async_thread.loop.sock_connect(sock, (ip, port))
     reader, writer = await asyncio.open_connection(sock=sock)
@@ -65,14 +68,17 @@ async def start_client(id):
     return async_thread.run(client_loop(id, reader, writer))
 
 async def main():
+    # get interfaces we can work with
+    interfaces = sorted(network.ifs.get_ifaces('192.168.1.0/24'))
     ## start servers
     # start server
     server = network.manager.Server()
-    async_thread.wait(server.start(("localhost", 0)))
+    async_thread.wait(server.start((interfaces[0], 0)))
     ip,port = server.address[0]
 
     # start SSDP server
     ssdp_server = network.ssdp.Server(
+        address=interfaces[0],
         host_ip_port=(ip,port),
         usn="humlab-b055-master::"+structs.SSDP_DEVICE_TYPE,
         device_type=structs.SSDP_DEVICE_TYPE,
