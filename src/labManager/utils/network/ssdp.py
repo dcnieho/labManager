@@ -291,7 +291,7 @@ class Base:
         # set device type. If server, its the device type server will send
         # if client, its the device type set in the M-SEARCH message
         if not device_type:
-            if self.is_server:
+            if self._is_server:
                 device_type = "ssdp:rootdevice"
             else:
                 device_type = "ssdp:all"
@@ -302,8 +302,6 @@ class Base:
         self.usn = None
         self.advertised_host = None
         self.respond_to_all = None
-        # for client mode
-        self.response_callback = None
 
         self._is_started = False
 
