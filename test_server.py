@@ -62,6 +62,7 @@ async def start_client(id):
 
     # 3. connect to master
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.bind((interfaces[0],0))
     await async_thread.loop.sock_connect(sock, (ip, port))
     reader, writer = await asyncio.open_connection(sock=sock)
 
