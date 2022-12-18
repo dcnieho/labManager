@@ -2,7 +2,6 @@ import asyncio
 import socket
 import concurrent
 import traceback
-import typing
 
 import sys
 import pathlib
@@ -25,17 +24,17 @@ from labManager.utils import async_thread, structs, network
 
 async def client_loop(id, reader, writer):
     type = None
-    while type != structs.Message.QUIT:
+    while type != network.constants.Message.QUIT:
         try:
-            type, message = await network.receive_typed_message(reader)
+            type, message = await network.comms.receive_typed_message(reader)
             if not type:
                 # connection broken, close
                 break
 
             match type:
-                case structs.Message.IDENTIFY:
-                    await network.send_typed_message(writer, structs.Message.IDENTIFY, f'client{id}')
-                case structs.Message.INFO:
+                case network.constants.Message.IDENTIFY:
+                    await network.comms.send_typed_message(writer, network.constants.Message.IDENTIFY, f'client{id}')
+                case network.constants.Message.INFO:
                     print(f'client {id} received: {message}')
  
         except Exception as exc:
@@ -54,7 +53,7 @@ async def start_client(ip, port, id):
 
 async def main():
     # start server
-    server = network.Server()
+    server = network.manager.Server()
     async_thread.wait(server.start(("localhost", 0)))
     ip,port = server.address[0]
     
@@ -69,8 +68,8 @@ async def main():
     aas = [f.result() for f in concurrent.futures.as_completed(aas)]
 
     # send some messages to clients
-    async_thread.run(network.send_typed_message(server.client_list[1].writer, structs.Message.INFO, 'sup'))
-    async_thread.run(server.broadcast(structs.Message.QUIT))
+    async_thread.run(network.comms.send_typed_message(server.client_list[1].writer, network.constants.Message.INFO, 'sup'))
+    async_thread.run(server.broadcast(network.constants.Message.QUIT))
         
 
     # wait for clients to finish

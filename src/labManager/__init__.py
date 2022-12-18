@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 from . import client
 from . import master
 from . import utils
