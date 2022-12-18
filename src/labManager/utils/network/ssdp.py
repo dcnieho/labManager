@@ -236,6 +236,9 @@ class SimpleServiceDiscoveryProtocol(asyncio.DatagramProtocol):
             )
             print("header:\n{}\n".format("\n".join(response.format_headers())))
 
+        if not self.is_server and self.response_callback:
+            self.response_callback(response)
+
     def request_received(self, request: SSDPRequest, addr: tuple):
         """Handle an incoming request and respond to it."""
         if self.verbose:
@@ -282,7 +285,7 @@ class Base:
     def __init__(self, 
                  is_server,
                  device_type=None,
-                 testing=False):
+                 verbose=False):
         self._is_server = is_server
 
         # set device type. If server, its the device type server will send
@@ -293,7 +296,7 @@ class Base:
             else:
                 device_type = "ssdp:all"
         self.device_type = device_type
-        self.testing = testing
+        self.verbose = verbose
 
         # for server mode
         self.usn = None
@@ -329,11 +332,12 @@ class Base:
         self._is_started = False
 
 class Server(Base):
-    def __init__(self, host, usn, device_type=None, respond_to_all=False, testing=False):
-        super().__init__(True, device_type, testing)
+    def __init__(self, host, usn, device_type=None, respond_to_all=False, allow_loopback=False, verbose=False):
+        super().__init__(True, device_type, verbose)
         self.advertised_host = host
         self.usn = usn
         self.respond_to_all = respond_to_all
+        self.allow_loopback = allow_loopback
 
     def _get_factory(self):
         return lambda: SimpleServiceDiscoveryProtocol(
@@ -342,7 +346,7 @@ class Server(Base):
             usn=self.usn,
             advertised_host=self.advertised_host,
             respond_to_all=self.respond_to_all,
-            verbose=self.testing
+            verbose=self.verbose
         )
 
     def _get_socket(self):
@@ -350,21 +354,23 @@ class Server(Base):
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         mreq = struct.pack("4sl", socket.inet_aton(MULTICAST_ADDRESS_IPV4), socket.INADDR_ANY)
         sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
-        sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_LOOP, 1 if self.testing else 0)
+        sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_LOOP, 1 if self.allow_loopback else 0)
         sock.bind(("0.0.0.0", PORT))
         return sock
 
 class Client(Base):
-    def __init__(self, device_type=None, response_callback=None, testing=False):
-        super().__init__(False, device_type, testing)
-        self.response_callback = response_callback
+    def __init__(self, device_type=None, verbose=False):
+        super().__init__(False, device_type, verbose)
+        self._responses = []
+        self._response_callback = self._store_response
+        self._response_future = async_thread.loop.create_future()
 
     def _get_factory(self):
         return lambda: SimpleServiceDiscoveryProtocol(
             is_server=self._is_server,
             device_type=self.device_type,
-            response_callback=self.response_callback,
-            verbose=self.testing
+            response_callback=self._response_callback,
+            verbose=self.verbose
         )
 
     def _get_socket(self):
@@ -372,6 +378,11 @@ class Client(Base):
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         sock.bind(("0.0.0.0", 0))
         return sock
+
+    def _store_response(self, response):
+        self._responses.append(response)
+        if not self._response_future.done():
+            self._response_future.set_result(None)
 
     def send_request(self):
         ssdp_response = SSDPRequest(
@@ -384,3 +395,18 @@ class Client(Base):
         )
         async_thread.run(ssdp_response.sendto(self.transport, (MULTICAST_ADDRESS_IPV4, PORT)))
 
+    def get_responses(self):
+        if self._response_future.done():
+            responses,self._responses = self._responses,[]
+            self._response_future = async_thread.loop.create_future()
+            return responses
+
+    async def do_discovery(self):
+        # periodically send discovery request and wait until any replies received
+        while True:
+            self.send_request()
+
+            done,_ = await asyncio.wait([self._response_future], timeout=10, return_when=asyncio.FIRST_COMPLETED)
+            if done and self._response_future.done():
+                # we have a response, return it
+                return self.get_responses()

@@ -44,7 +44,20 @@ async def client_loop(id, reader, writer):
 
     writer.close()
 
-async def start_client(ip, port, id):
+async def start_client(id):
+    # 1. discover master
+    # start SSDP client
+    ssdp_client = network.ssdp.Client(structs.SSDP_DEVICE_TYPE)
+    await ssdp_client.start()
+    # send search request and wait for reply
+    responses = await ssdp_client.do_discovery()
+    # stop SSDP client
+    async_thread.run(ssdp_client.stop())
+    # get ip and port for master from advertisement
+    ip, _, port = responses[0].headers['HOST'].rpartition(':')
+    port = int(port) # convert to integer
+
+    # connect to master
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     await async_thread.loop.sock_connect(sock, (ip, port))
     reader, writer = await asyncio.open_connection(sock=sock)
@@ -63,21 +76,14 @@ async def main():
         (ip,port),
         "humlab-b055-master::"+structs.SSDP_DEVICE_TYPE,
         device_type=structs.SSDP_DEVICE_TYPE,
-        testing=True)
+        allow_loopback=True)
     async_thread.wait(ssdp_server.start())
-
-    
-    # start SSDP client
-    ssdp_client = network.ssdp.Client(structs.SSDP_DEVICE_TYPE, testing=True)
-    async_thread.wait(ssdp_client.start())
-    ssdp_client.send_request()
-    
     
     # start clients
     aas = [
-        async_thread.run(start_client(ip, port, 1)),
-        async_thread.run(start_client(ip, port, 2)),
-        async_thread.run(start_client(ip, port, 3))
+        async_thread.run(start_client(1)),
+        async_thread.run(start_client(2)),
+        async_thread.run(start_client(3))
     ]
 
     # wait till clients have started, get futures to their processing loop tasks
@@ -93,7 +99,6 @@ async def main():
         a.result()
         
     # stop servers
-    async_thread.run(ssdp_client.stop()).result()
     async_thread.run(ssdp_server.stop()).result()
     server.stop()
 
@@ -101,5 +106,4 @@ if __name__ == "__main__":
     async_thread.setup()
     asyncio.run(main())
     async_thread.cleanup()
-        
     
