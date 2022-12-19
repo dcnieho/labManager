@@ -65,7 +65,7 @@ async def start_client(id):
 
 async def main():
     # 1. check user credentials, and list shares (projects) they have access to
-    if True:
+    if False:
         from getpass import getpass
         password = getpass(f'Password for {domain}\{username}: ')
         try:
