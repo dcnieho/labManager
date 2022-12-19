@@ -4,4 +4,5 @@ from . import constants
 from . import ifs
 from . import keepalive
 from . import manager
+from . import smb
 from . import ssdp

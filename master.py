@@ -11,14 +11,9 @@ if not src_path in sys.path:
     
 from labManager.utils import async_thread, structs, network
 
-# to allow clients to discover server:
-# Both connect to muticast on their configged subnet
-# server sends periodic (1s?) announcements
-# client stops listening once server found
-# or look into what zeroconf does
-
-
-
+smb_server   = "srv2.humlab.lu.se"
+domain   = "UW"
+username = "huml-dkn"
 
 
 
@@ -69,6 +64,16 @@ async def start_client(id):
     return async_thread.run(client_loop(id, reader, writer))
 
 async def main():
+    # 1. check user credentials, and list shares (projects) they have access to
+    if False:
+        from getpass import getpass
+        password = getpass(f'Password for {domain}\{username}: ')
+        smb = network.smb.SMBHandler(smb_server,username,domain,password)
+        shares = smb.list_shares()
+        smb.close()
+        print(shares)
+
+    # 2. 
     # get interfaces we can work with
     interfaces = sorted(network.ifs.get_ifaces('192.168.1.0/24'))
     ## start servers

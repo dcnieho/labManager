@@ -5,7 +5,7 @@
     <ProjectGuid>1fd62eb9-e660-454a-b9fe-8e5edeb35b11</ProjectGuid>
     <ProjectHome>
     </ProjectHome>
-    <StartupFile>test_server.py</StartupFile>
+    <StartupFile>master.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -24,7 +24,7 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="main.py" />
+    <Compile Include="master.py" />
     <Compile Include="src\labManager\utils\async_thread.py" />
     <Compile Include="src\labManager\utils\impacket\crypto.py" />
     <Compile Include="src\labManager\utils\impacket\dcerpc\v5\atsvc.py" />
@@ -104,13 +104,13 @@
     <Compile Include="src\labManager\utils\network\keepalive.py" />
     <Compile Include="src\labManager\utils\network\manager.py" />
     <Compile Include="src\labManager\utils\network\comms.py" />
+    <Compile Include="src\labManager\utils\network\smb.py" />
     <Compile Include="src\labManager\utils\network\ssdp.py" />
     <Compile Include="src\labManager\utils\network\__init__.py" />
     <Compile Include="src\labManager\utils\structs.py" />
     <Compile Include="src\labManager\utils\__init__.py" />
     <Compile Include="src\labManager\version.py" />
     <Compile Include="src\labManager\__init__.py" />
-    <Compile Include="test_server.py" />
   </ItemGroup>
   <ItemGroup>
     <Interpreter Include="venv\">
