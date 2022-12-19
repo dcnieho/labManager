@@ -1,6 +1,7 @@
 from ..impacket import smbconnection  as smbconnection
 from ..impacket.dcerpc.v5 import srvs as dcerpc_v5_srvs
 from ..impacket import smb3structs    as smb3structs
+from ..impacket.smbconnection import SessionError as SessionError
 
 
 def _check_access(flags: int):
@@ -23,18 +24,18 @@ class SMBHandler:
         self.smb_client = smbconnection.SMBConnection(remoteName='*SMBSERVER', remoteHost=self.server)
         self.smb_client.login(self.username, password, self.domain)
 
-    def list_shares(self, only_accessible=True):
+    def list_shares(self, check_access=True):
         # get all shares on the server
         all_shares = self.smb_client.listShares()
 
-        if only_accessible:
-            out = []
-            for i in range(len(all_shares)):
-                share = all_shares[i]['shi1_netname'][:-1]  # remove NULL string terminator
-                if all_shares[i]['shi1_type'] & dcerpc_v5_srvs.STYPE_SPECIAL:
-                    # skip administrative shares such as ADMIN$, IPC$, C$, etc
-                    continue
-
+        out = []
+        for i in range(len(all_shares)):
+            share = all_shares[i]['shi1_netname'][:-1]  # remove NULL string terminator
+            if all_shares[i]['shi1_type'] & dcerpc_v5_srvs.STYPE_SPECIAL:
+                # skip administrative shares such as ADMIN$, IPC$, C$, etc
+                continue
+                
+            if check_access:
                 # connect to the share so we can read the user's access rights
                 tid = self.smb_client.connectTree(share)
                 access_flags = self.smb_client._SMBConnection._Session['TreeConnectTable'][share]['MaximalAccess']
@@ -43,8 +44,8 @@ class SMBHandler:
                 # check if we have access
                 if _check_access(access_flags):
                     out.append(share)
-        else:
-            out = [x['shi1_netname'][:-1] for x in all_shares]
+            else:
+                out.append(share)
 
         return out
 

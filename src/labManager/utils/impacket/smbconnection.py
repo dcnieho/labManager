@@ -990,6 +990,6 @@ class SessionError(Exception):
 
     def __str__( self ):
         if self.error in nt_errors.ERROR_MESSAGES:
-            return 'SMB SessionError: %s(%s)' % (nt_errors.ERROR_MESSAGES[self.error])
+            return 'SMB SessionError: %s (%s)' % (nt_errors.ERROR_MESSAGES[self.error])
         else:
             return 'SMB SessionError: 0x%x' % self.error

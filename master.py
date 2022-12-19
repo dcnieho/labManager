@@ -68,9 +68,14 @@ async def main():
     if False:
         from getpass import getpass
         password = getpass(f'Password for {domain}\{username}: ')
-        smb = network.smb.SMBHandler(smb_server,username,domain,password)
-        shares = smb.list_shares()
-        smb.close()
+        try:
+            smb = network.smb.SMBHandler(smb_server,username,domain,password)
+        except network.smb.SessionError as exc:
+            print(f'Error connecting as {domain}\{username} to {smb_server}: {exc}')
+            shares = []
+        else:
+            shares = smb.list_shares()
+            smb.close()
         print(shares)
 
     # 2. 
