@@ -65,12 +65,12 @@ async def start_client(id):
 
 async def main():
     # 1. check user credentials, and list shares (projects) they have access to
-    if False:
+    if True:
         from getpass import getpass
         password = getpass(f'Password for {domain}\{username}: ')
         try:
             smb = network.smb.SMBHandler(smb_server,username,domain,password)
-        except network.smb.SessionError as exc:
+        except (OSError, network.smb.SessionError) as exc:
             print(f'Error connecting as {domain}\{username} to {smb_server}: {exc}')
             shares = []
         else:
