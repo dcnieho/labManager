@@ -4,7 +4,7 @@ import traceback
 from typing import List, Tuple
 
 from .. import async_thread, structs
-from .  import comms, constants, keepalive
+from .  import comms, keepalive, message
 
 class Server:
     def __init__(self):
@@ -35,23 +35,25 @@ class Server:
         self.client_list.append(me)
 
         # request info about client
-        await comms.send_typed_message(writer, constants.Message.IDENTIFY)
+        await comms.typed_send(writer, message.Message.IDENTIFY)
     
         # process incoming messages
         type = None
-        while type != constants.Message.QUIT:
+        while type != message.Message.QUIT:
             try:
-                type, message = await comms.receive_typed_message(reader)
+                type, msg = await comms.typed_receive(reader)
                 if not type:
                     # connection broken, close
                     break
 
                 match type:
-                    case constants.Message.IDENTIFY:
-                        me.name = message
-                        print(f'setting name for {me.host}:{me.port} to: {message}')
-                    case constants.Message.INFO:
-                        print(f'{me.host}:{me.port}: {message}')
+                    case message.Message.IDENTIFY:
+                        me.name = msg
+                        print(f'setting name for {me.host}:{me.port} to: {msg}')
+                    case message.Message.INFO:
+                        print(f'{me.host}:{me.port}: {msg}')
+                    case _:
+                        print(f'got unhandled type {type.value}, message: {msg}')
  
             except Exception as exc:
                 tb_lines = traceback.format_exception(exc)
@@ -63,6 +65,6 @@ class Server:
         # remove from client list
         self.client_list = [c for c in self.client_list if c.name!=me.name]
 
-    async def broadcast(self, type: constants.Message, message: str=''):
+    async def broadcast(self, type: message.Message, message: str=''):
         for c in self.client_list:
-            await comms.send_typed_message(c.writer, type, message)
+            await comms.typed_send(c.writer, type, message)

@@ -99,10 +99,10 @@
     <Compile Include="src\labManager\utils\impacket\version.py" />
     <Compile Include="src\labManager\utils\impacket\winregistry.py" />
     <Compile Include="src\labManager\utils\impacket\__init__.py" />
-    <Compile Include="src\labManager\utils\network\constants.py" />
+    <Compile Include="src\labManager\utils\network\message.py" />
     <Compile Include="src\labManager\utils\network\ifs.py" />
     <Compile Include="src\labManager\utils\network\keepalive.py" />
-    <Compile Include="src\labManager\utils\network\manager.py" />
+    <Compile Include="src\labManager\utils\network\master.py" />
     <Compile Include="src\labManager\utils\network\comms.py" />
     <Compile Include="src\labManager\utils\network\smb.py" />
     <Compile Include="src\labManager\utils\network\ssdp.py" />

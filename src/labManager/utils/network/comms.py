@@ -2,45 +2,45 @@ import asyncio
 import struct
 from typing import Tuple
 
-from . import constants
+from . import message
 
 
-async def read_with_length(reader: asyncio.streams.StreamReader) -> str:
+async def _read_with_length(reader: asyncio.streams.StreamReader) -> str:
     # protocol: first the size of a message is sent so 
     # receiver knows what to expect. Then the message itself
     # is sent
     try:
         try:
-            msg_size = await reader.readexactly(constants.SIZE_MESSAGE_SIZE)
+            msg_size = await reader.readexactly(message.SIZE_BYTES)
         except asyncio.IncompleteReadError:
             # connection broken
             return None
-        msg_size = struct.unpack(constants.SIZE_MESSAGE_FMT, msg_size)[0]
+        msg_size = struct.unpack(message.SIZE_FMT, msg_size)[0]
 
-        buf = ''
+        msg = ''
         left_over = msg_size
         while left_over>0:
             received = (await reader.read(min(4096, left_over))).decode('utf8')
             if not received:
                 # connection broken
                 return ''
-            buf += received
-            left_over = msg_size-len(buf)
-        return buf
+            msg += received
+            left_over = msg_size-len(msg)
+        return msg
 
     except ConnectionError:
         return ''
 
-async def send_with_length(writer: asyncio.streams.StreamWriter, message: str) -> bool:
+async def _send_with_length(writer: asyncio.streams.StreamWriter, msg: str) -> bool:
     try:
-        to_send = message.encode('utf8')
+        msg = msg.encode('utf8')
 
         # first notify end point of message length
-        writer.write(struct.pack(constants.SIZE_MESSAGE_FMT, len(to_send)))
+        writer.write(struct.pack(message.SIZE_FMT, len(msg)))
 
         # then send message, if anything
-        if to_send:
-            writer.write(to_send)
+        if msg:
+            writer.write(msg)
 
         await writer.drain()
         return True
@@ -48,15 +48,19 @@ async def send_with_length(writer: asyncio.streams.StreamWriter, message: str) -
         return False
     
 
-async def receive_typed_message(reader: asyncio.streams.StreamReader) -> Tuple[constants.Message,str]:
-    type    = await read_with_length(reader)
+async def typed_receive(reader: asyncio.streams.StreamReader) -> Tuple[message.Message,str]:
+    type    = await _read_with_length(reader)
     if not type:
         return None,''
+    type = message.Message.get(type)
 
-    message = await read_with_length(reader)
+    msg = await _read_with_length(reader)
+    msg = message.parse(type, msg)
     
-    return constants.Message.get(type), message
+    return type, msg
 
-async def send_typed_message(writer: asyncio.streams.StreamWriter, type: constants.Message, message: str=''):
-    await send_with_length(writer,type.value)
-    await send_with_length(writer,message)
+async def typed_send(writer: asyncio.streams.StreamWriter, type: message.Message, msg: str=''):
+    await _send_with_length(writer, type.value)
+
+    msg = message.prepare(type, msg)
+    await _send_with_length(writer, msg)

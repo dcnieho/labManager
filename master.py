@@ -11,26 +11,27 @@ if not src_path in sys.path:
     
 from labManager.utils import async_thread, structs, network
 
-smb_server   = "srv2.humlab.lu.se"
-domain   = "UW"
-username = "huml-dkn"
 
+
+smb_server  = "srv2.humlab.lu.se"
+domain      = "UW"
+username    = "huml-dkn"
 
 
 async def client_loop(id, reader, writer):
     type = None
-    while type != network.constants.Message.QUIT:
+    while type != network.message.Message.QUIT:
         try:
-            type, message = await network.comms.receive_typed_message(reader)
+            type, msg = await network.comms.typed_receive(reader)
             if not type:
                 # connection broken, close
                 break
 
             match type:
-                case network.constants.Message.IDENTIFY:
-                    await network.comms.send_typed_message(writer, network.constants.Message.IDENTIFY, f'client{id}')
-                case network.constants.Message.INFO:
-                    print(f'client {id} received: {message}')
+                case network.message.Message.IDENTIFY:
+                    await network.comms.typed_send(writer, network.message.Message.IDENTIFY, f'client{id}')
+                case network.message.Message.INFO:
+                    print(f'client {id} received: {msg}')
  
         except Exception as exc:
             tb_lines = traceback.format_exception(exc)
@@ -83,7 +84,7 @@ async def main():
     interfaces = sorted(network.ifs.get_ifaces('192.168.1.0/24'))
     ## start servers
     # start server
-    server = network.manager.Server()
+    server = network.master.Server()
     async_thread.wait(server.start((interfaces[0], 0)))
     ip,port = server.address[0]
 
@@ -107,8 +108,8 @@ async def main():
     aas = [f.result() for f in concurrent.futures.as_completed(aas)]
 
     # send some messages to clients
-    async_thread.run(network.comms.send_typed_message(server.client_list[1].writer, network.constants.Message.INFO, 'sup'))
-    async_thread.run(server.broadcast(network.constants.Message.QUIT))
+    async_thread.run(network.comms.typed_send(server.client_list[1].writer, network.message.Message.INFO, 'sup'))
+    async_thread.run(server.broadcast(network.message.Message.QUIT))
         
 
     # wait for clients to finish
