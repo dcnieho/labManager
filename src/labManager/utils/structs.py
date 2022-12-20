@@ -36,10 +36,12 @@ class AutoNameDash(Enum):
         return name.lower().strip("_").replace("_", "-")
 
 
+_client_id_provider = CounterContext()
 @dataclass
 class Client:
     writer  : asyncio.streams.StreamWriter
     
+    id      : int = None
     host    : str = None
     port    : int = None
     name    : str = None
@@ -47,6 +49,10 @@ class Client:
     tasks   : List['labManager.utils.task.Task'] = field(default_factory=lambda: [])
 
     def __post_init__(self):
+        global _client_id_provider
+        with _client_id_provider:
+            self.id = _client_id_provider.get_count()
+
         self.host,self.port = self.writer.get_extra_info('peername')
 
     def __repr__(self):
