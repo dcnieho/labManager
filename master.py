@@ -9,7 +9,7 @@ src_path = str(pathlib.Path(__file__).parent/"src")
 if not src_path in sys.path:
     sys.path.append(src_path)
     
-from labManager.utils import async_thread, structs, network
+from labManager.utils import async_thread, network, structs, task
 
 
 
@@ -32,6 +32,10 @@ async def client_loop(id, reader, writer):
                     await network.comms.typed_send(writer, network.message.Message.IDENTIFY, f'client{id}')
                 case network.message.Message.INFO:
                     print(f'client {id} received: {msg}')
+
+                case network.message.Message.TASK_CREATE:
+                    async_thread.run(task.execute(msg['payload'],writer))
+
  
         except Exception as exc:
             tb_lines = traceback.format_exception(exc)
@@ -109,6 +113,9 @@ async def main():
 
     # send some messages to clients
     async_thread.run(network.comms.typed_send(server.client_list[1].writer, network.message.Message.INFO, 'sup'))
+    async_thread.run(network.comms.typed_send(server.client_list[1].writer, network.message.Message.TASK_CREATE, {'payload': r"C:\Users\huml-dkn\Downloads\ffmpeg-5.1.2-full_build-shared\bin\ffprobe.exe -i C:\dat\projects\sean_subpixel_cr\eye_videos\lossless\irisAccuracy2022_take2_ss01\cam1_R001.mp4"}))
+
+    await asyncio.sleep(1)
     async_thread.run(server.broadcast(network.message.Message.QUIT))
         
 

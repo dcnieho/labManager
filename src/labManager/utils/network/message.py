@@ -4,33 +4,16 @@ import pathlib
 from enum import Enum, auto
 from typing import Dict
 
-from .. import structs
+from .. import enum_helper, structs, task
 
 SIZE_FMT    = '!I'
 SIZE_BYTES  = struct.calcsize(SIZE_FMT)
 
-class AutoMessageNaming(Enum):
-    def _generate_next_value_(name, start, count, last_values):
-        return name.lower().strip("_").replace("_", "-")
 
     
-def enum_get(name: str):
-    def decorator_get(cls):
-        def get(value: str):
-            if isinstance(value, cls):
-                return value
-
-            if isinstance(value, str) and value in [e.value for e in cls]:
-                return cls(value)
-            else:
-                raise ValueError(f"The provided input should be a string identifying one of the known {name}.\nUnderstood values: {[e.value for e in cls]}.\nGot: {value}")
-
-        setattr(cls, 'get', get)
-        return cls
-    return decorator_get
     
-@enum_get('messages')
-class Message(AutoMessageNaming):
+@enum_helper.get('messages')
+class Message(structs.AutoNameDash):
     QUIT        = auto()
     IDENTIFY    = auto()
     INFO        = auto()
@@ -39,11 +22,11 @@ class Message(AutoMessageNaming):
     # master -> client
     TASK_CREATE = auto()   # {ID, TYPE, PAYLOAD}
     # client -> master
-    TASK_OUTPUT = auto()   # task (stdout or stderr) output: {ID, output}
-    TASK_UPDATE = auto()   # to send task status update (started running, errored, finished). Latter two include return code: {ID, status}
+    TASK_OUTPUT = auto()   # task (stdout or stderr) output: {ID, stream_type, output}
+    TASK_UPDATE = auto()   # to send task status update (started running, errored, finished). Latter two include return code: {ID, status, Optional[return_code]}
 
-@enum_get('message types')
-class Type(AutoMessageNaming):
+@enum_helper.get('message types')
+class Type(structs.AutoNameDash):
     SIMPLE      = auto()
     JSON        = auto()
 
@@ -60,8 +43,8 @@ type_map = {
 # support for sending some custom types via json
 class CustomTypeEncoder(json.JSONEncoder):
     def default(self, obj):
-        if type(obj) in [structs.TaskType, structs.Status]:
-            return {"__enum__": f'structs_{obj}'}
+        if type(obj) in [task.Type, task.Status, task.StreamType]:
+            return {"__enum__": f'task_{obj}'}
         elif isinstance(obj, pathlib.Path):
             return {"__pathlib.Path__": str(obj)}
         return json.JSONEncoder.default(self, obj)
@@ -70,10 +53,12 @@ def json_reconstitute(d):
     if "__enum__" in d:
         name, member = d["__enum__"].split(".")
         match name:
-            case 'structs_TaskType':
-                return getattr(structs.TaskType, member)
-            case 'structs_Status':
-                return getattr(structs.Status, member)
+            case 'task_Type':
+                return task.Type.get(member)
+            case 'task_Status':
+                return task.Status.get(member)
+            case 'task_StreamType':
+                return task.StreamType.get(member)
             case other:
                 raise ValueError(f'unknown enum "{other}"')
     elif "__pathlib.Path__" in d:
