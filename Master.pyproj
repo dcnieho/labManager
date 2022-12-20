@@ -100,6 +100,7 @@
     <Compile Include="src\labManager\utils\impacket\winregistry.py" />
     <Compile Include="src\labManager\utils\impacket\__init__.py" />
     <Compile Include="src\labManager\utils\enum_helper.py" />
+    <Compile Include="src\labManager\utils\network\client.py" />
     <Compile Include="src\labManager\utils\network\message.py" />
     <Compile Include="src\labManager\utils\network\ifs.py" />
     <Compile Include="src\labManager\utils\network\keepalive.py" />

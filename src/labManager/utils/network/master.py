@@ -13,7 +13,7 @@ class Server:
 
         self.task_groups: Dict[int, task.TaskGroup] = {}
 
-        self._server_fut: concurrent.futures.Future = None
+        self._running_fut: concurrent.futures.Future = None
         
     def add_client(self, client: structs.Client):
         self.clients[client.id] = client
@@ -29,11 +29,11 @@ class Server:
             addr[0], addr[1] = addr[1], addr[0]
         self.address = addr
 
-        self._server_fut = async_thread.run(self.server.serve_forever())
+        self._running_fut = async_thread.run(self.server.serve_forever())
 
     async def stop(self):
         # cancelling the serve_forever coroutine stops the server
-        self._server_fut.cancel()
+        self._running_fut.cancel()
         await self.server.wait_closed()
 
     async def handle_client(self, reader: asyncio.streams.StreamReader, writer: asyncio.streams.StreamWriter):

@@ -1,7 +1,5 @@
 import asyncio
-import socket
 import concurrent
-import traceback
 
 import sys
 import pathlib
@@ -16,57 +14,8 @@ from labManager.utils import async_thread, network, structs, task
 smb_server  = "srv2.humlab.lu.se"
 domain      = "UW"
 username    = "huml-dkn"
+my_network  = '192.168.1.0/24'
 
-
-async def client_loop(id, reader, writer):
-    type = None
-    while type != network.message.Message.QUIT:
-        try:
-            type, msg = await network.comms.typed_receive(reader)
-            if not type:
-                # connection broken, close
-                break
-
-            match type:
-                case network.message.Message.IDENTIFY:
-                    await network.comms.typed_send(writer, network.message.Message.IDENTIFY, f'client{id}')
-                case network.message.Message.INFO:
-                    print(f'client {id} received: {msg}')
-
-                case network.message.Message.TASK_CREATE:
-                    async_thread.run(task.execute(msg['task_id'],msg['type'],msg['payload'],writer))
-
- 
-        except Exception as exc:
-            tb_lines = traceback.format_exception(exc)
-            print("".join(tb_lines))
-            continue
-
-    writer.close()
-
-async def start_client(id):
-    # 1. get interfaces we can work with
-    interfaces = sorted(network.ifs.get_ifaces('192.168.1.0/24'))
-
-    # 2. discover master
-    # start SSDP client
-    ssdp_client = network.ssdp.Client(address=interfaces[0], device_type=structs.SSDP_DEVICE_TYPE)
-    await ssdp_client.start()
-    # send search request and wait for reply
-    responses = await ssdp_client.do_discovery()
-    # stop SSDP client
-    async_thread.run(ssdp_client.stop())
-    # get ip and port for master from advertisement
-    ip, _, port = responses[0].headers['HOST'].rpartition(':')
-    port = int(port) # convert to integer
-
-    # 3. connect to master
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.bind((interfaces[0],0))
-    await async_thread.loop.sock_connect(sock, (ip, port))
-    reader, writer = await asyncio.open_connection(sock=sock)
-
-    return async_thread.run(client_loop(id, reader, writer))
 
 async def main():
     # 1. check user credentials, and list shares (projects) they have access to
@@ -102,11 +51,8 @@ async def main():
     async_thread.wait(ssdp_server.start())
     
     # start clients
-    aas = [
-        async_thread.run(start_client(1)),
-        async_thread.run(start_client(2)),
-        async_thread.run(start_client(3))
-    ]
+    clients = [network.client.Client(my_network) for _ in range(3)]
+    aas     = [async_thread.run(c.start()) for c in clients]
 
     # wait till clients have started, get futures to their processing loop tasks
     aas = [f.result() for f in concurrent.futures.as_completed(aas)]

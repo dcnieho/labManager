@@ -1,4 +1,5 @@
 
+from . import client
 from . import comms
 from . import ifs
 from . import keepalive
