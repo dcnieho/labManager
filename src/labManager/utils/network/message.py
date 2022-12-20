@@ -20,10 +20,10 @@ class Message(structs.AutoNameDash):
 
     ## tasks
     # master -> client
-    TASK_CREATE = auto()   # {ID, TYPE, PAYLOAD}
+    TASK_CREATE = auto()   # {task_id, type, payload}
     # client -> master
-    TASK_OUTPUT = auto()   # task (stdout or stderr) output: {ID, stream_type, output}
-    TASK_UPDATE = auto()   # to send task status update (started running, errored, finished). Latter two include return code: {ID, status, Optional[return_code]}
+    TASK_OUTPUT = auto()   # {task_id, stream_type, output}, task (stdout or stderr) output
+    TASK_UPDATE = auto()   # {task_id, status, Optional[return_code]}, task status update (started running, errored, finished). Latter two include return code
 
 @enum_helper.get('message types')
 class Type(structs.AutoNameDash):

@@ -3,8 +3,8 @@ import shlex
 import traceback
 import sys
 from enum import auto
-from dataclasses import dataclass
-from typing import Dict
+from dataclasses import dataclass, field
+from typing import Dict, List
 
 from . import async_thread, enum_helper, network, structs
 
@@ -34,6 +34,7 @@ class Task:
     id          : int = None
     status      : Status = Status.Not_started
 
+    client      : int = None
     task_group_id: int = None
 
     # when running, client starts sending these back as they become available:
@@ -52,11 +53,13 @@ class Task:
 _task_group_id_provider = structs.CounterContext()
 @dataclass
 class TaskGroup:
-    task_refs   : Dict[int, Task]   # references to tasks belonging to this group, indexed by client name
     type        : Type
     payload     : str               # command, batch file contents, python script contents
     id          : int = None
-
+    
+    # references to tasks belonging to this group, indexed by client name
+    task_refs   : Dict[int, Task]  = field(default_factory=lambda: {})
+    
     num_finished: int = 0
     status      : Status = Status.Not_started   # running when any task has started, error when any has errored, finished when all finished successfully
 
@@ -81,7 +84,7 @@ async def _read_stream(stream, stream_type: StreamType, writer, id):
             await network.comms.typed_send(
                 writer,
                 network.message.Message.TASK_OUTPUT,
-                {'id': id, 'stream_type': stream_type, 'output': line.decode('utf8')}
+                {'task_id': id, 'stream_type': stream_type, 'output': line.decode('utf8')}
             )
         else:
             break
@@ -106,13 +109,13 @@ async def _stream_subprocess(id, use_shell, cmd, writer):
         await network.comms.typed_send(
             writer,
             network.message.Message.TASK_OUTPUT,
-            {'id': id, 'stream_type': StreamType.STDERR, 'output': "".join(tb_lines)}
+            {'task_id': id, 'stream_type': StreamType.STDERR, 'output': "".join(tb_lines)}
         )
         # send error status
         await network.comms.typed_send(
             writer,
             network.message.Message.TASK_UPDATE,
-            {'id': id, 'status': Status.Errored}
+            {'task_id': id, 'status': Status.Errored}
         )
         # we're done
         return None
@@ -121,7 +124,7 @@ async def _stream_subprocess(id, use_shell, cmd, writer):
     await network.comms.typed_send(
         writer,
         network.message.Message.TASK_UPDATE,
-        {'id': id, 'status': Status.Running}
+        {'task_id': id, 'status': Status.Running}
     )
 
     # listen to output streams and forward to master
@@ -136,7 +139,7 @@ async def _stream_subprocess(id, use_shell, cmd, writer):
         writer,
         network.message.Message.TASK_UPDATE,
         {
-            'id': id,
+            'task_id': id,
             'status': Status.Finished if return_code==0 else Status.Errored,
             'return_code': return_code
         }
@@ -185,17 +188,25 @@ async def execute(id: int, type: Type, cmd: str, writer):
     )
     return rc
 
-def create(type: Type, payload: str) -> Task:
-    task = Task(type, payload)
-    return task
-
 async def send(task: Task, writer):
     await network.comms.typed_send(
         writer,
         network.message.Message.TASK_CREATE,
         {
-            'id': 1,
+            'task_id': task.id,
             'type': task.type,
             'payload': task.payload
         }
     )
+
+def create_group(type: Type, payload: str, clients: List[int]) -> TaskGroup:
+    task_group = TaskGroup(type, payload)
+
+    # make individual tasks
+    for c in clients:
+        # create task
+        task = Task(type, payload, client=c, task_group_id=task_group.id)
+        # add to task group
+        task_group.task_refs[c] = task
+
+    return task_group

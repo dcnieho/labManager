@@ -1,7 +1,7 @@
 import asyncio
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import List
+from typing import Dict
 
 
 SSDP_DEVICE_TYPE = "urn:schemas-upnp-org:device:labManager"
@@ -46,7 +46,7 @@ class Client:
     port    : int = None
     name    : str = None
 
-    tasks   : List['labManager.utils.task.Task'] = field(default_factory=lambda: [])
+    tasks   : Dict[int, 'labManager.utils.task.Task'] = field(default_factory=lambda: {})
 
     def __post_init__(self):
         global _client_id_provider

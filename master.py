@@ -34,7 +34,7 @@ async def client_loop(id, reader, writer):
                     print(f'client {id} received: {msg}')
 
                 case network.message.Message.TASK_CREATE:
-                    async_thread.run(task.execute(msg['id'],msg['type'],msg['payload'],writer))
+                    async_thread.run(task.execute(msg['task_id'],msg['type'],msg['payload'],writer))
 
  
         except Exception as exc:
@@ -113,13 +113,7 @@ async def main():
 
     # send some messages to clients
     async_thread.run(network.comms.typed_send(server.clients[1].writer, network.message.Message.INFO, 'sup'))
-    #mytask = task.create(task.Type.Shell_command, r"echo test")
-    mytask = task.create(task.Type.Process_exec, r"ping localhost")
-    async_thread.run(task.send(mytask, server.clients[1].writer))
-    #mytask = task.create(task.Type.Python_module, r"pip list")
-    #async_thread.run(task.send(mytask, server.clients[1].writer))
-    #mytask = task.create(task.Type.Python_statement, r"import math;print(math.sin(1))")
-    #async_thread.run(task.send(mytask, server.clients[1].writer))
+    async_thread.run(server.run_task(task.Type.Process_exec, r"ping localhost", '*'))
 
     await asyncio.sleep(5)
     async_thread.run(server.broadcast(network.message.Message.QUIT))
