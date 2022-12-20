@@ -1,5 +1,4 @@
 import asyncio
-import concurrent
 import traceback
 from typing import Dict, List, Tuple
 
@@ -12,8 +11,6 @@ class Server:
         self.address = None
 
         self.task_groups: Dict[int, task.TaskGroup] = {}
-
-        self._running_fut: concurrent.futures.Future = None
         
     def add_client(self, client: structs.Client):
         self.clients[client.id] = client
@@ -21,22 +18,22 @@ class Server:
     def remove_client(self, client: structs.Client):
         del self.clients[client.id]
 
-    async def start(self, address: Tuple[str,int]):
-        self.server = await asyncio.start_server(self.handle_client, *address)
+    async def start(self, local_addr: Tuple[str,int]):
+        self.server = await asyncio.start_server(self._handle_client, *local_addr)
 
         addr = [sock.getsockname() for sock in self.server.sockets]
         if len(addr[0])!=2:
             addr[0], addr[1] = addr[1], addr[0]
         self.address = addr
 
-        self._running_fut = async_thread.run(self.server.serve_forever())
+        # should already have started serving in asyncio.start_server, but to be save and sure:
+        await self.server.start_serving()
 
     async def stop(self):
-        # cancelling the serve_forever coroutine stops the server
-        self._running_fut.cancel()
+        self.server.close()
         await self.server.wait_closed()
 
-    async def handle_client(self, reader: asyncio.streams.StreamReader, writer: asyncio.streams.StreamWriter):
+    async def _handle_client(self, reader: asyncio.streams.StreamReader, writer: asyncio.streams.StreamWriter):
         keepalive.set(writer.get_extra_info('socket'))
 
         me = structs.Client(writer)
