@@ -1,6 +1,7 @@
 import threading
 import asyncio
 import typing
+import time
 
 loop: asyncio.BaseEventLoop = None
 thread: threading.Thread = None
@@ -41,7 +42,12 @@ def run(coroutine: typing.Coroutine):
 
 
 def wait(coroutine: typing.Coroutine):
-    return run(coroutine).result()
+    future = run(coroutine)
+    while future.running():
+        time.sleep(0.1)
+    if exception := future.exception():
+        raise exception
+    return future.result
 
 
 # Example usage
