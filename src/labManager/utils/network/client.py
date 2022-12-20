@@ -1,6 +1,4 @@
 import asyncio
-import concurrent
-import socket
 import traceback
 import platform
 
@@ -13,7 +11,7 @@ class Client:
         self.address = None
         self.name    = platform.node()
 
-        self._running_fut: concurrent.futures.Future = None
+        self._task: asyncio.Task = None
 
     async def start(self):
         # 1. get interfaces we can work with
@@ -37,9 +35,15 @@ class Client:
         keepalive.set(self.writer.get_extra_info('socket'))
         self.address = self.writer.get_extra_info('sockname')
 
-        return async_thread.run(self._loop())
+        # run connection handler
+        self._task = asyncio.create_task(self._handle_master())
 
-    async def _loop(self):
+    async def stop(self):
+        self.writer.close()
+        await self.writer.wait_closed()
+        self._task = None
+
+    async def _handle_master(self):
         type = None
         while type != message.Message.QUIT:
             try:

@@ -52,10 +52,9 @@ async def main():
     
     # start clients
     clients = [network.client.Client(my_network) for _ in range(3)]
-    aas     = [async_thread.run(c.start()) for c in clients]
-
-    # wait till clients have started, get futures to their processing loop tasks
-    aas = [f.result() for f in concurrent.futures.as_completed(aas)]
+    c_futs  = [async_thread.run(c.start()) for c in clients]
+    # wait till clients have started
+    [f.result() for f in concurrent.futures.as_completed(c_futs)]
 
     # send some messages to clients
     async_thread.run(network.comms.typed_send(server.clients[1].writer, network.message.Message.INFO, 'sup'))
@@ -66,8 +65,8 @@ async def main():
         
 
     # wait for clients to finish
-    for a in aas:
-        a.result()
+    c_futs = [async_thread.run(c.stop()) for c in clients]
+    [f.result() for f in concurrent.futures.as_completed(c_futs)]
         
     # stop servers
     async_thread.run(ssdp_server.stop()).result()
