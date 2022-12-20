@@ -1,5 +1,7 @@
 import asyncio
 import shlex
+import traceback
+import sys
 from enum import auto
 from dataclasses import dataclass
 from typing import Dict
@@ -24,7 +26,7 @@ class Status(structs.AutoNameSpace):
     Errored         = auto()
 statuses = [x.value for x in Status]
 
-_task_id_provider: structs.CounterContext = structs.CounterContext()
+_task_id_provider = structs.CounterContext()
 @dataclass
 class Task:
     type        : Type
@@ -47,7 +49,7 @@ class Task:
         with _task_id_provider:
             self.id = _task_id_provider.get_count()
             
-_task_group_id_provider: structs.CounterContext = structs.CounterContext()
+_task_group_id_provider = structs.CounterContext()
 @dataclass
 class TaskGroup:
     task_refs   : Dict[int, Task]   # references to tasks belonging to this group, indexed by client name
@@ -65,66 +67,135 @@ class TaskGroup:
         with _task_group_id_provider:
             self.id = _task_group_id_provider.get_count()
 
-
 @enum_helper.get('stream types')
 class StreamType(structs.AutoNameDash):
     STDOUT      = auto()
     STDERR      = auto()
 
 
-async def _read_stream(stream, stream_type: StreamType, writer):  
+
+async def _read_stream(stream, stream_type: StreamType, writer, id):  
     while True:
-        line = await stream.readline()
+        line = await stream.read(20)
         if line:
             await network.comms.typed_send(
                 writer,
                 network.message.Message.TASK_OUTPUT,
-                {'stream_type':stream_type, 'output': line.decode('utf8')}
+                {'id': id, 'stream_type': stream_type, 'output': line.decode('utf8')}
             )
         else:
             break
 
-async def _stream_subprocess(cmd, writer):  
-    cmd_list = shlex.split(cmd, posix=False)
-    proc = await asyncio.create_subprocess_exec(
-        *cmd_list,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
-    )
+async def _stream_subprocess(id, use_shell, cmd, writer):
+    try:
+        if use_shell:
+            proc = await asyncio.create_subprocess_shell(
+                cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+        else:
+            proc = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+    except Exception as exc:
+        tb_lines = traceback.format_exception(exc)
+        # send error text
+        await network.comms.typed_send(
+            writer,
+            network.message.Message.TASK_OUTPUT,
+            {'id': id, 'stream_type': StreamType.STDERR, 'output': "".join(tb_lines)}
+        )
+        # send error status
+        await network.comms.typed_send(
+            writer,
+            network.message.Message.TASK_UPDATE,
+            {'id': id, 'status': Status.Errored}
+        )
+        # we're done
+        return None
+    
+    # send that we're running
     await network.comms.typed_send(
         writer,
         network.message.Message.TASK_UPDATE,
-        {'status': Status.Running}
+        {'id': id, 'status': Status.Running}
     )
 
+    # listen to output streams and forward to master
     await asyncio.wait([
-        asyncio.create_task(_read_stream(proc.stdout, StreamType.STDOUT, writer)),
-        asyncio.create_task(_read_stream(proc.stderr, StreamType.STDERR, writer))
+        asyncio.create_task(_read_stream(proc.stdout, StreamType.STDOUT, writer, id)),
+        asyncio.create_task(_read_stream(proc.stderr, StreamType.STDERR, writer, id))
     ])
 
+    # wait for return code to become available and forward to master
     return_code = await proc.wait()
     await network.comms.typed_send(
         writer,
         network.message.Message.TASK_UPDATE,
-        {'status': Status.Finished, 'return_code': return_code}
+        {
+            'id': id,
+            'status': Status.Finished if return_code==0 else Status.Errored,
+            'return_code': return_code
+        }
     )
 
     return return_code
 
 
-async def execute(cmd, writer):
+async def execute(id: int, type: Type, cmd: str, writer):
+    # setup executor
+    match type:
+        case Type.Shell_command:
+            use_shell = True
+        case _:
+            use_shell = False
+
+    # build command line
+    match type:
+        case Type.Shell_command:
+            # run command in shell
+            pass    # nothing to do
+        case Type.Process_exec:
+            # run executable
+            cmd = shlex.split(cmd, posix=False)
+        case Type.Batch_file:
+            # invoke batch file
+            pass    # TODO
+        case Type.Python_statement:
+            # sys.executable + '-c'
+            cmd = [sys.executable, '-c'] + shlex.split(cmd, posix=False)
+        case Type.Python_module:
+            # sys.executable + '-m'
+            cmd = [sys.executable, '-m'] + shlex.split(cmd, posix=False)
+        case Type.Python_script:
+            # sys.executable
+            pass    # TODO
+        
+    # execute the command
     rc = async_thread.run(
         _stream_subprocess(
+            id,
+            use_shell,
             cmd,
             writer
         )
     )
     return rc
 
-if __name__ == '__main__':  
-    async_thread.setup()
-    print(execute(
-        r"C:\Users\huml-dkn\Downloads\ffmpeg-5.1.2-full_build-shared\bin\ffprobe.exe -i C:\dat\projects\sean_subpixel_cr\eye_videos\lossless\irisAccuracy2022_take2_ss01\cam1_R001.mp4",
-        lambda x: print("STDOUT: %s" % x),
-        lambda x: print("STDERR: %s" % x),
-    ))
+def create(type: Type, payload: str) -> Task:
+    task = Task(type, payload)
+    return task
+
+async def send(task: Task, writer):
+    await network.comms.typed_send(
+        writer,
+        network.message.Message.TASK_CREATE,
+        {
+            'id': 1,
+            'type': task.type,
+            'payload': task.payload
+        }
+    )

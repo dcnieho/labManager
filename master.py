@@ -34,7 +34,7 @@ async def client_loop(id, reader, writer):
                     print(f'client {id} received: {msg}')
 
                 case network.message.Message.TASK_CREATE:
-                    async_thread.run(task.execute(msg['payload'],writer))
+                    async_thread.run(task.execute(msg['id'],msg['type'],msg['payload'],writer))
 
  
         except Exception as exc:
@@ -112,10 +112,16 @@ async def main():
     aas = [f.result() for f in concurrent.futures.as_completed(aas)]
 
     # send some messages to clients
-    async_thread.run(network.comms.typed_send(server.client_list[1].writer, network.message.Message.INFO, 'sup'))
-    async_thread.run(network.comms.typed_send(server.client_list[1].writer, network.message.Message.TASK_CREATE, {'payload': r"C:\Users\huml-dkn\Downloads\ffmpeg-5.1.2-full_build-shared\bin\ffprobe.exe -i C:\dat\projects\sean_subpixel_cr\eye_videos\lossless\irisAccuracy2022_take2_ss01\cam1_R001.mp4"}))
+    async_thread.run(network.comms.typed_send(server.clients[1].writer, network.message.Message.INFO, 'sup'))
+    #mytask = task.create(task.Type.Shell_command, r"echo test")
+    mytask = task.create(task.Type.Process_exec, r"ping localhost")
+    async_thread.run(task.send(mytask, server.clients[1].writer))
+    #mytask = task.create(task.Type.Python_module, r"pip list")
+    #async_thread.run(task.send(mytask, server.clients[1].writer))
+    #mytask = task.create(task.Type.Python_statement, r"import math;print(math.sin(1))")
+    #async_thread.run(task.send(mytask, server.clients[1].writer))
 
-    await asyncio.sleep(1)
+    await asyncio.sleep(5)
     async_thread.run(server.broadcast(network.message.Message.QUIT))
         
 
