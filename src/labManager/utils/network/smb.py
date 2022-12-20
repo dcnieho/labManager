@@ -50,7 +50,8 @@ class SMBHandler:
         return out
 
     def close(self):
-        self.smb_client.close()
+        if self.smb_client:
+            self.smb_client.close()
 
     def __del__(self):
         self.close()
