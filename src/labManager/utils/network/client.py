@@ -32,12 +32,10 @@ class Client:
         port = int(port) # convert to integer
 
         # 3. found master, connect to it
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.bind((interfaces[0],0))
-        keepalive.set(sock)
-        await async_thread.loop.sock_connect(sock, (ip, port))
-        self.reader, self.writer = await asyncio.open_connection(sock=sock)
-        self.address = sock.getsockname()
+        self.reader, self.writer = await asyncio.open_connection(
+            ip, port, local_addr=(interfaces[0],0))
+        keepalive.set(self.writer.get_extra_info('socket'))
+        self.address = self.writer.get_extra_info('sockname')
 
         return async_thread.run(self._loop())
 
@@ -54,7 +52,7 @@ class Client:
                     case message.Message.IDENTIFY:
                         await comms.typed_send(self.writer, message.Message.IDENTIFY, self.name)
                     case message.Message.INFO:
-                        print(f'client {id} received: {msg}')
+                        print(f'client {self.name} received: {msg}')
 
                     case message.Message.TASK_CREATE:
                         async_thread.run(task.execute(msg['task_id'],msg['type'],msg['payload'], self.writer))
