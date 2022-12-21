@@ -411,12 +411,12 @@ class Client(Base):
             self._response_future = self.loop.create_future()
             return responses
 
-    async def do_discovery(self):
+    async def do_discovery(self, interval=10):
         # periodically send discovery request and wait until any replies received
         while True:
             await self.send_request()
 
-            done,_ = await asyncio.wait([self._response_future], timeout=10)
+            done,_ = await asyncio.wait([self._response_future], timeout=interval)
             if done:
                 # we have a response, return it
                 return self.get_responses()
