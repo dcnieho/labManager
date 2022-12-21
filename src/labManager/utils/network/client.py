@@ -44,6 +44,7 @@ class Client:
     async def stop(self, timeout=2):
         for t in self._task_list:
             t.cancel()
+        await asyncio.sleep(0)  # give cancellation a chance to be sent and processed
         self.writer.close()
         await asyncio.wait(
             self._task_list +

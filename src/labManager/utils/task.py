@@ -177,7 +177,9 @@ class Executor:
                 cmd,
                 writer
             )
-        except asyncio.CancelledError:
+        except asyncio.CancelledError as exc:
+            # notify master about cancellation and terminate task if necessary
+            await self._handle_error(exc, id, writer)
             if self._proc:
                 self._proc.terminate()
                 await self._proc.wait()
