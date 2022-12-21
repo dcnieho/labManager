@@ -64,7 +64,6 @@ class Server:
                                 mytask.stdout += msg['output']
                             case task.StreamType.STDERR:
                                 mytask.stderr += msg['output']
-                        pass
                     case message.Message.TASK_UPDATE:
                         mytask = me.tasks[msg['task_id']]
                         mytask.status = msg['status']
