@@ -1,7 +1,7 @@
 import asyncio
 import traceback
 import platform
-from typing import List
+from typing import List, Tuple
 
 from .. import structs, task
 from .  import comms, ifs, keepalive, message, ssdp
@@ -16,21 +16,24 @@ class Client:
 
         self._task_list: List[asyncio.Task] = []
 
-    async def start(self):
+    async def start(self, server_addr: Tuple[str,int] = None):
         # 1. get interfaces we can work with
         interfaces = sorted(ifs.get_ifaces(self.network))
 
-        # 2. discover master
-        # start SSDP client
-        ssdp_client = ssdp.Client(address=interfaces[0], device_type=structs.SSDP_DEVICE_TYPE)
-        await ssdp_client.start()
-        # send search request and wait for reply
-        responses = await ssdp_client.do_discovery()
-        # stop SSDP client
-        await ssdp_client.stop()
-        # get ip and port for master from advertisement
-        ip, _, port = responses[0].headers['HOST'].rpartition(':')
-        port = int(port) # convert to integer
+        # 2. discover master, if needed
+        if not server_addr:
+            # start SSDP client
+            ssdp_client = ssdp.Client(address=interfaces[0], device_type=structs.SSDP_DEVICE_TYPE)
+            await ssdp_client.start()
+            # send search request and wait for reply
+            responses = await ssdp_client.do_discovery()
+            # stop SSDP client
+            await ssdp_client.stop()
+            # get ip and port for master from advertisement
+            ip, _, port = responses[0].headers['HOST'].rpartition(':')
+            port = int(port) # convert to integer
+        else:
+            ip,port = server_addr
 
         # 3. found master, connect to it
         self.reader, self.writer = await asyncio.open_connection(
