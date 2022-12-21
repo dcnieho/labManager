@@ -34,7 +34,7 @@ async def main():
 
     # 2. 
     # get interfaces we can work with
-    interfaces = sorted(network.ifs.get_ifaces('192.168.1.0/24'))
+    interfaces = network.ifs.get_ifaces('192.168.1.0/24')
     ## start servers
     # start server
     server = network.master.Server()

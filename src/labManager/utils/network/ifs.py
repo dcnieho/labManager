@@ -14,4 +14,4 @@ def get_ifaces(ip_network='192.0.2.0/28'):
                 continue
             matches.append(addr.address)
 
-    return matches
+    return sorted(matches)
