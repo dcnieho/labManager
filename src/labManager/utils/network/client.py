@@ -1,6 +1,7 @@
 import asyncio
 import traceback
 import platform
+from typing import List
 
 from .. import async_thread, structs, task
 from .  import comms, ifs, keepalive, message, ssdp
@@ -12,6 +13,8 @@ class Client:
         self.name    = platform.node()
 
         self._handler_task: asyncio.Task = None
+
+        self._task_list: List[asyncio.Task] = []
 
     async def start(self):
         # 1. get interfaces we can work with
@@ -39,8 +42,11 @@ class Client:
         self._handler_task = asyncio.create_task(self._handle_master())
 
     async def stop(self, timeout=2):
+        for t in self._task_list:
+            t.cancel()
         self.writer.close()
         await asyncio.wait(
+            self._task_list +
             [
                 asyncio.create_task(self.writer.wait_closed()),
                 self._handler_task
@@ -64,8 +70,10 @@ class Client:
                         print(f'client {self.name} received: {msg}')
 
                     case message.Message.TASK_CREATE:
-                        asyncio.create_task(
-                            task.execute(msg['task_id'],msg['type'],msg['payload'], self.writer)
+                        self._task_list.append(
+                            asyncio.create_task(
+                                task.Executor().run(msg['task_id'],msg['type'],msg['payload'], self.writer)
+                            )
                         )
 
             except Exception as exc:
