@@ -109,19 +109,7 @@ class Executor:
                     stderr=asyncio.subprocess.PIPE,
                 )
         except Exception as exc:
-            tb_lines = traceback.format_exception(exc)
-            # send error text
-            await network.comms.typed_send(
-                writer,
-                network.message.Message.TASK_OUTPUT,
-                {'task_id': id, 'stream_type': StreamType.STDERR, 'output': "".join(tb_lines)}
-            )
-            # send error status
-            await network.comms.typed_send(
-                writer,
-                network.message.Message.TASK_UPDATE,
-                {'task_id': id, 'status': Status.Errored}
-            )
+            await self._handle_error(exc, id, writer)
             # we're done
             return None
     
@@ -192,7 +180,23 @@ class Executor:
         except asyncio.CancelledError:
             if self._proc:
                 self._proc.terminate()
-            raise
+                await self._proc.wait()
+            raise   # as far as i understand the docs, this Exception should be propagated
+
+    async def _handle_error(self, exc, id, writer):
+            tb_lines = traceback.format_exception(exc)
+            # send error text
+            await network.comms.typed_send(
+                writer,
+                network.message.Message.TASK_OUTPUT,
+                {'task_id': id, 'stream_type': StreamType.STDERR, 'output': "".join(tb_lines)}
+            )
+            # send error status
+            await network.comms.typed_send(
+                writer,
+                network.message.Message.TASK_UPDATE,
+                {'task_id': id, 'status': Status.Errored}
+            )
 
 async def send(task: Task, writer):
     await network.comms.typed_send(
