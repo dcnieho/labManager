@@ -11,7 +11,7 @@ class Client:
         self.address = None
         self.name    = platform.node()
 
-        self._task: asyncio.Task = None
+        self._handler_task: asyncio.Task = None
 
     async def start(self):
         # 1. get interfaces we can work with
@@ -36,12 +36,17 @@ class Client:
         self.address = self.writer.get_extra_info('sockname')
 
         # run connection handler
-        self._task = asyncio.create_task(self._handle_master())
+        self._handler_task = asyncio.create_task(self._handle_master())
 
-    async def stop(self):
+    async def stop(self, timeout=2):
         self.writer.close()
-        await self.writer.wait_closed()
-        self._task = None
+        await asyncio.wait(
+            [
+                asyncio.create_task(self.writer.wait_closed()),
+                self._handler_task
+            ],
+            timeout=timeout
+        )
 
     async def _handle_master(self):
         type = None
@@ -59,7 +64,9 @@ class Client:
                         print(f'client {self.name} received: {msg}')
 
                     case message.Message.TASK_CREATE:
-                        async_thread.run(task.execute(msg['task_id'],msg['type'],msg['payload'], self.writer))
+                        asyncio.create_task(
+                            task.execute(msg['task_id'],msg['type'],msg['payload'], self.writer)
+                        )
 
             except Exception as exc:
                 tb_lines = traceback.format_exception(exc)
