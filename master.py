@@ -64,8 +64,9 @@ async def main():
     async_thread.wait(asyncio.wait(clients[0]._task_list+clients[1]._task_list+clients[2]._task_list))
 
     # shut down clients, wait for them to quit
-    c_futs = [async_thread.run(c.stop()) for c in clients]
-    [f.result() for f in concurrent.futures.as_completed(c_futs)]
+    await server.broadcast(network.message.Message.QUIT)
+    while server.clients:
+        await asyncio.sleep(.1)
         
     # stop servers
     async_thread.run(ssdp_server.stop()).result()
