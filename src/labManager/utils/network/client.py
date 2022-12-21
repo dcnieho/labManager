@@ -3,7 +3,7 @@ import traceback
 import platform
 from typing import List
 
-from .. import async_thread, structs, task
+from .. import structs, task
 from .  import comms, ifs, keepalive, message, ssdp
 
 class Client:
@@ -27,7 +27,7 @@ class Client:
         # send search request and wait for reply
         responses = await ssdp_client.do_discovery()
         # stop SSDP client
-        async_thread.run(ssdp_client.stop())
+        await ssdp_client.stop()
         # get ip and port for master from advertisement
         ip, _, port = responses[0].headers['HOST'].rpartition(':')
         port = int(port) # convert to integer

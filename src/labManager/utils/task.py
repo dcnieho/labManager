@@ -6,7 +6,7 @@ from enum import auto
 from dataclasses import dataclass, field
 from typing import Dict, List
 
-from . import async_thread, enum_helper, network, structs
+from . import enum_helper, network, structs
 
 @enum_helper.get('task types')
 class Type(structs.AutoNameSpace):

@@ -23,8 +23,6 @@ import errno
 import socket
 import struct
 
-from .. import async_thread
-
 MULTICAST_ADDRESS_IPV4 = "239.255.255.250"
 PORT = 1900
 SSDP_NOTIFY_HEADER = "NOTIFY * HTTP/1.1"
@@ -200,8 +198,10 @@ class SimpleServiceDiscoveryProtocol(asyncio.DatagramProtocol):
 
         # if verbose, print each message received, also those not acted upon
         self.verbose = verbose
-
-        self.done = async_thread.loop.create_future()
+        
+        self.loop = asyncio.get_running_loop()
+        self.done = self.loop.create_future()
+        self.reply_tasks = set()
 
     def connection_made(self, transport):
         self.transport = transport
@@ -269,7 +269,11 @@ class SimpleServiceDiscoveryProtocol(asyncio.DatagramProtocol):
             )
             if self.verbose:
                 print("header:\n{}\n".format(str(ssdp_response)))
-            async_thread.run(ssdp_response.sendto(self.transport, addr))
+
+            # fire off the reply task, and make sure it is kept alive until finished
+            task = asyncio.create_task(ssdp_response.sendto(self.transport, addr))
+            self.reply_tasks.add(task)
+            task.add_done_callback(self.reply_tasks.discard)
 
     def error_received(self, exc):
         if exc == errno.EAGAIN or exc == errno.EWOULDBLOCK:
@@ -304,7 +308,8 @@ class Base:
         self.usn = None
         self.advertised_host_ip_port = None
         self.respond_to_all = None
-
+        
+        self.loop = None
         self._is_started = False
 
     def _get_factory(self):
@@ -319,8 +324,9 @@ class Base:
 
         sock = self._get_socket()
         ssdp_factory = self._get_factory()
+        self.loop = asyncio.get_running_loop()
         self.transport, self.protocol = \
-            await async_thread.loop.create_datagram_endpoint(ssdp_factory, sock=sock)
+            await self.loop.create_datagram_endpoint(ssdp_factory, sock=sock)
 
         self._is_started = True
 
@@ -366,14 +372,13 @@ class Client(Base):
     def __init__(self, address='0.0.0.0', device_type=None, verbose=False):
         super().__init__(False, address, device_type, verbose)
         self._responses = []
-        self._response_callback = self._store_response
-        self._response_future = async_thread.loop.create_future()
+        self._response_future = None
 
     def _get_factory(self):
         return lambda: SimpleServiceDiscoveryProtocol(
             is_server=self._is_server,
             device_type=self.device_type,
-            response_callback=self._response_callback,
+            response_callback=self._store_response,
             verbose=self.verbose
         )
 
@@ -385,10 +390,10 @@ class Client(Base):
 
     def _store_response(self, response):
         self._responses.append(response)
-        if not self._response_future.done():
+        if self._response_future and not self._response_future.done():
             self._response_future.set_result(None)
 
-    def send_request(self):
+    async def send_request(self):
         ssdp_response = SSDPRequest(
             headers={
                 "HOST": "{}:{}".format(MULTICAST_ADDRESS_IPV4, PORT),
@@ -397,20 +402,21 @@ class Client(Base):
                 "ST": self.device_type,
             },
         )
-        async_thread.run(ssdp_response.sendto(self.transport, (MULTICAST_ADDRESS_IPV4, PORT)))
+        self._response_future = self.loop.create_future()
+        await ssdp_response.sendto(self.transport, (MULTICAST_ADDRESS_IPV4, PORT))
 
     def get_responses(self):
-        if self._response_future.done():
+        if self._response_future and self._response_future.done():
             responses,self._responses = self._responses,[]
-            self._response_future = async_thread.loop.create_future()
+            self._response_future = self.loop.create_future()
             return responses
 
     async def do_discovery(self):
         # periodically send discovery request and wait until any replies received
         while True:
-            self.send_request()
+            await self.send_request()
 
-            done,_ = await asyncio.wait([self._response_future], timeout=10, return_when=asyncio.FIRST_COMPLETED)
-            if done and self._response_future.done():
+            done,_ = await asyncio.wait([self._response_future], timeout=10)
+            if done:
                 # we have a response, return it
                 return self.get_responses()

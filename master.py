@@ -32,7 +32,7 @@ async def main():
             smb.close()
         print(shares)
 
-    # 2. 
+    # 2.
     # get interfaces we can work with
     interfaces = network.ifs.get_ifaces(my_network)
     ## start servers

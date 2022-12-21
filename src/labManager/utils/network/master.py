@@ -2,7 +2,7 @@ import asyncio
 import traceback
 from typing import Dict, List, Tuple
 
-from .. import async_thread, structs, task
+from .. import structs, task
 from .  import comms, keepalive, message
 
 class Server:
