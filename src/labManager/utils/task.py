@@ -177,16 +177,13 @@ async def execute(id: int, type: Type, cmd: str, writer):
             # sys.executable
             pass    # TODO
         
-    # execute the command
-    rc = async_thread.run(
-        _stream_subprocess(
-            id,
-            use_shell,
-            cmd,
-            writer
-        )
+    # create coro to execute the command, await it to execute it
+    return await _stream_subprocess(
+        id,
+        use_shell,
+        cmd,
+        writer
     )
-    return rc
 
 async def send(task: Task, writer):
     await network.comms.typed_send(
