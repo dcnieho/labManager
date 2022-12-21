@@ -24,6 +24,7 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="client.py" />
     <Compile Include="master.py" />
     <Compile Include="src\labManager\utils\async_thread.py" />
     <Compile Include="src\labManager\utils\impacket\crypto.py" />

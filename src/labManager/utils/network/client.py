@@ -58,6 +58,9 @@ class Client:
             timeout=timeout
         )
 
+    def get_waiter(self):
+        return self._handler_task
+
     async def _handle_master(self):
         type = None
         while type != message.Message.QUIT:
