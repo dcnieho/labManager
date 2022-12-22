@@ -22,6 +22,7 @@ import asyncio
 import errno
 import socket
 import struct
+import time
 
 MULTICAST_ADDRESS_IPV4 = "239.255.255.250"
 PORT = 1900
@@ -372,7 +373,8 @@ class Server(Base):
 class Client(Base):
     def __init__(self, address='0.0.0.0', device_type=None, verbose=False):
         super().__init__(False, address, device_type, verbose)
-        self._responses = []
+        self._responses      = []
+        self._response_times = []
         self._response_fut = None
 
     def _get_factory(self):
@@ -390,7 +392,19 @@ class Client(Base):
         return sock
 
     def _store_response(self, response):
-        self._responses.append(response)
+        t = time.perf_counter()
+        # check if we've seen this host already
+        is_duplicate = False
+        for i,r in enumerate(self._responses):
+            if r.headers['HOST']==response.headers['HOST']:
+                # yup, its known. just update time it was seen
+                self._response_times[i] = t
+                is_duplicate = True
+        # if not, add to list of hosts
+        if not is_duplicate:
+            self._responses.append(response)
+            self._response_times.append(t)
+
         if self._response_fut and not self._response_fut.done():
             self._response_fut.set_result(None)
 
@@ -406,7 +420,8 @@ class Client(Base):
         await ssdp_response.sendto(self.transport, (MULTICAST_ADDRESS_IPV4, PORT))
 
     def get_responses(self):
-        return self._responses
+        t1 = time.perf_counter()
+        return self._responses, [t1-t0 for t0 in self._response_times]
 
     async def _discovery_loop(self, interval):
         # periodically send discovery request
