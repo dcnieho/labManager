@@ -8,10 +8,11 @@ thread: threading.Thread = None
 done_callback: typing.Callable = None
 
 
-def setup():
+def setup(enable_asyncio_debug=False):
     global loop, thread
 
     loop = asyncio.new_event_loop()
+    loop.set_debug(enable_asyncio_debug)
 
     def run_loop(loop: asyncio.AbstractEventLoop):
         asyncio.set_event_loop(loop)
