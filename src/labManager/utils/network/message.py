@@ -14,16 +14,16 @@ SIZE_BYTES  = struct.calcsize(SIZE_FMT)
     
 @enum_helper.get('messages')
 class Message(structs.AutoNameDash):
-    QUIT        = auto()
+    QUIT        = auto()    # tell client to kill its handler for this connection
     IDENTIFY    = auto()
     INFO        = auto()
 
     ## tasks
     # master -> client
-    TASK_CREATE = auto()   # {task_id, type, payload}
+    TASK_CREATE = auto()    # {task_id, type, payload}
     # client -> master
-    TASK_OUTPUT = auto()   # {task_id, stream_type, output}, task (stdout or stderr) output
-    TASK_UPDATE = auto()   # {task_id, status, Optional[return_code]}, task status update (started running, errored, finished). Latter two include return code
+    TASK_OUTPUT = auto()    # {task_id, stream_type, output}, task (stdout or stderr) output
+    TASK_UPDATE = auto()    # {task_id, status, Optional[return_code]}, task status update (started running, errored, finished). Latter two include return code
 
 @enum_helper.get('message types')
 class Type(structs.AutoNameDash):
