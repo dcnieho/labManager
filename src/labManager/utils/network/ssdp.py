@@ -334,7 +334,8 @@ class Base:
         if not self._is_started:
             return
         self.transport.close()
-        await self.protocol.done
+        if self.protocol:
+            await self.protocol.done
         self._is_started = False
 
 class Server(Base):
@@ -372,7 +373,7 @@ class Client(Base):
     def __init__(self, address='0.0.0.0', device_type=None, verbose=False):
         super().__init__(False, address, device_type, verbose)
         self._responses = []
-        self._response_future = None
+        self._response_fut = None
 
     def _get_factory(self):
         return lambda: SimpleServiceDiscoveryProtocol(
@@ -390,10 +391,10 @@ class Client(Base):
 
     def _store_response(self, response):
         self._responses.append(response)
-        if self._response_future and not self._response_future.done():
-            self._response_future.set_result(None)
+        if self._response_fut and not self._response_fut.done():
+            self._response_fut.set_result(None)
 
-    async def send_request(self):
+    async def _send_request(self):
         ssdp_response = SSDPRequest(
             headers={
                 "HOST": "{}:{}".format(MULTICAST_ADDRESS_IPV4, PORT),
@@ -402,21 +403,36 @@ class Client(Base):
                 "ST": self.device_type,
             },
         )
-        self._response_future = self.loop.create_future()
         await ssdp_response.sendto(self.transport, (MULTICAST_ADDRESS_IPV4, PORT))
 
     def get_responses(self):
-        if self._response_future and self._response_future.done():
-            responses,self._responses = self._responses,[]
-            self._response_future = self.loop.create_future()
-            return responses
+        return self._responses
+
+    async def _discovery_loop(self, interval):
+        # periodically send discovery request
+        # until cancelled
+        try:
+            while True:
+                await self._send_request()
+                await asyncio.sleep(interval)
+        except asyncio.CancelledError:
+            pass    # we broke out of the loop: cancellation processed
+
+    async def discover_forever(self, interval=10):
+        assert self._is_started, "the client must be start()ed before start discovery"
+        # to stop, cancel the returned future
+        if not self._response_fut or self._response_fut.done():
+            self._response_fut = self.loop.create_future()
+        task = asyncio.create_task(self._discovery_loop(interval))
+        await asyncio.sleep(0)
+        return task
 
     async def do_discovery(self, interval=10):
-        # periodically send discovery request and wait until any replies received
-        while True:
-            await self.send_request()
-
-            done,_ = await asyncio.wait([self._response_future], timeout=interval)
-            if done:
-                # we have a response, return it
-                return self.get_responses()
+        # periodically send discovery request (using discover_forever)
+        # and wait until any replies received
+        discovery_task = await self.discover_forever(interval)
+        await asyncio.wait_for(self._response_fut, timeout=None)
+        # we have a response, stop discovery and return it
+        discovery_task.cancel()
+        await asyncio.sleep(0)
+        return self.get_responses()
