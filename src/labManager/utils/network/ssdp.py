@@ -419,13 +419,13 @@ class Client(Base):
             pass    # we broke out of the loop: cancellation processed
 
     async def discover_forever(self, interval=10):
-        assert self._is_started, "the client must be start()ed before start discovery"
         # to stop, cancel the returned future
+        assert self._is_started, "the client must be start()ed before starting discovery"
+
         if not self._response_fut or self._response_fut.done():
             self._response_fut = self.loop.create_future()
-        task = asyncio.create_task(self._discovery_loop(interval))
-        await asyncio.sleep(0)
-        return task
+        
+        return asyncio.create_task(self._discovery_loop(interval))
 
     async def do_discovery(self, interval=10):
         # periodically send discovery request (using discover_forever)
@@ -434,5 +434,4 @@ class Client(Base):
         await asyncio.wait_for(self._response_fut, timeout=None)
         # we have a response, stop discovery and return it
         discovery_task.cancel()
-        await asyncio.sleep(0)
         return self.get_responses()
