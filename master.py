@@ -66,7 +66,7 @@ async def main():
     async_thread.wait(asyncio.wait(task_list))
 
     # shut down clients, wait for them to quit
-    await server.broadcast(network.message.Message.QUIT)
+    async_thread.run(server.broadcast(network.message.Message.QUIT))
     while server.clients:
         await asyncio.sleep(.1)
         
