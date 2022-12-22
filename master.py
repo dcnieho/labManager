@@ -19,6 +19,8 @@ domain      = "UW"
 username    = "huml-dkn"
 my_network  = '192.168.1.0/24'
 
+num_clients = 3
+
 
 async def main():
     # 1. check user credentials, and list shares (projects) they have access to
@@ -54,7 +56,7 @@ async def main():
     async_thread.wait(ssdp_server.start())
     
     # start clients
-    clients = [network.client.Client(my_network) for _ in range(3)]
+    clients = [network.client.Client(my_network) for _ in range(num_clients)]
     c_futs  = [async_thread.run(c.start()) for c in clients]
     # wait till clients have started
     [f.result() for f in concurrent.futures.as_completed(c_futs)]
@@ -73,6 +75,8 @@ async def main():
     while server.clients:
         await asyncio.sleep(.1)
         
+    # don't keep handle to clients, so they get cleaned up if needed
+    clients = []
     # stop servers
     async_thread.run(ssdp_server.stop()).result()
     async_thread.run(server.stop()).result()
