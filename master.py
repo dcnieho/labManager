@@ -9,6 +9,9 @@ if not src_path in sys.path:
     
 from labManager.utils import async_thread, network, structs, task
 
+#import logging
+#logging.basicConfig(level=logging.DEBUG)
+
 
 
 smb_server  = "srv2.humlab.lu.se"
