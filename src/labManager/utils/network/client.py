@@ -26,7 +26,14 @@ class Client:
             ssdp_client = ssdp.Client(address=interfaces[0], device_type=structs.SSDP_DEVICE_TYPE)
             await ssdp_client.start()
             # send search request and wait for reply
-            responses = await ssdp_client.do_discovery()
+            if True:
+                responses,age = await ssdp_client.do_discovery()
+            else:
+                discovery_task = await ssdp_client.discover_forever(interval=1)
+                await asyncio.sleep(1.5)
+                discovery_task.cancel()
+                responses,age = ssdp_client.get_responses()
+                print(responses,age)
             # stop SSDP client
             await ssdp_client.stop()
             # get ip and port for master from advertisement
