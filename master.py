@@ -57,11 +57,13 @@ async def main():
     [f.result() for f in concurrent.futures.as_completed(c_futs)]
 
     # send some messages to clients
-    async_thread.run(network.comms.typed_send(server.clients[1].writer, network.message.Message.INFO, 'sup'))
+    async_thread.run(network.comms.typed_send(server.clients[0].writer, network.message.Message.INFO, 'sup'))
     async_thread.run(server.run_task(task.Type.Process_exec, r"ping localhost", '*'))
 
     await asyncio.sleep(.2) # need a bit of time for the tasks to be picked up by the clients, then we can wait on them
-    async_thread.wait(asyncio.wait(clients[0]._task_list+clients[1]._task_list+clients[2]._task_list))
+    task_list = []
+    [task_list.extend(c._task_list) for c in clients]
+    async_thread.wait(asyncio.wait(task_list))
 
     # shut down clients, wait for them to quit
     await server.broadcast(network.message.Message.QUIT)
