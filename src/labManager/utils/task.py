@@ -31,6 +31,8 @@ _task_id_provider = structs.CounterContext()
 class Task:
     type        : Type
     payload     : str           # command, batch file contents, python script contents
+    cwd         : str = None    # if not None, working directory to execute from
+    env         : dict= None    # if not None, environment variables when executing
     id          : int = None
     status      : Status = Status.Not_started
 
@@ -94,19 +96,23 @@ class Executor:
             else:
                 break
 
-    async def _stream_subprocess(self, id, use_shell, cmd, writer):
+    async def _stream_subprocess(self, id, use_shell, cmd, cwd, env, writer):
         try:
             if use_shell:
                 self._proc = await asyncio.create_subprocess_shell(
                     cmd,
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE,
+                    cwd=cwd,
+                    env=env,
                 )
             else:
                 self._proc = await asyncio.create_subprocess_exec(
                     *cmd,
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE,
+                    cwd=cwd,
+                    env=env,
                 )
         except Exception as exc:
             await self._handle_error(exc, id, writer)
@@ -140,7 +146,7 @@ class Executor:
 
         return return_code
 
-    async def run(self, id: int, type: Type, cmd: str, writer):
+    async def run(self, id: int, type: Type, cmd: str, cwd: str, env: dict, writer):
         # setup executor
         match type:
             case Type.Shell_command:
@@ -175,6 +181,8 @@ class Executor:
                 id,
                 use_shell,
                 cmd,
+                cwd,
+                env,
                 writer
             )
         except asyncio.CancelledError as exc:
@@ -207,17 +215,19 @@ async def send(task: Task, writer):
         {
             'task_id': task.id,
             'type': task.type,
-            'payload': task.payload
+            'payload': task.payload,
+            'cwd': task.cwd,
+            'env': task.env
         }
     )
 
-def create_group(type: Type, payload: str, clients: List[int]) -> TaskGroup:
+def create_group(type: Type, payload: str, clients: List[int], cwd: str=None, env: dict=None) -> TaskGroup:
     task_group = TaskGroup(type, payload)
 
     # make individual tasks
     for c in clients:
         # create task
-        task = Task(type, payload, client=c, task_group_id=task_group.id)
+        task = Task(type, payload, cwd=cwd, env=env, client=c, task_group_id=task_group.id)
         # add to task group
         task_group.task_refs[c] = task
 

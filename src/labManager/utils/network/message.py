@@ -20,7 +20,7 @@ class Message(structs.AutoNameDash):
 
     ## tasks
     # master -> client
-    TASK_CREATE = auto()    # {task_id, type, payload}
+    TASK_CREATE = auto()    # {task_id, type, payload, cwd, env} # payload is the executable and args of subprocess.Popen, cwd and env (optional) its cwd and env arguments
     # client -> master
     TASK_OUTPUT = auto()    # {task_id, stream_type, output}, task (stdout or stderr) output
     TASK_UPDATE = auto()    # {task_id, status, Optional[return_code]}, task status update (started running, errored, finished). Latter two include return code
@@ -67,11 +67,13 @@ def json_reconstitute(d):
         return d
 
 def parse(type: Type, msg: str) -> str | Dict:
+    # load from JSON if needed
     if type_map[type]==Type.JSON:
         msg = json.loads(msg, object_hook=json_reconstitute)
     return msg
 
 def prepare(type: Type, payload: str | Dict) -> str:
+    # dump to JSON if needed
     if type_map[type]==Type.JSON:
         payload = json.dumps(payload, cls=CustomTypeEncoder)
     return payload
