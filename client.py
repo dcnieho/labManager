@@ -14,10 +14,10 @@ my_network  = '192.168.1.0/24'
 
 async def main():
     client = network.client.Client(my_network)
-    await client.start()
+    await client.start(keep_ssdp_running=True)
 
     # run until client finished
-    await asyncio.wait_for(client.get_waiter(), timeout=None)
+    await asyncio.sleep(3600)
 
     # this should be a no-op, but to be sure:
     # shut down client, wait for it to quit

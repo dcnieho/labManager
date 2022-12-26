@@ -23,6 +23,7 @@ import errno
 import socket
 import struct
 import time
+import inspect
 
 MULTICAST_ADDRESS_IPV4 = "239.255.255.250"
 PORT = 1900
@@ -331,13 +332,23 @@ class Base:
 
         self._is_started = True
 
+    def is_running(self):
+        if self._is_started:
+            if self.transport.is_closing() or self.protocol.done.done():
+                self._is_started = False
+        return self._is_started
+
     async def stop(self):
         if not self._is_started:
             return
+        await self._stop()
         self.transport.close()
         if self.protocol:
             await self.protocol.done
         self._is_started = False
+
+    async def _stop(self):
+        raise NotImplementedError
 
 class Server(Base):
     def __init__(self, host_ip_port, usn, address='0.0.0.0', device_type=None, respond_to_all=False, allow_loopback=False, verbose=False):
@@ -370,12 +381,18 @@ class Server(Base):
         sock.bind(("0.0.0.0", PORT))
         return sock
 
+    async def _stop(self):
+        pass
+
 class Client(Base):
-    def __init__(self, address='0.0.0.0', device_type=None, verbose=False):
+    def __init__(self, address='0.0.0.0', device_type=None, response_handler = None, verbose=False):
         super().__init__(False, address, device_type, verbose)
         self._responses      = []
         self._response_times = []
-        self._response_fut = None
+        self._response_fut   = None
+        self._response_handler = response_handler
+        self._response_handler_tasks = set()
+        self._discovery_task = None
 
     def _get_factory(self):
         return lambda: SimpleServiceDiscoveryProtocol(
@@ -405,8 +422,17 @@ class Client(Base):
             self._responses.append(response)
             self._response_times.append(t)
 
-        if self._response_fut and not self._response_fut.done():
-            self._response_fut.set_result(None)
+            if self._response_fut and not self._response_fut.done():
+                self._response_fut.set_result(None)
+
+        # if user defined a response handler, always call it
+        if self._response_handler:
+            res = self._response_handler(response)
+            # if awaitable, make sure its scheduled
+            if inspect.isawaitable(res):
+                task = asyncio.create_task(res)
+                self._response_handler_tasks.add(task)
+                task.add_done_callback(self._response_handler_tasks.discard)
 
     async def _send_request(self):
         ssdp_response = SSDPRequest(
@@ -418,6 +444,12 @@ class Client(Base):
             },
         )
         await ssdp_response.sendto(self.transport, (MULTICAST_ADDRESS_IPV4, PORT))
+
+    async def _stop(self):
+        if self._response_fut and not self._response_fut.done():
+            self._response_fut.set_result(None)
+        if self._discovery_task and not self._discovery_task.done():
+            self._discovery_task.cancel()
 
     def get_responses(self):
         t1 = time.perf_counter()
@@ -440,7 +472,8 @@ class Client(Base):
         if not self._response_fut or self._response_fut.done():
             self._response_fut = self.loop.create_future()
         
-        return asyncio.create_task(self._discovery_loop(interval))
+        self._discovery_task = asyncio.create_task(self._discovery_loop(interval))
+        return self._discovery_task
 
     async def do_discovery(self, interval=10):
         # periodically send discovery request (using discover_forever)
