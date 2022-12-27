@@ -37,16 +37,15 @@ async def main():
             smb.close()
         print(shares)
 
-    # 2.
+    # 2. start servers
     # get interfaces we can work with
     interfaces = network.ifs.get_ifaces(my_network)
-    ## start servers
-    # start server
+    # start server to connect with clients
     server = network.master.Server()
     async_thread.wait(server.start((interfaces[0], 0)))
     ip,port = server.address[0]
 
-    # start SSDP server
+    # start SSDP server to advertise this server
     ssdp_server = network.ssdp.Server(
         address=interfaces[0],
         host_ip_port=(ip,port),
@@ -54,29 +53,10 @@ async def main():
         device_type=structs.SSDP_DEVICE_TYPE,
         allow_loopback=True)
     async_thread.wait(ssdp_server.start())
-    
-    # start clients
-    clients = [network.client.Client(my_network) for _ in range(num_clients)]
-    c_futs  = [async_thread.run(c.start()) for c in clients]
-    # wait till clients have started
-    [f.result() for f in concurrent.futures.as_completed(c_futs)]
 
-    # send some messages to clients
-    async_thread.run(network.comms.typed_send(server.clients[0].writer, network.message.Message.INFO, 'sup'))
-    async_thread.run(server.run_task(task.Type.Process_exec, r"ping localhost", '*'))
+    # serve indefinitely....
 
-    await asyncio.sleep(.2) # need a bit of time for the tasks to be picked up by the clients, then we can wait on them
-    task_list = []
-    [task_list.extend(c._task_list) for c in clients]
-    async_thread.wait(asyncio.wait(task_list))
 
-    # shut down clients, wait for them to quit
-    async_thread.run(server.broadcast(network.message.Message.QUIT))
-    while server.clients:
-        await asyncio.sleep(.1)
-        
-    # don't keep handle to clients, so they get cleaned up if needed
-    clients = []
     # stop servers
     async_thread.run(ssdp_server.stop()).result()
     async_thread.run(server.stop()).result()
