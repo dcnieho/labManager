@@ -109,6 +109,7 @@
     <Compile Include="src\labManager\utils\network\comms.py" />
     <Compile Include="src\labManager\utils\network\smb.py" />
     <Compile Include="src\labManager\utils\network\ssdp.py" />
+    <Compile Include="src\labManager\utils\network\toems.py" />
     <Compile Include="src\labManager\utils\network\__init__.py" />
     <Compile Include="src\labManager\utils\structs.py" />
     <Compile Include="src\labManager\utils\task.py" />

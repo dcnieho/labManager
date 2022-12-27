@@ -37,7 +37,14 @@ async def main():
             smb.close()
         print(shares)
 
-    # 2. start servers
+    # 2. log into toems server
+    toems = network.toems.Client(toems_server, toems_port, protocol='http')
+    await toems.connect(toems_username, toems_password)
+    
+    image_list = await toems.image_get()
+    image = await toems.image_get(2)
+
+    # 3. start servers for listening to clients
     # get interfaces we can work with
     interfaces = network.ifs.get_ifaces(my_network)
     # start server to connect with clients
