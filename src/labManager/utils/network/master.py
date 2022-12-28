@@ -1,4 +1,5 @@
 import asyncio
+import aiofile
 import traceback
 from typing import Dict, List, Tuple
 
@@ -86,10 +87,18 @@ class Server:
         for c in self.clients:
             await comms.typed_send(self.clients[c].writer, type, message)
 
-    async def run_task(self, type: task.Type, payload: str, clients: List[int] | str):
+    async def run_task(self, type: task.Type, payload: str, clients: List[int] | str, payload_type='cmd_or_script'):
         # clients has a special value '*' which means all clients
         if clients=='*':
             clients = [c for c in self.clients]
+
+        # handle payload
+        match payload_type:
+            case 'cmd_or_script':
+                pass
+            case 'file':
+                async with aiofile.async_open(payload, 'rt') as afp:
+                    payload = await afp.read()
 
         # make task group
         task_group = task.create_group(type, payload, clients)
