@@ -17,7 +17,7 @@ from labManager.utils import async_thread, config, network, structs
 async def main():
     from getpass import getpass
     # 1. check user credentials, and list shares (projects) they have access to
-    if True:
+    if False:
         username = getpass(f'Username for logging into {config.master["SMB"]["server"]} in domain {config.master["SMB"]["domain"]}: ')
         password = getpass(f'Password for {config.master["SMB"]["domain"]}\{username}: ')
         try:

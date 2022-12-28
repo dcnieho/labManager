@@ -8,3 +8,39 @@ SMB:
 toems:
     server: pfsense-dc.humlab.lu.se
     port:   10022
+
+clients:
+    - name: STATION01
+      MAC:  0C-9D-92-1F-E6-04
+    - name: STATION02
+      MAC:  0C-9D-92-1F-94-12
+    - name: STATION03
+      MAC:  04-D4-C4-5B-1F-95
+    - name: STATION04
+      MAC:  04-D4-C4-5B-63-29
+    - name: STATION05
+      MAC:  0C-9D-92-C3-15-F8
+    - name: STATION06
+      MAC:  0C-9D-92-1F-94-9A
+    - name: STATION07
+      MAC:  0C-9D-92-C3-15-7C
+    - name: STATION08
+      MAC:  0C-9D-92-C3-15-16
+    - name: STATION09
+      MAC:  0C-9D-92-C4-26-86
+    - name: STATION10
+      MAC:  0C-9D-92-C3-15-1A
+    - name: STATION11
+      MAC:  0C-9D-92-C3-15-66
+    - name: STATION12
+      MAC:  0C-9D-92-C4-24-70
+    - name: STATION13
+      MAC:  0C-9D-92-C3-15-60
+    - name: STATION14
+      MAC:  0C-9D-92-C3-15-98
+    - name: STATION15
+      MAC:  0C-9D-92-C3-14-F2
+    - name: STATION16
+      MAC:  0C-9D-92-C3-15-54
+    - name: MASTER
+      MAC:  0C-9D-92-C3-15-EE
