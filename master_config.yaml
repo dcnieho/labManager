@@ -1,0 +1,10 @@
+# where to listen
+network: 192.168.100.0/24
+
+SMB:
+    server: srv2.humlab.lu.se
+    domain: UW  # domain for users
+
+toems:
+    server: pfsense-dc.humlab.lu.se
+    port:   10022

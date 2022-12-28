@@ -27,6 +27,7 @@
     <Compile Include="client.py" />
     <Compile Include="master.py" />
     <Compile Include="src\labManager\utils\async_thread.py" />
+    <Compile Include="src\labManager\utils\config.py" />
     <Compile Include="src\labManager\utils\impacket\crypto.py" />
     <Compile Include="src\labManager\utils\impacket\dcerpc\v5\atsvc.py" />
     <Compile Include="src\labManager\utils\impacket\dcerpc\v5\bkrp.py" />
@@ -129,6 +130,8 @@
     </Interpreter>
   </ItemGroup>
   <ItemGroup>
+    <Content Include="client_config.yaml" />
+    <Content Include="master_config.yaml" />
     <Content Include="requirements-client.txt" />
     <Content Include="requirements-master.txt" />
     <Content Include="src\labManager\utils\impacket\LICENSE" />

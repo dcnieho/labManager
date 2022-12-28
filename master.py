@@ -7,30 +7,23 @@ src_path = str(pathlib.Path(__file__).parent/"src")
 if not src_path in sys.path:
     sys.path.append(src_path)
     
-from labManager.utils import async_thread, network, structs, task
+from labManager.utils import async_thread, config, network, structs
 
 #import logging
 #logging.basicConfig(level=logging.DEBUG)
 
 
 
-smb_server  = "srv2.humlab.lu.se"
-domain      = "UW"
-username    = "huml-dkn"
-my_network  = '192.168.1.0/24'
-
-num_clients = 3
-
-
 async def main():
+    from getpass import getpass
     # 1. check user credentials, and list shares (projects) they have access to
-    if False:
-        from getpass import getpass
-        password = getpass(f'Password for {domain}\{username}: ')
+    if True:
+        username = getpass(f'Username for logging into {config.master["SMB"]["server"]} in domain {config.master["SMB"]["domain"]}: ')
+        password = getpass(f'Password for {config.master["SMB"]["domain"]}\{username}: ')
         try:
-            smb = network.smb.SMBHandler(smb_server,username,domain,password)
+            smb = network.smb.SMBHandler(config.master["SMB"]["server"],username,config.master["SMB"]["domain"],password)
         except (OSError, network.smb.SessionError) as exc:
-            print(f'Error connecting as {domain}\{username} to {smb_server}: {exc}')
+            print(f'Error connecting as {config.master["SMB"]["domain"]}\{username} to {config.master["SMB"]["server"]}: {exc}')
             shares = []
         else:
             shares = smb.list_shares()
@@ -38,15 +31,18 @@ async def main():
         print(shares)
 
     # 2. log into toems server
-    toems = network.toems.Client(toems_server, toems_port, protocol='http')
+    toems = network.toems.Client(config.master['toems']['server'], config.master['toems']['port'], protocol='http')
+    toems_username = getpass(f'Username for logging into toems server {config.master["toems"]["server"]}: ')
+    toems_password = getpass(f'Password for logging in with toems user {toems_username}: ')
     await toems.connect(toems_username, toems_password)
     
     image_list = await toems.image_get()
     image = await toems.image_get(2)
+    print(image)
 
     # 3. start servers for listening to clients
     # get interfaces we can work with
-    interfaces = network.ifs.get_ifaces(my_network)
+    interfaces = network.ifs.get_ifaces(config.master['network'])
     # start server to connect with clients
     server = network.master.Server()
     async_thread.wait(server.start((interfaces[0], 0)))
