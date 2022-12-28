@@ -2,16 +2,23 @@ import psutil
 import ipaddress
 import socket
 
-def get_ifaces(ip_network='192.0.2.0/28'):
+def get_ifaces(ip_network):
     network = ipaddress.IPv4Network(ip_network)
-
-    matches = []
+    
+    macs= []
+    ips = []
     for iface in (ifs:=psutil.net_if_addrs()):
+        mac = None
+        ip  = None
         for addr in ifs[iface]:
-            if addr.family!=socket.AF_INET:
-                continue
-            if ipaddress.IPv4Address(addr.address) not in network:
-                continue
-            matches.append(addr.address)
+            if addr.family==psutil.AF_LINK:
+                mac= addr.address
+            if addr.family==socket.AF_INET:
+                ip = addr.address
+        if mac and ip and ipaddress.IPv4Address(ip) in network:
+            macs.append(mac)
+            ips .append(ip)
 
-    return sorted(matches)
+    # sort both based on ip, return
+    ips, macs = zip(*[(x,y) for x,y in sorted(zip(ips, macs))])
+    return ips, macs

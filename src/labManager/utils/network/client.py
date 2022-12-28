@@ -13,7 +13,8 @@ class Client:
 
         self._ssdp_discovery_task: asyncio.Task = None
         self._ssdp_client: ssdp.Client = None
-        self._interfaces  = None
+        self._if_ips  = None
+        self._if_macs = None
 
         self._handler_tasks    : List[asyncio.Task] = []
         self._connected_masters: List[Tuple[str,int]] = []
@@ -27,13 +28,13 @@ class Client:
 
     async def start(self, server_addr: Tuple[str,int] = None, *, keep_ssdp_running = False):
         # 1. get interfaces we can work with
-        self._interfaces = sorted(ifs.get_ifaces(self.network))
+        self._if_ips, self._if_macs = ifs.get_ifaces(self.network)
 
         # 2. discover master, if needed
         if not server_addr:
             # start SSDP client
             self._ssdp_client = ssdp.Client(
-                address=self._interfaces[0],
+                address=self._if_ips[0],
                 device_type=structs.SSDP_DEVICE_TYPE,
                 response_handler=self._handle_ssdp_response if keep_ssdp_running else None
             )
@@ -67,7 +68,7 @@ class Client:
 
         # connect to master at specified server_address, connect to it
         reader, writer = await asyncio.open_connection(
-            *server_addr, local_addr=(self._interfaces[0],0))
+            *server_addr, local_addr=(self._if_ips[0],0))
         keepalive.set(writer.get_extra_info('socket'))
         self._connected_masters.append(server_addr)
         self._local_addrs.append(writer.get_extra_info('sockname'))

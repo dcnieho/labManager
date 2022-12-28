@@ -43,15 +43,15 @@ async def main():
 
     # 3. start servers for listening to clients
     # get interfaces we can work with
-    interfaces = network.ifs.get_ifaces(config.master['network'])
+    if_ips,_ = network.ifs.get_ifaces(config.master['network'])
     # start server to connect with clients
     server = network.master.Server()
-    async_thread.wait(server.start((interfaces[0], 0)))
+    async_thread.wait(server.start((if_ips[0], 0)))
     ip,port = server.address[0]
 
     # start SSDP server to advertise this server
     ssdp_server = network.ssdp.Server(
-        address=interfaces[0],
+        address=if_ips[0],
         host_ip_port=(ip,port),
         usn="humlab-b055-master::"+structs.SSDP_DEVICE_TYPE,
         device_type=structs.SSDP_DEVICE_TYPE,
@@ -59,7 +59,7 @@ async def main():
     async_thread.wait(ssdp_server.start())
 
     # serve indefinitely....
-
+    await asyncio.sleep(5)
 
     # stop servers
     async_thread.run(ssdp_server.stop()).result()
