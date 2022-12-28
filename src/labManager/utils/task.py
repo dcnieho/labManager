@@ -1,5 +1,8 @@
 import asyncio
+import aiofile
 import shlex
+import shutil
+import pathlib
 import traceback
 import sys
 from enum import auto
@@ -15,7 +18,7 @@ class Type(structs.AutoNameSpace):
     Batch_file      = auto()    # invoke batch file
     Python_statement= auto()    # sys.executable + '-c'
     Python_module   = auto()    # sys.executable + '-m'
-    Python_script   = auto()    # sys.executable
+    Python_script   = auto()    # sys.executable, invoke python script
 types = [x.value for x in Type]
 
 @enum_helper.get('task statuses')
@@ -96,7 +99,7 @@ class Executor:
             else:
                 break
 
-    async def _stream_subprocess(self, id, use_shell, cmd, cwd, env, writer):
+    async def _stream_subprocess(self, id, use_shell, cmd, cwd, env, writer, cleanup=None):
         try:
             if use_shell:
                 self._proc = await asyncio.create_subprocess_shell(
@@ -144,9 +147,13 @@ class Executor:
             }
         )
 
+        # clean up if needed
+        if cleanup:
+            shutil.rmtree(cleanup.parent,ignore_errors=True)
+
         return return_code
 
-    async def run(self, id: int, type: Type, cmd: str, cwd: str, env: dict, writer):
+    async def run(self, id: int, type: Type, payload: str, cwd: str, env: dict, writer):
         # setup executor
         match type:
             case Type.Shell_command:
@@ -155,25 +162,38 @@ class Executor:
                 use_shell = False
 
         # build command line
+        filename = None
         match type:
             case Type.Shell_command:
                 # run command in shell
-                pass    # nothing to do
+                cmd = payload
             case Type.Process_exec:
                 # run executable
-                cmd = shlex.split(cmd, posix=False)
+                cmd = shlex.split(payload, posix=False)
             case Type.Batch_file:
                 # invoke batch file
-                pass    # TODO
+                folder   = pathlib.Path(f'task{id}')
+                filename = folder/'script.bat'
+                cmd = [str(filename)]
             case Type.Python_statement:
                 # sys.executable + '-c'
-                cmd = [sys.executable, '-c'] + shlex.split(cmd, posix=False)
+                cmd = [sys.executable, '-c'] + shlex.split(payload, posix=False)
             case Type.Python_module:
                 # sys.executable + '-m'
-                cmd = [sys.executable, '-m'] + shlex.split(cmd, posix=False)
+                cmd = [sys.executable, '-m'] + shlex.split(payload, posix=False)
             case Type.Python_script:
                 # sys.executable
-                pass    # TODO
+                folder   = pathlib.Path(f'task{id}')
+                filename = folder/'script.py'
+                cmd = [sys.executable, str(filename)]
+
+        # write payload to file if needed
+        if filename:
+            if folder.is_dir():
+                shutil.rmtree(folder,ignore_errors=True)
+            folder.mkdir()
+            async with aiofile.async_open(filename, 'wt') as afp:
+                await afp.write(payload)
         
         # create coro to execute the command, await it to execute it
         try:
@@ -183,7 +203,8 @@ class Executor:
                 cmd,
                 cwd,
                 env,
-                writer
+                writer,
+                cleanup=filename
             )
         except asyncio.CancelledError as exc:
             # notify master about cancellation and terminate task if necessary

@@ -31,14 +31,15 @@ async def main():
         print(shares)
 
     # 2. log into toems server
-    toems = network.toems.Client(config.master['toems']['server'], config.master['toems']['port'], protocol='http')
-    toems_username = getpass(f'Username for logging into toems server {config.master["toems"]["server"]}: ')
-    toems_password = getpass(f'Password for logging in with toems user {toems_username}: ')
-    await toems.connect(toems_username, toems_password)
+    if False:
+        toems = network.toems.Client(config.master['toems']['server'], config.master['toems']['port'], protocol='http')
+        toems_username = getpass(f'Username for logging into toems server {config.master["toems"]["server"]}: ')
+        toems_password = getpass(f'Password for logging in with toems user {toems_username}: ')
+        await toems.connect(toems_username, toems_password)
     
-    image_list = await toems.image_get()
-    image = await toems.image_get(2)
-    print(image)
+        image_list = await toems.image_get()
+        image = await toems.image_get(2)
+        print(image)
 
     # 3. start servers for listening to clients
     # get interfaces we can work with

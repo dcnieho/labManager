@@ -1,2 +1,3 @@
+aiofile
 psutil
 strictyaml
