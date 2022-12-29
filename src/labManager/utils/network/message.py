@@ -1,10 +1,12 @@
 import struct
 import json
 import pathlib
-from enum import Enum, auto
+import sys
+import importlib
+from enum import auto, Enum
 from typing import Dict
 
-from .. import enum_helper, structs, task
+from .. import enum_helper, structs
 
 SIZE_FMT    = '!I'
 SIZE_BYTES  = struct.calcsize(SIZE_FMT)
@@ -43,24 +45,22 @@ type_map = {
 # support for sending some custom types via json
 class CustomTypeEncoder(json.JSONEncoder):
     def default(self, obj):
-        if type(obj) in [task.Type, task.Status, task.StreamType]:
-            return {"__enum__": f'task_{obj}'}
+        if isinstance(obj,Enum):
+            mname = obj.__class__.__module__
+            ename = obj.__class__.__qualname__
+            member= obj.name
+            name  = f'{mname}.{ename}.{member}'
+            return {"__enum__": name}
         elif isinstance(obj, pathlib.Path):
             return {"__pathlib.Path__": str(obj)}
         return json.JSONEncoder.default(self, obj)
 
 def json_reconstitute(d):
     if "__enum__" in d:
-        name, member = d["__enum__"].split(".")
-        match name:
-            case 'task_Type':
-                return task.Type.get(member)
-            case 'task_Status':
-                return task.Status.get(member)
-            case 'task_StreamType':
-                return task.StreamType.get(member)
-            case other:
-                raise ValueError(f'unknown enum "{other}"')
+        mname, ename, member = d["__enum__"].rsplit(".", 2)
+        if not (module := sys.modules.get(mname)):
+            module = importlib.import_module(mname)
+        return getattr(getattr(module,ename), member)
     elif "__pathlib.Path__" in d:
         return pathlib.Path(d["__pathlib.Path__"])
     else:
