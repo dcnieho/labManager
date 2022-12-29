@@ -77,7 +77,7 @@ def notification_callback(notification, data, eye_tracker, writer):
              tobii_research.EYETRACKER_NOTIFICATION_CALIBRATION_MODE_ENTERED | \
              tobii_research.EYETRACKER_NOTIFICATION_CALIBRATION_MODE_LEFT:
             mtype = message.Message.ET_STATUS_INFORM
-            if notification==tobii_research.EYETRACKER_NOTIFICATION_CONNECTION_LOST:
+            if   notification==tobii_research.EYETRACKER_NOTIFICATION_CONNECTION_LOST:
                 msg['status'] = Status.Not_connected
             elif notification==tobii_research.EYETRACKER_NOTIFICATION_CALIBRATION_MODE_ENTERED:
                 msg['status'] = Status.Calibrating
@@ -120,8 +120,8 @@ def get_attribute(eye_tracker: ET_class, attributes: List[Attribute]|str):
     if attributes=='*':
         attributes = [a for a in Attribute]
 
-    # try and check we're still connected by doing a cheap call
-    # this will also fail if eye_tracker is None, that is fine,
+    # Try and check we're still connected by doing a cheap call.
+    # This will also fail if eye_tracker is None, that is fine,
     # any failure is after all interpreted as not connected
     try:
         eye_tracker.get_gaze_output_frequency()
@@ -139,7 +139,7 @@ def get_attribute(eye_tracker: ET_class, attributes: List[Attribute]|str):
                 case Attribute.Model:
                     out[Attribute.Model] = eye_tracker.model
                 case Attribute.Firmware_version:
-                    out[Attribute.Firmware_version] = 'not supported'
+                    out[Attribute.Firmware_version] = eye_tracker.firmware_version
                 case Attribute.Address:
                     out[Attribute.Address] = eye_tracker.address
                 case Attribute.Frequency:
@@ -154,8 +154,6 @@ def get_attribute(eye_tracker: ET_class, attributes: List[Attribute]|str):
 def update_attributes(eye_tracker: EyeTracker, attributes: Dict[Attribute,bool|str|int]):
     for attr in attributes:
         match attr:
-            case Attribute.Connected:
-                eye_tracker.connected = attributes[attr]
             case Attribute.Serial:
                 eye_tracker.serial = attributes[attr]
             case Attribute.Name:
