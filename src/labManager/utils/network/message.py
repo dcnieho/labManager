@@ -1,9 +1,6 @@
 import struct
-import json
-import pathlib
-import sys
-import importlib
-from enum import auto, Enum
+import jsonpickle
+from enum import auto
 from typing import Dict
 
 from .. import enum_helper
@@ -42,38 +39,14 @@ type_map = {
     }
 
 
-# support for sending some custom types via json
-class CustomTypeEncoder(json.JSONEncoder):
-    def default(self, obj):
-        if isinstance(obj,Enum):
-            mname = obj.__class__.__module__
-            ename = obj.__class__.__qualname__
-            member= obj.name
-            name  = f'{mname}.{ename}.{member}'
-            return {"__enum__": name}
-        elif isinstance(obj, pathlib.Path):
-            return {"__pathlib.Path__": str(obj)}
-        return json.JSONEncoder.default(self, obj)
-
-def json_reconstitute(d):
-    if "__enum__" in d:
-        mname, ename, member = d["__enum__"].rsplit(".", 2)
-        if not (module := sys.modules.get(mname)):
-            module = importlib.import_module(mname)
-        return getattr(getattr(module,ename), member)
-    elif "__pathlib.Path__" in d:
-        return pathlib.Path(d["__pathlib.Path__"])
-    else:
-        return d
-
 def parse(type: Type, msg: str) -> str | Dict:
     # load from JSON if needed
     if type_map[type]==Type.JSON:
-        msg = json.loads(msg, object_hook=json_reconstitute)
+        msg = jsonpickle.decode(msg, keys=True)
     return msg
 
 def prepare(type: Type, payload: str | Dict) -> str:
     # dump to JSON if needed
     if type_map[type]==Type.JSON:
-        payload = json.dumps(payload, cls=CustomTypeEncoder)
+        payload = jsonpickle.encode(payload, keys=True)
     return payload

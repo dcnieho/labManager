@@ -1,3 +1,4 @@
 aiofile
 psutil
 strictyaml
+jsonpickle
