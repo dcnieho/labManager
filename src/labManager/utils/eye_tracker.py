@@ -2,7 +2,8 @@ from enum import auto
 from dataclasses import dataclass
 from typing import Dict, List
 
-from . import enum_helper
+from . import async_thread, enum_helper
+from .network import comms, message
 
 HAS_TOBII_RESEARCH = False
 ET_class = None
@@ -16,7 +17,6 @@ except ImportError:
 
 @enum_helper.get('eye tracker attributes')
 class Attribute(enum_helper.AutoNameSpace):
-    Connected       = auto()    # is an eye tracker connected or not?
     Serial          = auto()
     Name            = auto()
     Model           = auto()
@@ -25,9 +25,20 @@ class Attribute(enum_helper.AutoNameSpace):
     Frequency       = auto()
     Tracking_mode   = auto()
 
+class Status(enum_helper.AutoNameSpace):
+    Not_connected   = auto()
+    Connected       = auto()
+    Calibrating     = auto()
+
+class Event(enum_helper.AutoNameSpace):
+    Connection_lost     = auto()
+    Connection_restored = auto()
+    Calibration_changed = auto()
+    Device_fault        = auto()
+    Device_warning      = auto()
+
 @dataclass
 class EyeTracker:
-    connected       : bool = False
     serial          : str = None
     name            : str = None
     model           : str = None
@@ -45,16 +56,67 @@ def get():
     if eye_trackers:
         return eye_trackers[0]
 
-def subscribe_to_notifications():
-    pass
+def _get_notifications():
+    return (
+        tobii_research.EYETRACKER_NOTIFICATION_CONNECTION_LOST,
+        tobii_research.EYETRACKER_NOTIFICATION_CONNECTION_RESTORED,
+        tobii_research.EYETRACKER_NOTIFICATION_CALIBRATION_MODE_ENTERED,
+        tobii_research.EYETRACKER_NOTIFICATION_CALIBRATION_MODE_LEFT,
+        tobii_research.EYETRACKER_NOTIFICATION_CALIBRATION_CHANGED,
+        tobii_research.EYETRACKER_NOTIFICATION_GAZE_OUTPUT_FREQUENCY_CHANGED,
+        tobii_research.EYETRACKER_NOTIFICATION_EYE_TRACKING_MODE_CHANGED,
+        tobii_research.EYETRACKER_NOTIFICATION_DEVICE_FAULTS,
+        tobii_research.EYETRACKER_NOTIFICATION_DEVICE_WARNINGS)
 
-def get_attribute(eye_tracker: 'tobii_research.EyeTracker', attributes: List[Attribute]|str):
-    def return_not_connected():
-        if Attribute.Connected in attributes:
-            return {Attribute.Connected: False}
-        else:
-            return {}
+def notification_callback(notification, data, eye_tracker, writer):
+    msg   = {'serial': eye_tracker.serial_number, 'timestamp': data.system_time_stamp}
+    mtype = None
+    match notification:
+        case tobii_research.EYETRACKER_NOTIFICATION_CONNECTION_LOST | \
+             tobii_research.EYETRACKER_NOTIFICATION_CONNECTION_RESTORED | \
+             tobii_research.EYETRACKER_NOTIFICATION_CALIBRATION_MODE_ENTERED | \
+             tobii_research.EYETRACKER_NOTIFICATION_CALIBRATION_MODE_LEFT:
+            mtype = message.Message.ET_STATUS_INFORM
+            if notification==tobii_research.EYETRACKER_NOTIFICATION_CONNECTION_LOST:
+                msg['status'] = Status.Not_connected
+            elif notification==tobii_research.EYETRACKER_NOTIFICATION_CALIBRATION_MODE_ENTERED:
+                msg['status'] = Status.Calibrating
+            else:
+                msg['status'] = Status.Connected
 
+        case tobii_research.EYETRACKER_NOTIFICATION_DEVICE_FAULTS:
+            mtype = message.Message.ET_EVENT
+            msg['event'] = 'fault'
+            msg['info']  = data.faults
+        case tobii_research.EYETRACKER_NOTIFICATION_DEVICE_WARNINGS:
+            mtype = message.Message.ET_EVENT
+            msg['event'] = 'warning'
+            msg['info']  = data.warnings
+        case tobii_research.EYETRACKER_NOTIFICATION_CALIBRATION_CHANGED:
+            mtype = message.Message.ET_EVENT
+            msg['event'] = 'calibration_changed'
+
+        case tobii_research.EYETRACKER_NOTIFICATION_GAZE_OUTPUT_FREQUENCY_CHANGED:
+            mtype = message.Message.ET_ATTR_UPDATE
+            msg['attributes'] = {Attribute.Frequency: data.gaze_output_frequency}
+        case tobii_research.EYETRACKER_NOTIFICATION_EYE_TRACKING_MODE_CHANGED:
+            mtype = message.Message.ET_ATTR_UPDATE
+            msg['attributes'] = {Attribute.Tracking_mode: eye_tracker.get_eye_tracking_mode()}
+    
+    # if handled notification type, send to master
+    if mtype:
+        async_thread.run(comms.send_typed_message(writer, mtype, message))
+
+def subscribe_to_notifications(eye_tracker: ET_class, writer):
+    for notification in _get_notifications():
+        eye_tracker.subscribe_to(notification,
+            lambda x, note: notification_callback(note, x, writer))
+
+def unsubscribe_from_notifications(eye_tracker: ET_class):
+    for notification in _get_notifications():
+        eye_tracker.unsubscribe_from(notification)
+
+def get_attribute(eye_tracker: ET_class, attributes: List[Attribute]|str):
     if attributes=='*':
         attributes = [a for a in Attribute]
 
@@ -64,14 +126,12 @@ def get_attribute(eye_tracker: 'tobii_research.EyeTracker', attributes: List[Att
     try:
         eye_tracker.get_gaze_output_frequency()
     except:
-        return return_not_connected()
+        return {}
 
     out = {}
     try:
         for attr in attributes:
             match attr:
-                case Attribute.Connected:
-                    out[Attribute.Connected] = True
                 case Attribute.Serial:
                     out[Attribute.Serial] = eye_tracker.serial_number
                 case Attribute.Name:
@@ -87,7 +147,7 @@ def get_attribute(eye_tracker: 'tobii_research.EyeTracker', attributes: List[Att
                 case Attribute.Tracking_mode:
                     out[Attribute.Tracking_mode] = eye_tracker.get_eye_tracking_mode()
     except:
-        return return_not_connected()
+        return {}
 
     return out
 

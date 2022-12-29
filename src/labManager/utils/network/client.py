@@ -131,12 +131,14 @@ class Client:
                     case message.Message.ET_ATTR_REQUEST:
                         if not self._connected_eye_tracker:
                             self._connected_eye_tracker = eye_tracker.get()
-                            await comms.typed_send(writer,
-                                                   message.Message.ET_ATTR_UPDATE,
-                                                   eye_tracker.get_attribute(self._connected_eye_tracker, '*')
-                                                   )
-                        else:
-                            pass
+                            if self._connected_eye_tracker:
+                                eye_tracker.subscribe_to_notifications(self._connected_eye_tracker, writer)
+                                msg = '*'   # override requested: send all attributes
+                        
+                        await comms.typed_send(writer,
+                                               message.Message.ET_ATTR_UPDATE,
+                                               eye_tracker.get_attribute(self._connected_eye_tracker, msg)
+                                              )
 
                     case message.Message.TASK_CREATE:
                         self._task_list.append(
