@@ -47,6 +47,8 @@ class Client:
     MACs    : List[str] = None
     name    : str = None
 
+    known_client: 'KnownClient' = None
+
     tasks   : Dict[int, 'labManager.utils.task.Task'] = field(default_factory=lambda: {})
 
     def __post_init__(self):
@@ -58,3 +60,20 @@ class Client:
 
     def __repr__(self):
         return f'{self.name}@{self.host}:{self.port}'
+
+_known_client_id_provider = CounterContext()
+@dataclass
+class KnownClient:
+    name        : str
+    MAC         : str
+    id          : int = None
+
+    client      : Client = None
+
+    def __post_init__(self):
+        global _known_client_id_provider
+        with _known_client_id_provider:
+            self.id = _known_client_id_provider.get_count()
+
+    def __repr__(self):
+        return f'{self.name}@{self.MAC}, {"" if self.client else "not"} connected'

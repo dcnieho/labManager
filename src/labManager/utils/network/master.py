@@ -8,8 +8,10 @@ from .  import comms, keepalive, message
 
 class Server:
     def __init__(self):
-        self.clients: Dict[int, structs.Client] = {}
         self.address = None
+        
+        self.clients: Dict[int, structs.Client] = {}
+        self.known_clients: Dict[int, structs.KnownClient] = {}
 
         self.task_groups: Dict[int, task.TaskGroup] = {}
         
@@ -17,7 +19,25 @@ class Server:
         self.clients[client.id] = client
 
     def remove_client(self, client: structs.Client):
+        self._remove_known_client(client)
         del self.clients[client.id]
+
+    def load_known_clients(self, known_clients: List[Tuple[str,str]]):
+        for client in known_clients:
+            kc = structs.KnownClient(client['name'], client['MAC'])
+            self.known_clients[kc.id] = kc
+
+    def _find_known_client(self, client: structs.Client):
+        for id in self.known_clients:
+            if self.known_clients[id].MAC in client.MACs:
+                client.known_client = self.known_clients[id]
+                self.known_clients[id].client = client
+                return
+
+    def _remove_known_client(self, client: structs.Client):
+        if client.known_client:
+            client.known_client.client = None
+        client.known_client = None
 
     async def start(self, local_addr: Tuple[str,int]):
         self.server = await asyncio.start_server(self._handle_client, *local_addr)
@@ -57,6 +77,7 @@ class Server:
                         me.name = msg['name']
                         me.MACs = msg['MACs']
                         print(f'setting name for {me.host}:{me.port} to: {me.name}')
+                        self._find_known_client(me)
                     case message.Message.INFO:
                         print(f'{me.host}:{me.port}: {msg}')
                     case message.Message.TASK_OUTPUT:

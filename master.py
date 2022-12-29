@@ -46,6 +46,7 @@ async def main():
     if_ips,_ = network.ifs.get_ifaces(config.master['network'])
     # start server to connect with clients
     server = network.master.Server()
+    server.load_known_clients(config.master['clients'])
     async_thread.wait(server.start((if_ips[0], 0)))
     ip,port = server.address[0]
 
