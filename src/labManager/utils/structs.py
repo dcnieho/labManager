@@ -1,7 +1,7 @@
 import asyncio
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict
+from typing import Dict, List
 
 
 SSDP_DEVICE_TYPE = "urn:schemas-upnp-org:device:labManager"
@@ -44,6 +44,7 @@ class Client:
     id      : int = None
     host    : str = None
     port    : int = None
+    MACs    : List[str] = None
     name    : str = None
 
     tasks   : Dict[int, 'labManager.utils.task.Task'] = field(default_factory=lambda: {})

@@ -54,8 +54,9 @@ class Server:
 
                 match type:
                     case message.Message.IDENTIFY:
-                        me.name = msg
-                        print(f'setting name for {me.host}:{me.port} to: {msg}')
+                        me.name = msg['name']
+                        me.MACs = msg['MACs']
+                        print(f'setting name for {me.host}:{me.port} to: {me.name}')
                     case message.Message.INFO:
                         print(f'{me.host}:{me.port}: {msg}')
                     case message.Message.TASK_OUTPUT:

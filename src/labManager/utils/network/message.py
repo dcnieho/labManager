@@ -32,7 +32,7 @@ class Type(structs.AutoNameDash):
 
 type_map = {
     Message.QUIT        : Type.SIMPLE,
-    Message.IDENTIFY    : Type.SIMPLE,
+    Message.IDENTIFY    : Type.JSON,
     Message.INFO        : Type.SIMPLE,
     Message.TASK_CREATE : Type.JSON,
     Message.TASK_OUTPUT : Type.JSON,

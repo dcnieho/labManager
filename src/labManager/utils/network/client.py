@@ -122,7 +122,7 @@ class Client:
 
                 match type:
                     case message.Message.IDENTIFY:
-                        await comms.typed_send(writer, message.Message.IDENTIFY, self.name)
+                        await comms.typed_send(writer, message.Message.IDENTIFY, {'name': self.name, 'MACs': self._if_macs})
                     case message.Message.INFO:
                         print(f'client {self.name} received: {msg}')
 
