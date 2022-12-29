@@ -28,6 +28,7 @@
     <Compile Include="master.py" />
     <Compile Include="src\labManager\utils\async_thread.py" />
     <Compile Include="src\labManager\utils\config.py" />
+    <Compile Include="src\labManager\utils\eye_tracker.py" />
     <Compile Include="src\labManager\utils\impacket\crypto.py" />
     <Compile Include="src\labManager\utils\impacket\dcerpc\v5\atsvc.py" />
     <Compile Include="src\labManager\utils\impacket\dcerpc\v5\bkrp.py" />

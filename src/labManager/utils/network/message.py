@@ -13,16 +13,20 @@ SIZE_BYTES  = struct.calcsize(SIZE_FMT)
     
 @enum_helper.get('messages')
 class Message(enum_helper.AutoNameDash):
-    QUIT        = auto()    # tell client to kill its handler for this connection
-    IDENTIFY    = auto()
-    INFO        = auto()
+    QUIT            = auto()    # tell client to kill its handler for this connection
+    INFO            = auto()
+
+    ## queries
+    IDENTIFY        = auto()
+    ET_ATTR_REQUEST = auto()    # request eye tracker attribute(s) (including if there is one connected)
+    ET_ATTR_UPDATE  = auto()    # inform about change in eye tracker attribute(s)
 
     ## tasks
     # master -> client
-    TASK_CREATE = auto()    # {task_id, type, payload, cwd, env} # payload is the executable and args of subprocess.Popen, cwd and env (optional) its cwd and env arguments
+    TASK_CREATE     = auto()    # {task_id, type, payload, cwd, env} # payload is the executable and args of subprocess.Popen, cwd and env (optional) its cwd and env arguments
     # client -> master
-    TASK_OUTPUT = auto()    # {task_id, stream_type, output}, task (stdout or stderr) output
-    TASK_UPDATE = auto()    # {task_id, status, Optional[return_code]}, task status update (started running, errored, finished). Latter two include return code
+    TASK_OUTPUT     = auto()    # {task_id, stream_type, output}, task (stdout or stderr) output
+    TASK_UPDATE     = auto()    # {task_id, status, Optional[return_code]}, task status update (started running, errored, finished). Latter two include return code
 
 @enum_helper.get('message types')
 class Type(enum_helper.AutoNameDash):
@@ -30,12 +34,16 @@ class Type(enum_helper.AutoNameDash):
     JSON        = auto()
 
 type_map = {
-    Message.QUIT        : Type.SIMPLE,
-    Message.IDENTIFY    : Type.JSON,
-    Message.INFO        : Type.SIMPLE,
-    Message.TASK_CREATE : Type.JSON,
-    Message.TASK_OUTPUT : Type.JSON,
-    Message.TASK_UPDATE : Type.JSON,
+    Message.QUIT            : Type.SIMPLE,
+    Message.INFO            : Type.SIMPLE,
+    Message.IDENTIFY        : Type.JSON,
+
+    Message.ET_ATTR_REQUEST : Type.JSON,
+    Message.ET_ATTR_UPDATE  : Type.JSON,
+    
+    Message.TASK_CREATE     : Type.JSON,
+    Message.TASK_OUTPUT     : Type.JSON,
+    Message.TASK_UPDATE     : Type.JSON,
     }
 
 

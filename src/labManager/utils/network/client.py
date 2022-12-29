@@ -3,7 +3,7 @@ import traceback
 import platform
 from typing import List, Tuple
 
-from .. import config, structs, task
+from .. import config, eye_tracker, task
 from .  import comms, ifs, keepalive, message, ssdp
 
 class Client:
@@ -15,6 +15,8 @@ class Client:
         self._ssdp_client: ssdp.Client = None
         self._if_ips  = None
         self._if_macs = None
+
+        self._connected_eye_tracker: eye_tracker.ET_class = None
 
         self._handler_tasks    : List[asyncio.Task] = []
         self._connected_masters: List[Tuple[str,int]] = []
@@ -125,6 +127,16 @@ class Client:
                         await comms.typed_send(writer, message.Message.IDENTIFY, {'name': self.name, 'MACs': self._if_macs})
                     case message.Message.INFO:
                         print(f'client {self.name} received: {msg}')
+
+                    case message.Message.ET_ATTR_REQUEST:
+                        if not self._connected_eye_tracker:
+                            self._connected_eye_tracker = eye_tracker.get()
+                            await comms.typed_send(writer,
+                                                   message.Message.ET_ATTR_UPDATE,
+                                                   eye_tracker.get_attribute(self._connected_eye_tracker, '*')
+                                                   )
+                        else:
+                            pass
 
                     case message.Message.TASK_CREATE:
                         self._task_list.append(

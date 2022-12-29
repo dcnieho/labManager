@@ -1,4 +1,5 @@
 aiofile
 psutil
 strictyaml
+tobii_research
 jsonpickle

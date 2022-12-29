@@ -2,6 +2,8 @@ import asyncio
 from dataclasses import dataclass, field
 from typing import Dict, List
 
+from . import eye_tracker as _et
+
 
 class CounterContext:
     count = -1      # so that first number is 0
@@ -27,6 +29,7 @@ class Client:
     port    : int = None
     MACs    : List[str] = None
     name    : str = None
+    eye_tracker : _et.EyeTracker = None
 
     known_client: 'KnownClient' = None
 

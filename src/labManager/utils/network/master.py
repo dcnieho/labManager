@@ -3,7 +3,7 @@ import aiofile
 import traceback
 from typing import Dict, List, Tuple
 
-from .. import structs, task
+from .. import eye_tracker, structs, task
 from .  import comms, keepalive, message
 
 class Server:
@@ -80,6 +80,12 @@ class Server:
                         self._find_known_client(me)
                     case message.Message.INFO:
                         print(f'{me.host}:{me.port}: {msg}')
+
+                    case message.Message.ET_ATTR_UPDATE:
+                        if not me.eye_tracker:
+                            me.eye_tracker = eye_tracker.EyeTracker()
+                        eye_tracker.update_attributes(me.eye_tracker, msg)
+
                     case message.Message.TASK_OUTPUT:
                         mytask = me.tasks[msg['task_id']]
                         match msg['stream_type']:
