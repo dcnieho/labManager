@@ -1,6 +1,9 @@
 # where to listen
 network: 192.168.100.0/24
 
+SSDP:
+    device_type: urn:schemas-upnp-org:device:labManager
+
 SMB:
     server: srv2.humlab.lu.se
     domain: UW  # domain for users

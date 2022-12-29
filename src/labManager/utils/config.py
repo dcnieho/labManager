@@ -4,6 +4,9 @@ import os
 master_config_file = 'master_config.yaml'
 master_schema = s.Map({
     'network': s.Str(),
+    'SSDP': s.Map({
+        'device_type': s.Str(),
+        }),
     'SMB': s.Map({
         'server': s.Str(),
         'domain': s.Str(),
@@ -30,6 +33,9 @@ else:
 client_config_file = 'client_config.yaml'
 client_schema = s.Map({
     'network': s.Str(),
+    'SSDP': s.Map({
+        'device_type': s.Str(),
+        }),
 })
 
 if os.path.isfile(client_config_file):

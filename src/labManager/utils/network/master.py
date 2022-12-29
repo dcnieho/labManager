@@ -92,6 +92,7 @@ class Server:
                         mytask.status = msg['status']
                         if 'return_code' in msg:
                             mytask.return_code = msg['return_code']
+
                     case _:
                         print(f'got unhandled type {type.value}, message: {msg}')
  

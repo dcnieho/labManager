@@ -6,7 +6,7 @@ import importlib
 from enum import auto, Enum
 from typing import Dict
 
-from .. import enum_helper, structs
+from .. import enum_helper
 
 SIZE_FMT    = '!I'
 SIZE_BYTES  = struct.calcsize(SIZE_FMT)
@@ -15,7 +15,7 @@ SIZE_BYTES  = struct.calcsize(SIZE_FMT)
     
     
 @enum_helper.get('messages')
-class Message(structs.AutoNameDash):
+class Message(enum_helper.AutoNameDash):
     QUIT        = auto()    # tell client to kill its handler for this connection
     IDENTIFY    = auto()
     INFO        = auto()
@@ -28,7 +28,7 @@ class Message(structs.AutoNameDash):
     TASK_UPDATE = auto()    # {task_id, status, Optional[return_code]}, task status update (started running, errored, finished). Latter two include return code
 
 @enum_helper.get('message types')
-class Type(structs.AutoNameDash):
+class Type(enum_helper.AutoNameDash):
     SIMPLE      = auto()
     JSON        = auto()
 

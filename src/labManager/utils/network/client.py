@@ -3,7 +3,7 @@ import traceback
 import platform
 from typing import List, Tuple
 
-from .. import structs, task
+from .. import config, structs, task
 from .  import comms, ifs, keepalive, message, ssdp
 
 class Client:
@@ -35,7 +35,7 @@ class Client:
             # start SSDP client
             self._ssdp_client = ssdp.Client(
                 address=self._if_ips[0],
-                device_type=structs.SSDP_DEVICE_TYPE,
+                device_type=config.client['SSDP']['device_type'],
                 response_handler=self._handle_ssdp_response if keep_ssdp_running else None
             )
             await self._ssdp_client.start()

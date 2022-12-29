@@ -12,7 +12,7 @@ from typing import Dict, List
 from . import enum_helper, network, structs
 
 @enum_helper.get('task types')
-class Type(structs.AutoNameSpace):
+class Type(enum_helper.AutoNameSpace):
     Shell_command   = auto()    # run command in shell
     Process_exec    = auto()    # run executable
     Batch_file      = auto()    # invoke batch file
@@ -22,7 +22,7 @@ class Type(structs.AutoNameSpace):
 types = [x.value for x in Type]
 
 @enum_helper.get('task statuses')
-class Status(structs.AutoNameSpace):
+class Status(enum_helper.AutoNameSpace):
     Not_started     = auto()
     Running         = auto()
     Finished        = auto()
@@ -53,7 +53,7 @@ class Task:
     def __post_init__(self):
         global _task_id_provider
         with _task_id_provider:
-            self.id = _task_id_provider.get_count()
+            self.id = _task_id_provider.count
             
 _task_group_id_provider = structs.CounterContext()
 @dataclass
@@ -73,10 +73,10 @@ class TaskGroup:
     def __post_init__(self):
         global _task_group_id_provider
         with _task_group_id_provider:
-            self.id = _task_group_id_provider.get_count()
+            self.id = _task_group_id_provider.count
 
 @enum_helper.get('stream types')
-class StreamType(structs.AutoNameDash):
+class StreamType(enum_helper.AutoNameDash):
     STDOUT      = auto()
     STDERR      = auto()
 

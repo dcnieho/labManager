@@ -54,8 +54,8 @@ async def main():
     ssdp_server = network.ssdp.Server(
         address=if_ips[0],
         host_ip_port=(ip,port),
-        usn="humlab-b055-master::"+structs.SSDP_DEVICE_TYPE,
-        device_type=structs.SSDP_DEVICE_TYPE,
+        usn="humlab-b055-master::"+config.master['SSDP']['device_type'],
+        device_type=config.master['SSDP']['device_type'],
         allow_loopback=True)
     async_thread.wait(ssdp_server.start())
 
