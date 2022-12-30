@@ -114,6 +114,12 @@ class Client:
     def get_waiters(self):
         return self._handler_tasks
 
+    def _remove_finished_task(self, my_task: asyncio.Task):
+        for i,t in enumerate(self._task_list):
+            if t.async_task.get_name()==my_task.get_name():
+                del self._task_list[i]
+                break
+
     async def _handle_master(self, reader: asyncio.streams.StreamReader, writer: asyncio.streams.StreamWriter):
         type = None
         while type != message.Message.QUIT:
@@ -150,6 +156,7 @@ class Client:
                                 writer)
                         )
                         self._task_list.append(new_task)
+                        new_task.async_task.add_done_callback(self._remove_finished_task)
 
                     case message.Message.TASK_INPUT:
                         # find if there is a running task with this id and which has an input queue, else ignore the input
