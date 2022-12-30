@@ -48,7 +48,7 @@ def wait(coroutine: typing.Coroutine):
         time.sleep(0.1)
     if exception := future.exception():
         raise exception
-    return future.result
+    return future.result()
 
 
 # Example usage
