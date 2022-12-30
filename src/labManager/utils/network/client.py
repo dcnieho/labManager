@@ -23,7 +23,7 @@ class Client:
         self._local_addrs      : List[Tuple[str,int]] = []
         self._writers          : List[asyncio.streams.StreamWriter] = []
 
-        self._task_list        : List[asyncio.Task] = []
+        self._task_list        : List[task.RunningTask] = []
 
     def __del__(self):
         self._stop_sync()
@@ -86,8 +86,9 @@ class Client:
         writer_close_waiters = [asyncio.create_task(w.wait_closed()) for w in self._writers]
 
         # wait till everything is stopped and cancelled
+        running_tasks = [x.async_task for x in self._task_list]
         await asyncio.wait(
-            self._task_list +
+            running_tasks +
             ([asyncio.create_task(self._ssdp_client.stop())] if self._ssdp_client else []) +
             writer_close_waiters + 
             self._handler_tasks,
@@ -104,7 +105,7 @@ class Client:
     def _stop_sync(self):
         # sync part of stopping
         for t in self._task_list:
-            t.cancel()
+            t.async_task.cancel()
         if self._ssdp_discovery_task:
             self._ssdp_discovery_task.cancel()
         for w in self._writers:
@@ -121,7 +122,7 @@ class Client:
                 if not type:
                     # connection broken, close
                     break
-
+                
                 match type:
                     case message.Message.IDENTIFY:
                         await comms.typed_send(writer, message.Message.IDENTIFY, {'name': self.name, 'MACs': self._if_macs})
@@ -141,11 +142,23 @@ class Client:
                                               )
 
                     case message.Message.TASK_CREATE:
-                        self._task_list.append(
-                            asyncio.create_task(
-                                task.Executor().run(msg['task_id'],msg['type'],msg['payload'],msg['cwd'],msg['env'], writer)
-                            )
+                        new_task = task.RunningTask(msg['task_id'])
+                        new_task.async_task = asyncio.create_task(
+                            task.Executor().run(
+                                msg['task_id'],msg['type'],msg['payload'],msg['cwd'],msg['env'],msg['interactive'],
+                                new_task,
+                                writer)
                         )
+                        self._task_list.append(new_task)
+
+                    case message.Message.TASK_INPUT:
+                        # find if there is a running task with this id and which has an input queue, else ignore the input
+                        my_task = None
+                        for t in self._task_list:
+                            if msg['task_id']==t.id and not t.async_task.done():
+                                my_task = t
+                        if my_task and my_task.input:
+                            await my_task.input.put(msg['payload'])
 
             except Exception as exc:
                 tb_lines = traceback.format_exception(exc)

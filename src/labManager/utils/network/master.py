@@ -123,7 +123,14 @@ class Server:
         for c in self.clients:
             await comms.typed_send(self.clients[c].writer, type, message)
 
-    async def run_task(self, type: task.Type, payload: str, clients: List[int] | str, payload_type='cmd_or_script'):
+    async def run_task(self,
+                       type: task.Type,
+                       payload: str,
+                       clients: List[int] | str,
+                       payload_type='cmd_or_script',
+                       cwd: str=None,
+                       env: dict=None,
+                       interactive=False):
         # clients has a special value '*' which means all clients
         if clients=='*':
             clients = [c for c in self.clients]
@@ -137,7 +144,7 @@ class Server:
                     payload = await afp.read()
 
         # make task group
-        task_group = task.create_group(type, payload, clients)
+        task_group = task.create_group(type, payload, clients, cwd=cwd, env=env, interactive=interactive)
         self.task_groups[task_group.id] = task_group
 
         # start tasks

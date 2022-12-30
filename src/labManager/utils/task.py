@@ -38,6 +38,7 @@ class Task:
     env         : dict= None    # if not None, environment variables when executing
     id          : int = None
     status      : Status = Status.Not_started
+    interactive : bool = False  # if True, stdin is connected to a pipe and commands can be sent by master to control
 
     client      : int = None
     task_group_id: int = None
@@ -55,6 +56,13 @@ class Task:
         with _task_id_provider:
             self.id = _task_id_provider.count
             
+@dataclass
+class RunningTask:
+    id        : int
+    async_task: asyncio.Task = None
+    input     : asyncio.Queue= None
+            
+
 _task_group_id_provider = structs.CounterContext()
 @dataclass
 class TaskGroup:
@@ -82,10 +90,11 @@ class StreamType(enum_helper.AutoNameDash):
 
 
 
-# create instances through Executor.do()
+# create instances through Executor.run()
 class Executor:
     def __init__(self):
         self._proc: asyncio.subprocess.Process = None
+        self._input: asyncio.Queue = None
 
     async def _read_stream(self, stream, stream_type: StreamType, writer, id):  
         while True:
@@ -99,11 +108,22 @@ class Executor:
             else:
                 break
 
-    async def _stream_subprocess(self, id, use_shell, cmd, cwd, env, writer, cleanup=None):
+    async def _write_stream(self, stream):  
+        while True:
+            input = await self._input.get()
+            if input is not None:
+                stream.write(input.encode())
+                await stream.drain()
+            else:
+                break
+        stream.close()
+
+    async def _stream_subprocess(self, id, use_shell, cmd, cwd, env, interactive, writer, cleanup=None):
         try:
             if use_shell:
                 self._proc = await asyncio.create_subprocess_shell(
                     cmd,
+                    stdin=asyncio.subprocess.PIPE if interactive else None,
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE,
                     cwd=cwd,
@@ -112,6 +132,7 @@ class Executor:
             else:
                 self._proc = await asyncio.create_subprocess_exec(
                     *cmd,
+                    stdin=asyncio.subprocess.PIPE if interactive else None,
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE,
                     cwd=cwd,
@@ -130,10 +151,13 @@ class Executor:
         )
 
         # listen to output streams and forward to master
-        await asyncio.wait([
+        tasks = [
             asyncio.create_task(self._read_stream(self._proc.stdout, StreamType.STDOUT, writer, id)),
             asyncio.create_task(self._read_stream(self._proc.stderr, StreamType.STDERR, writer, id))
-        ])
+        ]
+        if interactive:
+            tasks.append(asyncio.create_task(self._write_stream(self._proc.stdin)))
+        await asyncio.wait(tasks)
 
         # wait for return code to become available and forward to master
         return_code = await self._proc.wait()
@@ -153,7 +177,7 @@ class Executor:
 
         return return_code
 
-    async def run(self, id: int, type: Type, payload: str, cwd: str, env: dict, writer):
+    async def run(self, id: int, type: Type, payload: str, cwd: str, env: dict, interactive: bool, running_task: RunningTask, writer):
         # setup executor
         match type:
             case Type.Shell_command:
@@ -194,6 +218,10 @@ class Executor:
             folder.mkdir()
             async with aiofile.async_open(filename, 'wt') as afp:
                 await afp.write(payload)
+
+        # prep for input stream, if needed
+        if interactive:
+            self._input = running_task.input = asyncio.Queue()
         
         # create coro to execute the command, await it to execute it
         try:
@@ -203,6 +231,7 @@ class Executor:
                 cmd,
                 cwd,
                 env,
+                interactive,
                 writer,
                 cleanup=filename
             )
@@ -238,17 +267,18 @@ async def send(task: Task, writer):
             'type': task.type,
             'payload': task.payload,
             'cwd': task.cwd,
-            'env': task.env
+            'env': task.env,
+            'interactive': task.interactive,
         }
     )
 
-def create_group(type: Type, payload: str, clients: List[int], cwd: str=None, env: dict=None) -> TaskGroup:
+def create_group(type: Type, payload: str, clients: List[int], cwd: str=None, env: dict=None, interactive=False) -> TaskGroup:
     task_group = TaskGroup(type, payload)
 
     # make individual tasks
     for c in clients:
         # create task
-        task = Task(type, payload, cwd=cwd, env=env, client=c, task_group_id=task_group.id)
+        task = Task(type, payload, cwd=cwd, env=env, interactive=interactive, client=c, task_group_id=task_group.id)
         # add to task group
         task_group.task_refs[c] = task
 
