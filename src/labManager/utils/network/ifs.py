@@ -19,6 +19,9 @@ def get_ifaces(ip_network):
             macs.append(mac)
             ips .append(ip)
 
+    if not ips:
+        return [],[]
+
     # sort both based on ip, return
     ips, macs = zip(*[(x,y) for x,y in sorted(zip(ips, macs))])
     return ips, macs
