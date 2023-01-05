@@ -3,8 +3,25 @@ import traceback
 import platform
 from typing import List, Tuple
 
-from .. import config, eye_tracker, task
-from .  import comms, ifs, keepalive, message, ssdp
+from ..utils import config, eye_tracker, message, network, task
+
+# main function for independently running client
+# NB: requires that utils.async_thread has been set up
+async def run(duration: float = None):
+    client = Client(config.client['network'])
+    await client.start(keep_ssdp_running=True)
+
+    # run until client finished
+    if not duration:
+        # wait forever
+        await asyncio.Event().wait()
+    else:
+        await asyncio.sleep(duration)
+
+    # this should be a no-op, but to be sure:
+    # shut down client, wait for it to quit
+    await client.stop()
+
 
 class Client:
     def __init__(self, network):
@@ -12,7 +29,7 @@ class Client:
         self.name     = platform.node()
 
         self._ssdp_discovery_task: asyncio.Task = None
-        self._ssdp_client: ssdp.Client = None
+        self._ssdp_client: network.ssdp.Client = None
         self._if_ips  = None
         self._if_macs = None
 
@@ -30,12 +47,12 @@ class Client:
 
     async def start(self, server_addr: Tuple[str,int] = None, *, keep_ssdp_running = False):
         # 1. get interfaces we can work with
-        self._if_ips, self._if_macs = ifs.get_ifaces(self.network)
+        self._if_ips, self._if_macs = network.ifs.get_ifaces(self.network)
 
         # 2. discover master, if needed
         if not server_addr:
             # start SSDP client
-            self._ssdp_client = ssdp.Client(
+            self._ssdp_client = network.ssdp.Client(
                 address=self._if_ips[0],
                 device_type=config.client['SSDP']['device_type'],
                 response_handler=self._handle_ssdp_response if keep_ssdp_running else None
@@ -71,7 +88,7 @@ class Client:
         # connect to master at specified server_address, connect to it
         reader, writer = await asyncio.open_connection(
             *server_addr, local_addr=(self._if_ips[0],0))
-        keepalive.set(writer.get_extra_info('socket'))
+        network.keepalive.set(writer.get_extra_info('socket'))
         self._connected_masters.append(server_addr)
         self._local_addrs.append(writer.get_extra_info('sockname'))
         self._writers.append(writer)
@@ -90,7 +107,7 @@ class Client:
         await asyncio.wait(
             running_tasks +
             ([asyncio.create_task(self._ssdp_client.stop())] if self._ssdp_client else []) +
-            writer_close_waiters + 
+            writer_close_waiters +
             self._handler_tasks,
             timeout=timeout
         )
@@ -124,14 +141,14 @@ class Client:
         type = None
         while type != message.Message.QUIT:
             try:
-                type, msg = await comms.typed_receive(reader)
+                type, msg = await network.comms.typed_receive(reader)
                 if not type:
                     # connection broken, close
                     break
 
                 match type:
                     case message.Message.IDENTIFY:
-                        await comms.typed_send(writer, message.Message.IDENTIFY, {'name': self.name, 'MACs': self._if_macs})
+                        await network.comms.typed_send(writer, message.Message.IDENTIFY, {'name': self.name, 'MACs': self._if_macs})
                     case message.Message.INFO:
                         print(f'client {self.name} received: {msg}')
 
@@ -142,7 +159,7 @@ class Client:
                                 eye_tracker.subscribe_to_notifications(self._connected_eye_tracker, writer)
                                 msg = '*'   # override requested: send all attributes
 
-                        await comms.typed_send(writer,
+                        await network.comms.typed_send(writer,
                                                message.Message.ET_ATTR_UPDATE,
                                                eye_tracker.get_attribute(self._connected_eye_tracker, msg)
                                               )

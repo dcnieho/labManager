@@ -1,5 +1,4 @@
 import asyncio
-import concurrent
 
 from labManager.utils import async_thread, config, network, structs
 

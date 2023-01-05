@@ -3,8 +3,8 @@ import aiofile
 import traceback
 from typing import Dict, List, Tuple
 
-from .. import eye_tracker, structs, task
-from .  import comms, keepalive, message
+from .. import eye_tracker, message, structs, task
+from .  import comms, keepalive
 
 class Server:
     def __init__(self):

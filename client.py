@@ -1,18 +1,9 @@
 import asyncio
 
-from labManager.utils import config, network
-
-
-async def main():
-    client = network.client.Client(config.client['network'])
-    await client.start(keep_ssdp_running=True)
-
-    # run until client finished
-    await asyncio.sleep(3600)
-
-    # this should be a no-op, but to be sure:
-    # shut down client, wait for it to quit
-    await client.stop()
+from labManager import client
+from labManager.utils import async_thread
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    async_thread.setup()
+    asyncio.run(client.run())
+    async_thread.cleanup()

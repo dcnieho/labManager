@@ -2,7 +2,7 @@ import asyncio
 import struct
 from typing import Tuple
 
-from . import message
+from .. import message
 
 
 async def _read_with_length(reader: asyncio.streams.StreamReader) -> str:

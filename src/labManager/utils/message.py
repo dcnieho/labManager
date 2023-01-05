@@ -3,7 +3,7 @@ import jsonpickle
 from enum import auto
 from typing import Dict
 
-from .. import enum_helper
+from . import enum_helper
 
 SIZE_FMT    = '!I'
 SIZE_BYTES  = struct.calcsize(SIZE_FMT)

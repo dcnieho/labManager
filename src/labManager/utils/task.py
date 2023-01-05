@@ -9,7 +9,7 @@ from enum import auto
 from dataclasses import dataclass, field
 from typing import Dict, List
 
-from . import enum_helper, network, structs
+from . import enum_helper, message, network, structs
 
 @enum_helper.get('task types')
 class Type(enum_helper.AutoNameSpace):
@@ -102,7 +102,7 @@ class Executor:
             if line:
                 await network.comms.typed_send(
                     writer,
-                    network.message.Message.TASK_OUTPUT,
+                    message.Message.TASK_OUTPUT,
                     {'task_id': id, 'stream_type': stream_type, 'output': line.decode('utf8')}
                 )
             else:
@@ -146,7 +146,7 @@ class Executor:
         # send that we're running
         await network.comms.typed_send(
             writer,
-            network.message.Message.TASK_UPDATE,
+            message.Message.TASK_UPDATE,
             {'task_id': id, 'status': Status.Running}
         )
 
@@ -163,7 +163,7 @@ class Executor:
         return_code = await self._proc.wait()
         await network.comms.typed_send(
             writer,
-            network.message.Message.TASK_UPDATE,
+            message.Message.TASK_UPDATE,
             {
                 'task_id': id,
                 'status': Status.Finished if return_code==0 else Status.Errored,
@@ -248,20 +248,20 @@ class Executor:
             # send error text
             await network.comms.typed_send(
                 writer,
-                network.message.Message.TASK_OUTPUT,
+                message.Message.TASK_OUTPUT,
                 {'task_id': id, 'stream_type': StreamType.STDERR, 'output': "".join(tb_lines)}
             )
             # send error status
             await network.comms.typed_send(
                 writer,
-                network.message.Message.TASK_UPDATE,
+                message.Message.TASK_UPDATE,
                 {'task_id': id, 'status': Status.Errored}
             )
 
 async def send(task: Task, writer):
     await network.comms.typed_send(
         writer,
-        network.message.Message.TASK_CREATE,
+        message.Message.TASK_CREATE,
         {
             'task_id': task.id,
             'type': task.type,
