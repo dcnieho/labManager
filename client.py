@@ -1,11 +1,5 @@
 import asyncio
 
-import sys
-import pathlib
-src_path = str(pathlib.Path(__file__).parent/"src")
-if not src_path in sys.path:
-    sys.path.append(src_path)
-    
 from labManager.utils import config, network
 
 

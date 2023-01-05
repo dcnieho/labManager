@@ -1,12 +1,6 @@
 import asyncio
 import concurrent
 
-import sys
-import pathlib
-src_path = str(pathlib.Path(__file__).parent/"src")
-if not src_path in sys.path:
-    sys.path.append(src_path)
-    
 from labManager.utils import async_thread, config, network, structs
 
 #import logging
