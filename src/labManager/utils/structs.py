@@ -21,7 +21,7 @@ _client_id_provider = CounterContext()
 @dataclass
 class Client:
     writer  : asyncio.streams.StreamWriter
-    
+
     id      : int = None
     host    : str = None
     port    : int = None

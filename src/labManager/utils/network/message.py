@@ -9,8 +9,7 @@ SIZE_FMT    = '!I'
 SIZE_BYTES  = struct.calcsize(SIZE_FMT)
 
 
-    
-    
+
 @enum_helper.get('messages')
 class Message(enum_helper.AutoNameDash):
     QUIT                = auto()    # tell client to kill its handler for this connection
@@ -43,13 +42,13 @@ type_map = {
     Message.QUIT                : Type.SIMPLE,
     Message.INFO                : Type.SIMPLE,
     Message.IDENTIFY            : Type.JSON,
-    
+
     Message.ET_STATUS_REQUEST   : Type.SIMPLE,
     Message.ET_STATUS_INFORM    : Type.JSON,
     Message.ET_ATTR_REQUEST     : Type.JSON,
     Message.ET_ATTR_UPDATE      : Type.JSON,
     Message.ET_EVENT            : Type.JSON,
-    
+
     Message.TASK_CREATE         : Type.JSON,
     Message.TASK_INPUT          : Type.JSON,
     Message.TASK_OUTPUT         : Type.JSON,

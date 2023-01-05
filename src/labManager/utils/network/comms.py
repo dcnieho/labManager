@@ -6,7 +6,7 @@ from . import message
 
 
 async def _read_with_length(reader: asyncio.streams.StreamReader) -> str:
-    # protocol: first the size of a message is sent so 
+    # protocol: first the size of a message is sent so
     # receiver knows what to expect. Then the message itself
     # is sent
     try:
@@ -46,7 +46,7 @@ async def _send_with_length(writer: asyncio.streams.StreamWriter, msg: str) -> b
         return True
     except ConnectionError:
         return False
-    
+
 
 async def typed_receive(reader: asyncio.streams.StreamReader) -> Tuple[message.Message,str]:
     type    = await _read_with_length(reader)
@@ -56,7 +56,7 @@ async def typed_receive(reader: asyncio.streams.StreamReader) -> Tuple[message.M
 
     msg = await _read_with_length(reader)
     msg = message.parse(type, msg)
-    
+
     return type, msg
 
 async def typed_send(writer: asyncio.streams.StreamWriter, type: message.Message, msg: str=''):

@@ -4,7 +4,7 @@ import socket
 
 def get_ifaces(ip_network):
     network = ipaddress.IPv4Network(ip_network)
-    
+
     macs= []
     ips = []
     for iface in (ifs:=psutil.net_if_addrs()):

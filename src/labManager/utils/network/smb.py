@@ -34,13 +34,13 @@ class SMBHandler:
             if all_shares[i]['shi1_type'] & dcerpc_v5_srvs.STYPE_SPECIAL:
                 # skip administrative shares such as ADMIN$, IPC$, C$, etc
                 continue
-                
+
             if check_access:
                 # connect to the share so we can read the user's access rights
                 tid = self.smb_client.connectTree(share)
                 access_flags = self.smb_client._SMBConnection._Session['TreeConnectTable'][share]['MaximalAccess']
                 self.smb_client.disconnectTree(tid)
-    
+
                 # check if we have access
                 if _check_access(access_flags):
                     out.append(share)

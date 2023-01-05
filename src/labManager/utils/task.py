@@ -55,13 +55,13 @@ class Task:
         global _task_id_provider
         with _task_id_provider:
             self.id = _task_id_provider.count
-            
+
 @dataclass
 class RunningTask:
     id        : int
     async_task: asyncio.Task = None
     input     : asyncio.Queue= None
-            
+
 
 _task_group_id_provider = structs.CounterContext()
 @dataclass
@@ -69,10 +69,10 @@ class TaskGroup:
     type        : Type
     payload     : str               # command, batch file contents, python script contents
     id          : int = None
-    
+
     # references to tasks belonging to this group, indexed by client name
     task_refs   : Dict[int, Task]  = field(default_factory=lambda: {})
-    
+
     num_finished: int = 0
     status      : Status = Status.Not_started   # running when any task has started, error when any has errored, finished when all finished successfully
 
@@ -96,7 +96,7 @@ class Executor:
         self._proc: asyncio.subprocess.Process = None
         self._input: asyncio.Queue = None
 
-    async def _read_stream(self, stream, stream_type: StreamType, writer, id):  
+    async def _read_stream(self, stream, stream_type: StreamType, writer, id):
         while True:
             line = await stream.read(20)
             if line:
@@ -108,7 +108,7 @@ class Executor:
             else:
                 break
 
-    async def _write_stream(self, stream):  
+    async def _write_stream(self, stream):
         while True:
             input = await self._input.get()
             if input is not None:
@@ -142,7 +142,7 @@ class Executor:
             await self._handle_error(exc, id, writer)
             # we're done
             return None
-    
+
         # send that we're running
         await network.comms.typed_send(
             writer,
@@ -222,7 +222,7 @@ class Executor:
         # prep for input stream, if needed
         if interactive:
             self._input = running_task.input = asyncio.Queue()
-        
+
         # create coro to execute the command, await it to execute it
         try:
             return await self._stream_subprocess(

@@ -9,7 +9,7 @@
 #
 # But this does not matter. The server only replies to M-SEARCH
 # requests with ST urn:schemas-upnp-org:device:labManager, not
-# ssdp:all, and we do not send out periodic NOTIFYs. Therefore, 
+# ssdp:all, and we do not send out periodic NOTIFYs. Therefore,
 # our non-conformant announcements will not be seen by any
 # other networking equipment than our clients performing the
 # discovery, so no other equipment can be confused by them.
@@ -200,7 +200,7 @@ class SimpleServiceDiscoveryProtocol(asyncio.DatagramProtocol):
 
         # if verbose, print each message received, also those not acted upon
         self.verbose = verbose
-        
+
         self.loop = asyncio.get_running_loop()
         self.done = self.loop.create_future()
         self.reply_tasks = set()
@@ -288,7 +288,7 @@ class SimpleServiceDiscoveryProtocol(asyncio.DatagramProtocol):
             self.done.set_result(None)
 
 class Base:
-    def __init__(self, 
+    def __init__(self,
                  is_server,
                  address,
                  device_type=None,
@@ -310,7 +310,7 @@ class Base:
         self.usn = None
         self.advertised_host_ip_port = None
         self.respond_to_all = None
-        
+
         self.loop = None
         self._is_started = False
 
@@ -471,7 +471,7 @@ class Client(Base):
 
         if not self._response_fut or self._response_fut.done():
             self._response_fut = self.loop.create_future()
-        
+
         self._discovery_task = asyncio.create_task(self._discovery_loop(interval))
         return self._discovery_task
 

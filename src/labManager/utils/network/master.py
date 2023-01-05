@@ -9,12 +9,12 @@ from .  import comms, keepalive, message
 class Server:
     def __init__(self):
         self.address = None
-        
+
         self.clients: Dict[int, structs.Client] = {}
         self.known_clients: Dict[int, structs.KnownClient] = {}
 
         self.task_groups: Dict[int, task.TaskGroup] = {}
-        
+
     def add_client(self, client: structs.Client):
         self.clients[client.id] = client
 
@@ -62,7 +62,7 @@ class Server:
 
         # request info about client
         await comms.typed_send(writer, message.Message.IDENTIFY)
-    
+
         # process incoming messages
         type = None
         while type != message.Message.QUIT:
@@ -108,7 +108,7 @@ class Server:
 
                     case _:
                         print(f'got unhandled type {type.value}, message: {msg}')
- 
+
             except Exception as exc:
                 tb_lines = traceback.format_exception(exc)
                 print("".join(tb_lines))

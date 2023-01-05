@@ -102,7 +102,7 @@ def notification_callback(notification, data, eye_tracker, writer):
         case tobii_research.EYETRACKER_NOTIFICATION_EYE_TRACKING_MODE_CHANGED:
             mtype = message.Message.ET_ATTR_UPDATE
             msg['attributes'] = {Attribute.Tracking_mode: eye_tracker.get_eye_tracking_mode()}
-    
+
     # if handled notification type, send to master
     if mtype:
         async_thread.run(comms.send_typed_message(writer, mtype, message))

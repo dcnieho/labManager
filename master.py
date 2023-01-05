@@ -36,7 +36,7 @@ async def main():
         toems_username = getpass(f'Username for logging into toems server {config.master["toems"]["server"]}: ')
         toems_password = getpass(f'Password for logging in with toems user {toems_username}: ')
         await toems.connect(toems_username, toems_password)
-    
+
         image_list = await toems.image_get()
         image = await toems.image_get(2)
         print(image)
@@ -70,4 +70,3 @@ if __name__ == "__main__":
     async_thread.setup()
     asyncio.run(main())
     async_thread.cleanup()
-    

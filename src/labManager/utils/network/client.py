@@ -128,7 +128,7 @@ class Client:
                 if not type:
                     # connection broken, close
                     break
-                
+
                 match type:
                     case message.Message.IDENTIFY:
                         await comms.typed_send(writer, message.Message.IDENTIFY, {'name': self.name, 'MACs': self._if_macs})
@@ -141,7 +141,7 @@ class Client:
                             if self._connected_eye_tracker:
                                 eye_tracker.subscribe_to_notifications(self._connected_eye_tracker, writer)
                                 msg = '*'   # override requested: send all attributes
-                        
+
                         await comms.typed_send(writer,
                                                message.Message.ET_ATTR_UPDATE,
                                                eye_tracker.get_attribute(self._connected_eye_tracker, msg)
