@@ -5,21 +5,21 @@ from typing import List, Tuple
 
 from ..utils import config, eye_tracker, message, network, task
 
+
 # main function for independently running client
 # NB: requires that utils.async_thread has been set up
 async def run(duration: float = None):
     client = Client(config.client['network'])
     await client.start(keep_ssdp_running=True)
 
-    # run until client finished
+    # run
     if not duration:
         # wait forever
         await asyncio.Event().wait()
     else:
         await asyncio.sleep(duration)
 
-    # this should be a no-op, but to be sure:
-    # shut down client, wait for it to quit
+    # shut down client if necessary, wait for it to quit
     await client.stop()
 
 

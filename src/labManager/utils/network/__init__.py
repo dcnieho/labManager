@@ -9,6 +9,7 @@ from . import ssdp
 # "master" extra when installing package
 try:
     import authlib as al
+    import httpx as h
 except:
     # no-op, authlib not available means master not available
     # user didn't specify the "master" extra to have the
@@ -16,6 +17,6 @@ except:
     pass
 else:
     del al
-    from . import master
+    del h
     from . import smb
     from . import toems
