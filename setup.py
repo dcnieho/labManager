@@ -9,47 +9,12 @@ with open(ver_path) as ver_file:
 with open('LICENSE') as f:
     license = f.read()
 
-required = []
-dependency_links = []
-def parse_requirements(requirements):
-    global required
-    global dependency_links
-
-    # Do not add to required lines pointing to Git repositories
-    EGG_MARK = '#egg='
-    EGG_MARK2= '&egg='  # in case of subdirectories
-    for line in requirements:
-        if line.startswith('-e git:') or line.startswith('-e git+') or \
-                line.startswith('git:') or line.startswith('git+'):
-            line = line.lstrip('-e ')  # in case that is using "-e"
-            if EGG_MARK in line or EGG_MARK2 in line:
-                if EGG_MARK in line:
-                    idx = line.find(EGG_MARK)
-                else:
-                    idx = line.find(EGG_MARK2)
-                package_name = line[idx + len(EGG_MARK):]
-                repository = line[:idx]
-                to_add = '%s @ %s' % (package_name, repository)
-                if to_add in required:
-                    continue
-
-                required.append()
-                if EGG_MARK2 in line:
-                    dependency_links.append(line.replace(EGG_MARK2,EGG_MARK))
-                else:
-                    dependency_links.append(line)
-            else:
-                print('Dependency to a git repository should have the format:')
-                print('git+ssh://git@github.com/xxxxx/xxxxxx#egg=package_name, or')
-                print('git+ssh://git@github.com/xxxxx/xxxxxx#subdirectory=sub_dir&egg=package_name')
-        else:
-            if line not in required:
-                required.append(line)
-
+# get base requirements
+with open('requirements.txt') as f:
+    required = f.read().splitlines()
+# get requirements for master extra
 with open('requirements-master.txt') as f:
-    parse_requirements(f.read().splitlines())
-with open('requirements-client.txt') as f:
-    parse_requirements(f.read().splitlines())
+    required_master = f.read().splitlines()
 
 
 
@@ -75,5 +40,7 @@ setuptools.setup(
     include_package_data=True,
     python_requires=">=3.10",
     install_requires=required,
-    dependency_links=dependency_links
+    extras_require={
+        "master": required_master,
+    },
 )

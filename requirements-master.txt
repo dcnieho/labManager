@@ -4,9 +4,5 @@ pyasn1>=0.2.3
 pycryptodomex
 pyOpenSSL>=21.0.0
 ldap3>=2.5,!=2.5.2,!=2.5.0,!=2.6
-aiofile
-psutil
 httpx
 Authlib
-strictyaml
-jsonpickle
