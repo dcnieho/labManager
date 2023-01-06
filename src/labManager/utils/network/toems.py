@@ -37,5 +37,15 @@ class Client:
 
         return (await coro).json()
 
-    async def image_get(self, id=None):
-        return await self.request('Image/Get'+(f'/{id}' if id else ''))
+    async def image_get(self, id=None, project=''):
+        images = await self.request('Image/Get'+(f'/{id}' if id else ''))
+
+        if project:
+            # only list images for a specific project, those have name starting with <project>_
+            images = [im for im in images if im['Name'].startswith(project+'_')]
+
+        # add user-facing name, which does not include project name (if there was one)
+        for im in images:
+            im['UserFacingName'] = im['Name'][len(project)+1:]
+
+        return images
