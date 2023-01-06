@@ -10,19 +10,23 @@ from ..utils import async_thread, config, eye_tracker, message, network, structs
 # NB: requires that utils.async_thread has been set up
 async def run(duration: float = None):
     from getpass import getpass
+    username = input(f'Username: ')
+    password = getpass(f'Password: ')
     # 1. check user credentials, and list shares (projects) they have access to
-    if False:
-        username = getpass(f'Username for logging into {config.master["SMB"]["server"]} in domain {config.master["SMB"]["domain"]}: ')
-        password = getpass(f'Password for {config.master["SMB"]["domain"]}\{username}: ')
-        try:
-            smb = network.smb.SMBHandler(config.master["SMB"]["server"],username,config.master["SMB"]["domain"],password)
-        except (OSError, network.smb.SessionError) as exc:
-            print(f'Error connecting as {config.master["SMB"]["domain"]}\{username} to {config.master["SMB"]["server"]}: {exc}')
-            shares = []
-        else:
-            shares = smb.list_shares()
-            smb.close()
-        print(shares)
+    try:
+        smb = network.smb.SMBHandler(config.master["SMB"]["server"],username,config.master["SMB"]["domain"],password)
+    except (OSError, network.smb.SessionError) as exc:
+        print(f'Error connecting as {config.master["SMB"]["domain"]}\{username} to {config.master["SMB"]["server"]}: {exc}')
+        shares = []
+    else:
+        shares = smb.list_shares(matching=config.master["user_projects"]["format"], remove_trailing=config.master["user_projects"]["remove_trailing"])
+        smb.close()
+    print('You have access to the following projects, which would you like to use?')
+    for p in shares:
+        print(f'  {p}')
+    project = input(f'Project: ')
+    if project not in shares:
+        raise ValueError(f'project "{project}" not recognized, choose one of the projects you have access to: {shares}')
 
     # 2. log into toems server
     if False:
