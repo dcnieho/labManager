@@ -6,5 +6,6 @@ from . import ssdp
 
 from ... import _config
 if _config.HAS_MASTER:
+    from . import ldap
     from . import smb
     from . import toems

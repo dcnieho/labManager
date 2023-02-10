@@ -15,6 +15,9 @@ with open('requirements.txt') as f:
 # get requirements for master extra
 with open('requirements-master.txt') as f:
     required_master = f.read().splitlines()
+# get requirements for admin_server extra
+with open('requirements-admin_server.txt') as f:
+    required_server = f.read().splitlines()
 
 
 
@@ -42,5 +45,6 @@ setuptools.setup(
     install_requires=required,
     extras_require={
         "master": required_master,
+        "admin_server": required_master+required_server,
     },
 )

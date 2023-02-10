@@ -1,0 +1,2 @@
+server: ldapgw.lu.se
+project_format: ^CN=(HTAHML-(\d{4}-\d{2})) # regex to match projects in memberOf field
