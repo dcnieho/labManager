@@ -1,6 +1,4 @@
 # module for interacting with Theopenem server
-
-
 from authlib.integrations.httpx_client import AsyncOAuth2Client
 
 class Client:
