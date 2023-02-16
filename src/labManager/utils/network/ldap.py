@@ -2,10 +2,8 @@ import ldap3
 import re
 from dotenv import dotenv_values
 
-from .. import config
 
-
-def check_credentials(server:str, username:str, password:str):
+def check_credentials(server:str, username:str, password:str, project_format:str = None):
     secrets = dotenv_values(".env")
 
     serv = ldap3.Server(server, use_ssl=True, get_info=ldap3.ALL)
@@ -19,11 +17,12 @@ def check_credentials(server:str, username:str, password:str):
     user_dn = results[0].entry_dn
     # 1.a: see what projects this user is a member of
     groups = {}
-    proj_regex = re.compile(config.admin_server['project_format'])
-    for g in results[0].memberOf:
-        proj = proj_regex.findall(g)
-        if len(proj)==1 and len(proj[0])==2:
-            groups[proj[0][1]] = (proj[0][0],g)
+    if project_format:
+        proj_regex = re.compile(project_format)
+        for g in results[0].memberOf:
+            proj = proj_regex.findall(g)
+            if len(proj)==1 and len(proj[0])==2:
+                groups[proj[0][1]] = (proj[0][0],g)
     conn.unbind()
 
 

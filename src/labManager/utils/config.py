@@ -7,13 +7,17 @@ _master_schema = s.Map({
     'SSDP': s.Map({
         'device_type': s.Str(),
         }),
-    'user_projects': s.Map({
-        'format': s.Str(),
-        s.Optional('remove_trailing'): s.Str(),
-        }),
     'SMB': s.Map({
         'server': s.Str(),
         'domain': s.Str(),
+        'projects': s.Map({
+            'format': s.Str(),
+            s.Optional('remove_trailing'): s.Str(),
+            }),
+        }),
+    'admin': s.Map({
+        'server': s.Str(),
+        'port': s.Int(),
         }),
     'toems': s.Map({
         'server': s.Str(),
@@ -51,8 +55,24 @@ else:
 
 _server_config_file = 'admin_server_config.yaml'
 _server_schema = s.Map({
-    'server': s.Str(),
-    'project_format': s.Str(),
+    'LDAP': s.Map({
+        'server': s.Str(),
+        'projects': s.Map({
+            'format': s.Str(),
+            }),
+        }),
+    'SMB': s.Map({
+        'server': s.Str(),
+        'domain': s.Str(),
+        'projects': s.Map({
+            'format': s.Str(),
+            s.Optional('remove_trailing'): s.Str(),
+            }),
+        }),
+    'toems': s.Map({
+        'server': s.Str(),
+        'port': s.Int(),
+        }),
 })
 
 if os.path.isfile(_server_config_file):

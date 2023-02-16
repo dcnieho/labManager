@@ -4,13 +4,16 @@ network: 192.168.1.0/24
 SSDP:
     device_type: urn:schemas-upnp-org:device:labManager
 
-user_projects:
-    format: ^\d{4}-\d{2}\$$ # regex to match project shares
-    remove_trailing: $      # part to remove from end of project share name
+admin:
+    server: localhost
+    port: 8000
 
 SMB:
     server: srv2.humlab.lu.se
-    domain: UW  # domain for users
+    domain: UW  # domain for users (may be overridden by LDAP reply)
+    projects:
+        format: ^\d{4}-\d{2}\$$ # regex to match project shares
+        remove_trailing: $      # part to remove from end of project share name
 
 toems:
     server: pfsense-dc.humlab.lu.se

@@ -12,23 +12,21 @@ async def run(duration: float = None):
     from getpass import getpass
     username = input(f'Username: ')
     password = getpass(f'Password: ')
-    # 1. check user credentials, and list shares (projects) they have access to
-    try:
-        smb = network.smb.SMBHandler(config.master["SMB"]["server"],username,config.master["SMB"]["domain"],password)
-    except (OSError, network.smb.SessionError) as exc:
-        print(f'Error connecting as {config.master["SMB"]["domain"]}\{username} to {config.master["SMB"]["server"]}: {exc}')
-        shares = []
-    else:
-        shares = smb.list_shares(matching=config.master["user_projects"]["format"], remove_trailing=config.master["user_projects"]["remove_trailing"])
-        smb.close()
+    # 1. check user credentials, and list projects they have access to
+    client = network.admin_conn.Client(config.master['admin']['server'],config.master['admin']['port'])
+    projects = await client.login(username, password)
     print('You have access to the following projects, which would you like to use?')
-    for p in shares:
+    for p in projects:
         print(f'  {p}')
     project = input(f'Project: ')
-    if project not in shares:
-        raise ValueError(f'project "{project}" not recognized, choose one of the projects you have access to: {shares}')
+    if project not in projects:
+        raise ValueError(f'project "{project}" not recognized, choose one of the projects you have access to: {projects}')
+    client.set_project(project)
 
-    # 2. log into toems server
+    # 2. check we also have share access
+    access = client.check_share_access()
+
+    # 3. log into toems server
     if True:
         toems = network.toems.Client(config.master['toems']['server'], config.master['toems']['port'], protocol='http')
         await toems.connect(username, password)
@@ -37,7 +35,7 @@ async def run(duration: float = None):
         image = await toems.image_get(2)
         print(image)
 
-    # 3. start servers for listening to clients
+    # 4. start servers for listening to clients
     # get interfaces we can work with
     if_ips,_ = network.ifs.get_ifaces(config.master['network'])
     # start server to connect with clients

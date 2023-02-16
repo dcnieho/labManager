@@ -1,4 +1,5 @@
 HAS_MASTER = False
+HAS_ADMIN  = False
 
 # test if the master dependencies are available
 # if not, user didn't specify the "master" extra
@@ -17,3 +18,12 @@ else:
     else:
         del h
         HAS_MASTER = True
+
+
+# test if the admin server dependencies are available
+try:
+    import dotenv as de
+except:
+    pass
+else:
+    del de

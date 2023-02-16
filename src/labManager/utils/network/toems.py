@@ -9,7 +9,7 @@ class Client:
 
         self.endpoint   = f'{self.protocol}://{self.server}:{self.port}/'
 
-        self.client = AsyncOAuth2Client()
+        self.client     = AsyncOAuth2Client()
 
     async def connect(self, username, password):
         self.token = await self.client.fetch_token(

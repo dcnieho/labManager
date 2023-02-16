@@ -1,2 +1,15 @@
-server: ldapgw.lu.se
-project_format: ^CN=(HTAHML-(\d{4}-\d{2})) # regex to match projects in memberOf field
+SMB:
+    server: srv2.humlab.lu.se
+    domain: UW  # domain for users (may be overridden by LDAP reply)
+    projects:
+        format: ^\d{4}-\d{2}\$$ # regex to match project shares
+        remove_trailing: $      # part to remove from end of project share name
+
+LDAP:
+    server: ldapgw.lu.se
+    projects:
+        format: ^CN=(HTAHML-(\d{4}-\d{2})) # regex to match projects in memberOf field
+
+toems:
+    server: pfsense-dc.humlab.lu.se
+    port:   10022
