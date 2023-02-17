@@ -24,7 +24,7 @@ async def run(duration: float = None):
     client.set_project(project)
 
     # 2. check we also have share access
-    access = client.check_share_access()
+    access = await client.check_share_access()
 
     # 3. log into toems server
     if True:
