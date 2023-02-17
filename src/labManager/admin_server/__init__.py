@@ -26,7 +26,7 @@ def _next_id():
     if not users:
         return 1
     return max(users.keys()) + 1
-class User(BaseModel):
+class UserSession(BaseModel):
     name: str
     password: str   # only stored in memory, never written to disk
     full_name: str
@@ -42,22 +42,6 @@ users = {}
 
 
 # 1a: LDAP / user credentials
-@app.get('/users/{user_id}')
-def user_detail(user_id: int):
-    user_check(user_id)
-    return {'user': return_user(users[user_id])}
-
-@app.get('/users/{user_id}/projects')
-def user_projects(user_id: int):
-    user_check(user_id)
-    return users[user_id].projects
-
-@app.get('/users/{user_id}/projects/{proj_id}')
-def user_project_detail(user_id: int, proj_id: int):
-    user_check(user_id)
-    project_check(user_id, proj_id)
-    return users[user_id].projects[proj_id]
-
 @app.post('/users', status_code=201)
 def user_add(user: UserLogin):
     # test login
@@ -71,11 +55,16 @@ def user_add(user: UserLogin):
     # ID
     id = _next_id()
     # assemble user
-    new_user = User(name=user.username, password=user.password, full_name=result['full_username'], distinguished_name=result['distinguished_name'], timestamp=time.perf_counter(), projects=projects)
+    new_user = UserSession(name=user.username, password=user.password, full_name=result['full_username'], distinguished_name=result['distinguished_name'], timestamp=time.perf_counter(), projects=projects)
     # register user
     users[id] = new_user
     # return added user (password hidden)
     return {'id': id, 'user': return_user(new_user)}
+
+@app.get('/users/{user_id}')
+def user_detail(user_id: int):
+    user_check(user_id)
+    return {'user': return_user(users[user_id])}
 
 def user_check(user_id):
     if not user_id in users:
@@ -86,6 +75,18 @@ def return_user(user):
     reply_user = copy.deepcopy(user)
     reply_user.password = '***hidden***'
     return reply_user
+
+# 1b. projects from LDAP
+@app.get('/users/{user_id}/projects')
+def user_projects(user_id: int):
+    user_check(user_id)
+    return users[user_id].projects
+
+@app.get('/users/{user_id}/projects/{proj_id}')
+def user_project_detail(user_id: int, proj_id: int):
+    user_check(user_id)
+    project_check(user_id, proj_id)
+    return users[user_id].projects[proj_id]
 
 def project_check(user_id, proj):
     if isinstance(proj, int):
@@ -100,7 +101,7 @@ def project_check(user_id, proj):
         if not found:
             raise HTTPException(status_code=404, detail='Project not found')
 
-# 1b: SMB share access verification
+# 1c: SMB share access verification
 @app.get('/users/{user_id}/projects/{proj_id}/check_smb')
 def user_project_smb_check(user_id: int, proj_id: int):
     user_check(user_id)
