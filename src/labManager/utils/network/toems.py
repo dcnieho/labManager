@@ -19,6 +19,7 @@ class Client:
             password=password
         )
 
+
     async def request(self, resource, req_type='get', **kwargs):
         url = self.endpoint+resource
         match req_type:
@@ -32,8 +33,21 @@ class Client:
                 coro = self.client.delete(url, **kwargs)
             case _:
                 raise ValueError
-
         return (await coro).json()
+
+    async def user_group_get(self, id=None):
+        return await self.request('UserGroup/Get'+(f'/{id}' if id is not None else ''), req_type="post", json={'SearchText': "", 'Limit' : 0})
+
+    async def user_group_create(self, name):
+        resp = await self.request('UserGroup/Post', req_type="post", json={
+            "Name": name,
+            "Membership": "User",
+            "IsLdapGroup": 1,
+            "GroupLdapName": name,
+            "EnableImageAcls": True,
+            "EnableComputerGroupAcls": False
+        })
+
 
     async def image_get(self, id=None, project=''):
         images = await self.request('Image/Get'+(f'/{id}' if id is not None else ''))
@@ -49,5 +63,8 @@ class Client:
                 im['UserFacingName'] = im['Name'][len(project)+1:]
 
         if id is not None:
-            images = images[0]
+            if images:
+                images = images[0]
+            else:
+                images = None
         return images

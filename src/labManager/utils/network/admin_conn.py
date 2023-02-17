@@ -1,5 +1,4 @@
 import httpx
-import json
 
 class Client:
     def __init__(self, server, port, protocol = 'http'):
@@ -24,6 +23,8 @@ class Client:
                 coro = self.client.post  (url, **kwargs)
             case 'put':
                 coro = self.client.put   (url, **kwargs)
+            case 'patch':
+                coro = self.client.patch (url, **kwargs)
             case 'delete':
                 coro = self.client.delete(url, **kwargs)
             case _:
@@ -35,7 +36,7 @@ class Client:
         return resp.json()
 
     async def login(self, user, password):
-        resp = await self.request('users', req_type='post', data=json.dumps({'username':user, 'password':password}), expected_return_code=201)
+        resp = await self.request('users', req_type='post', json={'username':user, 'password':password}, expected_return_code=201)
         self.user_id = resp['id']
         self.user = resp['user']
 
@@ -46,9 +47,25 @@ class Client:
         if self.proj_id is None:
             raise RuntimeError(f'project "{project}" not recognized, choose one of the projects you have access to: {[p["name"] for p in self.user["projects"]]}')
 
-    def _get_project_id(self, project):
+    async def prep_toems(self):
+        # check there is a user group for the selected project. If not, make one
+        self._check_user()
+        self._check_project()
+
+        group_exists = await self.request(f'users/{self.user_id}/projects/{self.proj_id}/toems')
+        if not group_exists:
+            group_exists = await self.request(f'users/{self.user_id}/projects/{self.proj_id}/toems_create', req_type='post', expected_return_code=201)
+
+    def _check_user(self):
         if self.user is None:
-            raise RuntimeError('You need to successfully log in before setting a project')
+            raise RuntimeError('You need to successfully log in first')
+
+    def _check_project(self):
+        if self.proj_id is None:
+            raise RuntimeError('You need to set a project first')
+
+    def _get_project_id(self, project):
+        self._check_user()
 
         # check if this is a project
         proj_id = None
@@ -59,14 +76,13 @@ class Client:
         return proj_id
 
     async def check_share_access(self, proj=None):
-        if self.user is None:
-            raise RuntimeError('You need to successfully log in before setting a project')
+        self._check_user()
 
         proj_id = self.proj_id
         if proj is not None:
             proj_id = self._get_project_id(proj)
         if proj_id is None:
-            raise RuntimeError('You need to set a project before checking its details')
+            raise RuntimeError('You need to set or specify a project before checking its details')
 
         resp = await self.request(f'users/{self.user_id}/projects/{proj_id}/check_smb')
         return resp['has_access']

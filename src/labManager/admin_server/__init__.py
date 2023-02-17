@@ -2,8 +2,10 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 import time
 import copy
+from dotenv import dotenv_values
 
 from ..utils.network import smb
+from ..utils.network import toems as toems_conn
 from ..utils.network.ldap import check_credentials
 from ..utils import config
 
@@ -39,6 +41,7 @@ class UserLogin(BaseModel):
     password: str
 
 users = {}
+toems_conns: dict[int, toems_conn.Client] = {}
 
 
 # 1a: LDAP / user credentials
@@ -140,3 +143,32 @@ def update_share_access(projects, share, state):
         if p.name==share:
             p.smb_access = state
             break
+
+# 1d. user and user group management in TOEMS
+@app.get('/users/{user_id}/projects/{proj_id}/toems')
+async def user_toems_group(user_id: int, proj_id: int):
+    user_check(user_id)
+    project_check(user_id, proj_id)
+    await toems_check(user_id)
+    groups = await toems_conns[user_id].user_group_get()
+
+    group_id = None
+    for g in groups:
+        if g['Name']==users[user_id].projects[proj_id].full_name:
+            group_id = g['Id']
+
+    return group_id is not None
+
+@app.post('/users/{user_id}/projects/{proj_id}/toems_create', status_code=201)
+async def user_toems_group_create(user_id: int, proj_id: int):
+    user_check(user_id)
+    project_check(user_id, proj_id)
+    await toems_check(user_id)
+    await toems_conns[user_id].user_group_create(users[user_id].projects[proj_id].full_name)
+
+async def toems_check(user_id):
+    # create toems connection if needed
+    if user_id not in toems_conns:
+        secrets = dotenv_values(".env")
+        toems_conns[user_id] = toems_conn.Client(config.admin_server['toems']['server'], config.admin_server['toems']['port'], protocol='http')
+        await toems_conns[user_id].connect(username=secrets['TOEMS_ACCOUNT'], password=secrets['TOEMS_PASSWORD'])
