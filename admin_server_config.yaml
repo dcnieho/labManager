@@ -13,3 +13,5 @@ LDAP:
 toems:
     server: pfsense-dc.humlab.lu.se
     port:   10022
+    images:
+        - station_base

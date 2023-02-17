@@ -72,6 +72,9 @@ _server_schema = s.Map({
     'toems': s.Map({
         'server': s.Str(),
         'port': s.Int(),
+        'images': s.Seq(
+            s.Str(),
+            ),
         }),
 })
 

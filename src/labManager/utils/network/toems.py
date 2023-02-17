@@ -38,7 +38,8 @@ class Client:
     async def user_group_get(self, id=None):
         return await self.request('UserGroup/Get'+(f'/{id}' if id is not None else ''), req_type="post", json={'SearchText': "", 'Limit' : 0})
 
-    async def user_group_create(self, name):
+    async def user_group_create(self, name, images):
+        # 1. create group
         resp = await self.request('UserGroup/Post', req_type="post", json={
             "Name": name,
             "Membership": "User",
@@ -47,6 +48,20 @@ class Client:
             "EnableImageAcls": True,
             "EnableComputerGroupAcls": False
         })
+        group_id = resp['Id']
+        # 2. set ACLs
+        resp = await self.request('/UserGroupRight/Post',req_type='post',json=[{'UserGroupId':group_id, 'Right': r} for r in ["groupRead","computerRead","imageRead","imageUpdate","imageDelete","imageUploadTask","imageDeployTask"]])
+        # 3. provide access to images
+        # 3a. for the named images, find out what the image ids are
+        image_ids = []
+        resp = await self.image_get()
+        for im in images:
+            for ims in resp:
+                if ims['Name']==im:
+                    image_ids.append(ims['Id'])
+                    break
+        # 3b. set access to these images
+        resp = await self.request(f'/UserGroup/UpdateImageManagement/{group_id}', req_type='post',json=[{'UserGroupId':group_id, 'ImageId': i} for i in image_ids])
 
 
     async def image_get(self, id=None, project=''):

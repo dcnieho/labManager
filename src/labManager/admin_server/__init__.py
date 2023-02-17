@@ -164,7 +164,7 @@ async def user_toems_group_create(user_id: int, proj_id: int):
     user_check(user_id)
     project_check(user_id, proj_id)
     await toems_check(user_id)
-    await toems_conns[user_id].user_group_create(users[user_id].projects[proj_id].full_name)
+    await toems_conns[user_id].user_group_create(users[user_id].projects[proj_id].full_name, config.admin_server['toems']['images'])
 
 async def toems_check(user_id):
     # create toems connection if needed
