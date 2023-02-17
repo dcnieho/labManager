@@ -67,7 +67,7 @@ def user_add(user: UserLogin):
 
     # success, add new user
     # turn groups into project objects
-    projects = [Project(name=k, full_name=result['groups'][k][0], distinguished_name=result['groups'][k][1]) for k in result['groups']]
+    projects = [Project(name=k, full_name=result['groups'][k][0], distinguished_name=result['groups'][k][1]) for k in sorted(result['groups'])]
     # ID
     id = _next_id()
     # assemble user
