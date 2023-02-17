@@ -32,7 +32,7 @@ async def run(duration: float = None):
         await toems.connect(username, password)
 
         image_list = await toems.image_get(project=project)
-        image = await toems.image_get(2)
+        image = await toems.image_get(image_list[0]['Id'], project=project)
         print(image)
 
     # 4. start servers for listening to clients
