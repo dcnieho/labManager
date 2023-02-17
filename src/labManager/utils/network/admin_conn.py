@@ -35,7 +35,7 @@ class Client:
         return resp.json()
 
     async def login(self, user, password):
-        resp = await self.request('users', req_type='post', data=json.dumps({'username':user, 'password':password}))
+        resp = await self.request('users', req_type='post', data=json.dumps({'username':user, 'password':password}), expected_return_code=201)
         self.user_id = resp['id']
         self.user = resp['user']
 

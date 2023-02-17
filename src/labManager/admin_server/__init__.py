@@ -58,7 +58,7 @@ def user_project_detail(user_id: int, proj_id: int):
     project_check(user_id, proj_id)
     return users[user_id].projects[proj_id]
 
-@app.post('/users')
+@app.post('/users', status_code=201)
 def user_add(user: UserLogin):
     # test login
     result = check_credentials(config.admin_server['LDAP']['server'], user.username, user.password, config.admin_server['LDAP']['projects']['format'])
