@@ -32,9 +32,9 @@ async def run(duration: float = None):
         toems = network.toems.Client(config.master['toems']['server'], config.master['toems']['port'], protocol='http')
         await toems.connect(username, password)
 
-        image_list = await toems.image_get(project=project)
+        image_list = await toems.image_get(project=project, project_format=config.master['toems']['images']['format'])
         if image_list:
-            image = await toems.image_get(image_list[0]['Id'], project=project)
+            image = await toems.image_get(image_list[0]['Id'], project=project, project_format=config.master['toems']['images']['format'])
             print(image)
 
     # 4. start servers for listening to clients

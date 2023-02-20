@@ -22,6 +22,9 @@ _master_schema = s.Map({
     'toems': s.Map({
         'server': s.Str(),
         'port': s.Int(),
+        'images': s.Map({
+            'format': s.Str(),
+            }),
         }),
     s.Optional('clients'): s.Seq(
         s.Map({

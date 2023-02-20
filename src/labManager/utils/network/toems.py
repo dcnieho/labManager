@@ -1,5 +1,6 @@
 # module for interacting with Theopenem server
 from authlib.integrations.httpx_client import AsyncOAuth2Client
+import re
 
 class Client:
     def __init__(self, server, port=8080, protocol = 'https'):
@@ -50,7 +51,7 @@ class Client:
         })
         group_id = resp['Id']
         # 2. set ACLs
-        resp = await self.request('/UserGroupRight/Post',req_type='post',json=[{'UserGroupId':group_id, 'Right': r} for r in ["groupRead","computerRead","imageRead","imageUpdate","imageDelete","imageUploadTask","imageDeployTask"]])
+        resp = await self.request('/UserGroupRight/Post', req_type='post', json=[{'UserGroupId': group_id, 'Right': r} for r in ["computerRead","imageRead","imageUpdate","imageDelete","imageUploadTask","imageDeployTask"]])
         # 3. provide access to images
         # 3a. for the named images, find out what the image ids are
         image_ids = []
@@ -61,20 +62,27 @@ class Client:
                     image_ids.append(ims['Id'])
                     break
         # 3b. set access to these images
-        resp = await self.request(f'/UserGroup/UpdateImageManagement/{group_id}', req_type='post',json=[{'UserGroupId':group_id, 'ImageId': i} for i in image_ids])
+        resp = await self.request(f'/UserGroup/UpdateImageManagement/{group_id}', req_type='post', json=[{'UserGroupId': group_id, 'ImageId': i} for i in image_ids])
 
 
-    async def image_get(self, id=None, project=''):
+    async def image_get(self, id=None, project=None, project_format=None):
         images = await self.request('Image/Get'+(f'/{id}' if id is not None else ''))
         if id is not None:
             images = [images]
 
-        if project:
-            # only list images for a specific project, those have name starting with <project>_
-            images = [im for im in images if im['Name'].startswith(project+'_')]
-
-            # add user-facing name, which does not include project name (if there was one)
+        if project and project_format:
+            # for images matching format, check they match project
+            ims = []
+            r = re.compile(project_format)
             for im in images:
+                if (m := r.match(im['Name'])) is None or m.group()==project:
+                    ims.append(im)
+            images = ims
+
+        for im in images:
+            # add user-facing name, which does not include project name (if there was one)
+            im['UserFacingName'] = im['Name']
+            if project and im['Name'].startswith(project+'_'):
                 im['UserFacingName'] = im['Name'][len(project)+1:]
 
         if id is not None:

@@ -18,6 +18,8 @@ SMB:
 toems:
     server: pfsense-dc.humlab.lu.se
     port:   10022
+    images:
+        format: ^\d{4}-\d{2}    # regex to match project image files
 
 clients:
     - name: STATION01
