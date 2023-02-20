@@ -51,7 +51,7 @@ class Client:
         })
         group_id = resp['Id']
         # 2. set ACLs
-        resp = await self.request('/UserGroupRight/Post', req_type='post', json=[{'UserGroupId': group_id, 'Right': r} for r in ["computerRead","imageRead","imageUpdate","imageDelete","imageUploadTask","imageDeployTask"]])
+        resp = await self.request('/UserGroupRight/Post', req_type='post', json=[{'UserGroupId': group_id, 'Right': r} for r in ["computerRead","imageRead","imageUploadTask","imageDeployTask"]])
         # 3. provide access to images
         # 3a. for the named images, find out what the image ids are
         image_ids = []
