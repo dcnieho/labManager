@@ -28,14 +28,16 @@ async def run(duration: float = None):
     access = await client.check_share_access()
 
     # 3. log into toems server
-    if True:
-        toems = network.toems.Client(config.master['toems']['server'], config.master['toems']['port'], protocol='http')
-        await toems.connect(username, password)
+    toems = network.toems.Client(config.master['toems']['server'], config.master['toems']['port'], protocol='http')
+    await toems.connect(username, password)
 
-        image_list = await toems.image_get(project=project, project_format=config.master['toems']['images']['format'])
-        if image_list:
-            image = await toems.image_get(image_list[0]['Id'], project=project, project_format=config.master['toems']['images']['format'])
-            print(image)
+    image_list = await toems.image_get(project=project, project_format=config.master['toems']['images']['format'])
+    if image_list:
+        image = await toems.image_get(image_list[0]['Id'], project=project, project_format=config.master['toems']['images']['format'])
+        print(image)
+
+    comp_list = await toems.computer_get(filter_list=[c['name'] for c in config.master['clients']])
+    print(comp_list)
 
     # 4. start servers for listening to clients
     # get interfaces we can work with

@@ -65,6 +65,16 @@ class Client:
         resp = await self.request(f'/UserGroup/UpdateImageManagement/{group_id}', req_type='post', json=[{'UserGroupId': group_id, 'ImageId': i} for i in image_ids])
 
 
+    async def computer_get(self, id=None, filter_list=None):
+        if id:
+            return await self.request(f'UserGroup/Get/{id}')
+        else:
+            comps = await self.request('/Computer/SearchAllComputers', req_type="post", json={'SearchText': "", 'Limit': "", 'CategoryType': "Any Category", 'State': "Any State", 'Status': "Any Status"})
+            if filter_list:
+                comps = [c for c in comps if c['Name'] in filter_list]
+            return sorted(comps, key=lambda c: c['Name'])
+
+
     async def image_get(self, id=None, project=None, project_format=None):
         images = await self.request('Image/Get'+(f'/{id}' if id is not None else ''))
         if id is not None:
