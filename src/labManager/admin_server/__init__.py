@@ -171,4 +171,4 @@ async def toems_check(user_id):
     if user_id not in toems_conns:
         secrets = dotenv_values(".env")
         toems_conns[user_id] = toems_conn.Client(config.admin_server['toems']['server'], config.admin_server['toems']['port'], protocol='http')
-        await toems_conns[user_id].connect(username=secrets['TOEMS_ACCOUNT'], password=secrets['TOEMS_PASSWORD'])
+        await toems_conns[user_id].connect(username=secrets['TOEMS_ACCOUNT'], password=secrets['TOEMS_PASSWORD'], do_cache=False)
