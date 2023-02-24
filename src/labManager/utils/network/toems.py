@@ -230,7 +230,7 @@ class Client:
                 # search both name and user-facing name
                 if im['Name']==name_or_id or im['UserFacingName']==name_or_id:
                     return {'Success': True, 'Id': im['Id']}
-            return {'Success': False, 'ErrorMessage': f'image with name "{name_or_id}" not found'}
+            return {'Success': False, 'ErrorMessage': f'image with name "{name_or_id}" not found. You may not have access to this image.'}
 
     async def image_create(self, name, project, project_format, description=None):
         # check name
