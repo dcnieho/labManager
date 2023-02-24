@@ -205,8 +205,15 @@ class Client:
         # refresh image cache
         pass
 
-    async def image_delete(self):
-        pass
+    async def image_delete(self, name_or_id):
+        # 1. get image id
+        resp = await self._image_resolve_id_name(name_or_id)
+        if not resp['Success']:
+            return resp
+        image_id = resp['Id']
+
+        # 2. delete
+        return await self.request(f'/Image/Delete/{image_id}', req_type='delete')
 
 
     async def file_copy_actions_get(self, id=None):

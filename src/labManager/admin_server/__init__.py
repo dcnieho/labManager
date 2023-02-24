@@ -217,3 +217,18 @@ async def user_toems_image_create(user_id: int, proj_id: int, image: Image):
 
     # return id of created image
     return {'id': image_id}
+
+@app.delete('/users/{user_id}/projects/{proj_id}/images/{image_id}', status_code=204)
+async def user_toems_image_delete(user_id: int, proj_id: int, image_id: int):
+    user_check(user_id)
+    project_check(user_id, proj_id)
+    await toems_check(user_id)
+    # 1. first check this image belongs to the user's project (by means of name)
+    image = await toems[user_id].conn.image_get(image_id)
+    if not image['Name'].startswith(users[user_id].projects[proj_id].name+'_'):
+        raise HTTPException(status_code=403, detail=f'You are not allowed to delete the image "{image["Name"]}" because it is not a part of your project.')
+
+    # 2. then, delete
+    resp = await toems[user_id].conn.image_delete(image_id)
+    if not resp['Success']:
+        raise HTTPException(status_code=400, detail=resp['ErrorMessage'])
