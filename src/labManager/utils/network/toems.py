@@ -117,6 +117,8 @@ class Client:
                 images = images[0]
             else:
                 images = None
+        else:
+            images = sorted(images, key=lambda c: c['UserFacingName'])
         return images
 
     async def image_create(self, name, project, project_format, description=None):
