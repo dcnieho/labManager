@@ -293,7 +293,7 @@ class Client:
         image = await self.image_get(image_id)
 
         # 3. get image size
-        resp = await self.request('Image/GetImageSizeOnServer', data={'imageName': image['Name'], 'hdNumber':0})
+        resp = await self.request('Image/GetImageSizeOnServer', params={'imageName': image['Name'], 'hdNumber':0})
         return resp['Value']
 
     async def image_update(self, name_or_id, updates):
