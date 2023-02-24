@@ -84,12 +84,106 @@ class Client:
                 comps = [c for c in comps if c['Name'] in filter_list]
             return sorted(comps, key=lambda c: c['Name'])
 
-    async def computer_deploy(self):
-        pass
+    async def _computer_resolve_id_name(self, name_or_id):
+        is_single = not isinstance(name_or_id, list)
+        if is_single:
+            name_or_id = [name_or_id]
 
-    async def computer_upload(self):
-        # first check if image is protected. if so, cancel. erroring early here is nice.
-        pass
+        computers = None
+        out = []
+        for ni in name_or_id:
+            if isinstance(name_or_id, int):
+                out.append(ni)
+            else:
+                if computers == None:
+                    computers = await self.computer_get()
+                for c in computers:
+                    if c['Name']==name_or_id:
+                        out.append(c['Id'])
+                return {'Success': False, 'ErrorMessage': f'computer with name "{name_or_id}" not found'}
+
+        if is_single:
+            return {'Success': True, 'Id': out[0]}
+        else:
+            return {'Success': True, 'Ids': out}
+
+    async def computer_update(self, name_or_id, updates):
+        # 1. get computer id
+        resp = await self._computer_resolve_id_name(name_or_id)
+        if not resp['Success']:
+            return resp
+        computer_id = resp['Id']
+
+        # 2. get current computer info
+        computer = await self.computer_get(computer_id)
+
+        # 3. apply updates
+        for u in updates:
+            computer[u] = updates[u]
+
+        # 4. update the image (server doesn't partial updates, hence these steps)
+        return await self.request(f'Computer/Put/{computer_id}', req_type="put", json=computer)
+
+    async def computer_deploy(self, image_name_or_id, computer_names_or_ids):
+        # 1. get computer ids
+        if not isinstance(computer_names_or_ids,list):
+            computer_names_or_ids = [computer_names_or_ids]
+        resp = await self._computer_resolve_id_name(computer_names_or_ids)
+        if not resp['Success']:
+            return resp
+        computer_ids = resp['Ids']
+
+        # 2. get image id
+        resp = await self._image_resolve_id_name(image_name_or_id)
+        if not resp['Success']:
+            return resp
+        image_id = resp['Id']
+
+        # 3. check image has a size (if no image it can't be deployed)
+        size = await self.image_get_server_size(image_id)
+        if size=='N/A':
+            return {'Success': False}
+
+        # 4. update the selected computers so that the correct image is assigned
+        for c in computer_ids:
+            resp = await self.computer_update(c,{'ImageId': image_id})
+            if not resp['Success']:
+                return resp
+
+        # 5. start deploy
+        for c in computer_ids:
+            resp = await self.request(f'Computer/StartDeploy/{c}')
+            if not resp['Success']:
+                return resp
+
+        return resp
+
+    async def computer_upload(self, computer_name_or_id, image_name_or_id):
+        # 1. get image id
+        resp = await self._image_resolve_id_name(image_name_or_id)
+        if not resp['Success']:
+            return resp
+        image_id = resp['Id']
+
+        # 2. get current image info and check if image is protected. if so, error
+        image = await self.image_get(image_id)
+        if image['Protected']:
+            return {'Success': False, 'ErrorMessage': 'Cannot upload computer to a protected image. Unprotect the image first.'}
+
+        # 3. get computer id
+        resp = await self._computer_resolve_id_name(computer_name_or_id)
+        if not resp['Success']:
+            return resp
+        computer_id = resp['Id']
+
+        # 4. update the selected computer so that the correct image is assigned
+        resp = await self.computer_update(computer_id,{'ImageId': image_id})
+        if not resp['Success']:
+            return resp
+
+        # 5. start deploy
+        resp = await self.request(f'Computer/StartUpload/{computer_id}')
+        return resp
 
 
     async def image_get(self, id=None, project=None, project_format=None):
@@ -181,6 +275,20 @@ class Client:
                 # early exit upon error
                 return resp
         return resp
+
+    async def image_get_server_size(self, name_or_id):
+        # 1. get image id
+        resp = await self._image_resolve_id_name(name_or_id)
+        if not resp['Success']:
+            return resp
+        image_id = resp['Id']
+
+        # 2. get current image info
+        image = await self.image_get(image_id)
+
+        # 3. get image size
+        resp = await self.request('Image/GetImageSizeOnServer', data={'imageName': image['Name'], 'hdNumber':0})
+        return resp['Value']
 
     async def image_update(self, name_or_id, updates):
         # 1. get image id
