@@ -180,10 +180,10 @@ class Client:
             return resp
         computer_id = resp['Id']
 
-        # 4. update the selected computer so that the correct image is assigned
-        resp = await self.computer_update(computer_id,{'ImageId': image_id})
-        if not resp['Success']:
-            return resp
+        # 4. check that the selected computers have the correct image assigned
+        computer = await self.computer_get(computer_id)
+        if computer['ImageId'] != image_id:
+            return {'Success': False, 'ErrorMessage': f'You do not have the right image (image_id: {image_id}) assigned to the computer {computer["Name"]} (computer_id: {computer_id}).'}
 
         # 5. start deploy
         resp = await self.request(f'Computer/StartUpload/{computer_id}')
