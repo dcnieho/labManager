@@ -150,20 +150,6 @@ class Client:
             "Type": "Block"
         })
 
-    async def image_change_protection(self, name_or_id, protect):
-        # 1. get image id
-        resp = await self._image_resolve_id_name(name_or_id)
-        if not resp['Success']:
-            return resp
-        image_id = resp['Id']
-
-        # 2. get current image info
-        image = await self.image_get(image_id)
-
-        # 3. update it, changing protection status
-        image['Protected'] = protect
-        return await self.request(f'Image/Put/{image_id}', req_type="put", json=image)
-
     async def image_set_file_copy_actions(self, name_or_id, file_copy_actions):
         # 1. get image id
         resp = await self._image_resolve_id_name(name_or_id)
@@ -197,13 +183,21 @@ class Client:
         return resp
 
     async def image_update(self, name_or_id, updates):
-        # updates is a dict with items to be updated
-        # 1. get current image info
-        # 2. apply updates
-        # 3. put (these three steps are needed as toems doesn't implement typical put handling)
+        # 1. get image id
+        resp = await self._image_resolve_id_name(name_or_id)
+        if not resp['Success']:
+            return resp
+        image_id = resp['Id']
 
-        # refresh image cache
-        pass
+        # 2. get current image info
+        image = await self.image_get(image_id)
+
+        # 3. apply updates
+        for u in updates:
+            image[u] = updates[u]
+
+        # 4. update the image (server doesn't partial updates, hence these steps)
+        return await self.request(f'Image/Put/{image_id}', req_type="put", json=image)
 
     async def image_delete(self, name_or_id):
         # 1. get image id
