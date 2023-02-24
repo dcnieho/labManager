@@ -84,6 +84,13 @@ class Client:
                 comps = [c for c in comps if c['Name'] in filter_list]
             return sorted(comps, key=lambda c: c['Name'])
 
+    async def computer_deploy(self):
+        pass
+
+    async def computer_upload(self):
+        # first check if image is protected. if so, cancel. erroring early here is nice.
+        pass
+
 
     async def image_get(self, id=None, project=None, project_format=None):
         images = await self.request('Image/Get'+(f'/{id}' if id is not None else ''))
