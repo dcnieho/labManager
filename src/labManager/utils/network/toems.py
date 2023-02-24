@@ -12,22 +12,13 @@ class Client:
 
         self.client     = AsyncOAuth2Client()
 
-
-        self._computer_list = []
-        self._image_list = []
-
-    async def connect(self, username, password, do_cache=True):
+    async def connect(self, username, password):
         self.token = await self.client.fetch_token(
             self.endpoint+'token',
             grant_type='password',
             username=username,
             password=password
         )
-
-        # immediately cache some useful info, unless not wanted
-        if do_cache:
-            self._computer_list = self.computer_get()
-            self._image_list    = self.image_get()
 
 
     async def request(self, resource, req_type='get', **kwargs):
