@@ -6,33 +6,33 @@ _master_schema = s.Map({
     'network': s.Str(),
     'SSDP': s.Map({
         'device_type': s.Str(),
-        }),
+    }),
     'SMB': s.Map({
         'server': s.Str(),
         'domain': s.Str(),
         'projects': s.Map({
             'format': s.Str(),
             s.Optional('remove_trailing'): s.Str(),
-            }),
         }),
+    }),
     'admin': s.Map({
         'server': s.Str(),
         'port': s.Int(),
-        }),
+    }),
     'toems': s.Map({
         'server': s.Str(),
         'port': s.Int(),
         'images': s.Map({
             'format': s.Str(),
-            }),
         }),
+    }),
     s.Optional('clients'): s.Seq(
         s.Map({
             'name': s.Str(),
             'MAC' : s.Str(),
-            })
-        ),
-    })
+        })
+    ),
+})
 
 if os.path.isfile(_master_config_file):
     with open(_master_config_file,'rt') as f:
@@ -46,7 +46,7 @@ _client_schema = s.Map({
     'network': s.Str(),
     'SSDP': s.Map({
         'device_type': s.Str(),
-        }),
+    }),
 })
 
 if os.path.isfile(_client_config_file):
@@ -62,23 +62,32 @@ _server_schema = s.Map({
         'server': s.Str(),
         'projects': s.Map({
             'format': s.Str(),
-            }),
         }),
+    }),
     'SMB': s.Map({
         'server': s.Str(),
         'domain': s.Str(),
         'projects': s.Map({
             'format': s.Str(),
             s.Optional('remove_trailing'): s.Str(),
-            }),
         }),
+    }),
     'toems': s.Map({
         'server': s.Str(),
         'port': s.Int(),
-        'images': s.Seq(
-            s.Str(),
+        'images': s.Map({
+            'format': s.Str(),
+            'file_copy_actions': s.Seq(
+                s.Map({
+                    'name': s.Str(),
+                    'partition_id': s.Int(),
+                }),
+            ),
+            'standard': s.Seq(
+                s.Str(),
             ),
         }),
+    }),
 })
 
 if os.path.isfile(_server_config_file):

@@ -32,12 +32,9 @@ async def run(duration: float = None):
     await toems.connect(username, password)
 
     image_list = await toems.image_get(project=project, project_format=config.master['toems']['images']['format'])
-    if image_list:
-        image = await toems.image_get(image_list[0]['Id'], project=project, project_format=config.master['toems']['images']['format'])
-        print(image)
-
     comp_list = await toems.computer_get(filter_list=[c['name'] for c in config.master['clients']])
-    print(comp_list)
+
+    await client.create_image('test', description="some extra testing text\nwith a newline")
 
     # 4. start servers for listening to clients
     # get interfaces we can work with

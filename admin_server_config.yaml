@@ -14,4 +14,9 @@ toems:
     server: pfsense-dc.humlab.lu.se
     port:   10022
     images:
-        - station_base
+        format: ^\d{4}-\d{2}    # regex to match project image files
+        file_copy_actions:      # names of file copy actions to activate upon image creation
+            - name: Activate Windows and Office
+              partition_id: 3
+        standard:
+            - station_base

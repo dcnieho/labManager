@@ -40,8 +40,20 @@ class UserLogin(BaseModel):
     username: str
     password: str
 
+class Image(BaseModel):
+    name: str
+    description: str | None
+
 users = {}
-toems_conns: dict[int, toems_conn.Client] = {}
+
+class ToemsEntry(BaseModel):
+    conn: toems_conn.Client
+    group_id: int | None
+
+    class Config:
+        arbitrary_types_allowed = True
+
+toems: dict[int, ToemsEntry] = {}
 
 
 # 1a: LDAP / user credentials
@@ -150,12 +162,15 @@ async def user_toems_group(user_id: int, proj_id: int):
     user_check(user_id)
     project_check(user_id, proj_id)
     await toems_check(user_id)
-    groups = await toems_conns[user_id].user_group_get()
+    groups = await toems[user_id].conn.user_group_get()
 
     group_id = None
     for g in groups:
         if g['Name']==users[user_id].projects[proj_id].full_name:
             group_id = g['Id']
+
+    if group_id is not None:
+        toems[user_id].group_id = group_id
 
     return group_id is not None
 
@@ -164,11 +179,37 @@ async def user_toems_group_create(user_id: int, proj_id: int):
     user_check(user_id)
     project_check(user_id, proj_id)
     await toems_check(user_id)
-    await toems_conns[user_id].user_group_create(users[user_id].projects[proj_id].full_name, config.admin_server['toems']['images'])
+    toems[user_id].group_id = await toems[user_id].conn.user_group_create(users[user_id].projects[proj_id].full_name, config.admin_server['toems']['images']['standard'])
 
 async def toems_check(user_id):
     # create toems connection if needed
-    if user_id not in toems_conns:
+    if user_id not in toems:
         secrets = dotenv_values(".env")
-        toems_conns[user_id] = toems_conn.Client(config.admin_server['toems']['server'], config.admin_server['toems']['port'], protocol='http')
-        await toems_conns[user_id].connect(username=secrets['TOEMS_ACCOUNT'], password=secrets['TOEMS_PASSWORD'], do_cache=False)
+        toems[user_id] = ToemsEntry(conn=toems_conn.Client(config.admin_server['toems']['server'], config.admin_server['toems']['port'], protocol='http'))
+        await toems[user_id].conn.connect(username=secrets['TOEMS_ACCOUNT'], password=secrets['TOEMS_PASSWORD'])
+
+# 1e. project image management
+@app.post('/users/{user_id}/projects/{proj_id}/images', status_code=201)
+async def user_toems_image_create(user_id: int, proj_id: int, image: Image):
+    user_check(user_id)
+    project_check(user_id, proj_id)
+    await toems_check(user_id)
+    resp = await toems[user_id].conn.image_create(image.name, project=users[user_id].projects[proj_id].name, project_format=config.admin_server['toems']['images']['format'], description=image.description)
+    if not resp['success']:
+        if 'Already Exists' in resp['errormessage']:
+            raise HTTPException(status_code=409, detail=resp['errormessage'])
+        elif 'Authorized' in resp['errormessage']:
+            raise HTTPException(status_code=401, detail=resp['errormessage'])
+        else:
+            raise HTTPException(status_code=400, detail=resp['errormessage'])
+
+    # set file copy actions for image
+    image_id = resp['id']
+    if config.admin_server['toems']['images']['file_copy_actions']:
+        resp = await toems[user_id].conn.image_set_file_copy_actions(image_id, config.admin_server['toems']['images']['file_copy_actions'])
+
+    # make managed image for user group
+    resp = await toems[user_id].conn.user_group_add_managed_images(toems[user_id].group_id, [image_id])
+
+    # return id of created image
+    return {'id': image_id}
