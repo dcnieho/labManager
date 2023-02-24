@@ -116,7 +116,7 @@ def project_check(user_id, proj):
         if not found:
             raise HTTPException(status_code=404, detail='Project not found')
 
-# 1c: SMB share access verification
+# 1c: SMB share access
 @app.get('/users/{user_id}/projects/{proj_id}/check_smb')
 def user_project_smb_check(user_id: int, proj_id: int):
     user_check(user_id)
@@ -188,7 +188,7 @@ async def toems_check(user_id):
         toems[user_id] = ToemsEntry(conn=toems_conn.Client(config.admin_server['toems']['server'], config.admin_server['toems']['port'], protocol='http'))
         await toems[user_id].conn.connect(username=secrets['TOEMS_ACCOUNT'], password=secrets['TOEMS_PASSWORD'])
 
-# 1e. project image management
+# 1e. project image management in TOEMS
 @app.post('/users/{user_id}/projects/{proj_id}/images', status_code=201)
 async def user_toems_image_create(user_id: int, proj_id: int, image: Image):
     user_check(user_id)
@@ -224,7 +224,7 @@ async def user_toems_image_update(user_id: int, proj_id: int, image_id: int, upd
     project_check(user_id, proj_id)
     await toems_check(user_id)
     # 1. first check this image belongs to the user's project (by means of name)
-    image = await toems[user_id].conn.image_get(image_id)
+    image = _toems_get_image(toems[user_id].conn, image_id)
     if not image['Name'].startswith(users[user_id].projects[proj_id].name+'_'):
         raise HTTPException(status_code=403, detail=f'You are not allowed to delete the image "{image["Name"]}" because it is not a part of your project.')
 
@@ -239,7 +239,7 @@ async def user_toems_image_delete(user_id: int, proj_id: int, image_id: int):
     project_check(user_id, proj_id)
     await toems_check(user_id)
     # 1. first check this image belongs to the user's project (by means of name)
-    image = await toems[user_id].conn.image_get(image_id)
+    image = _toems_get_image(toems[user_id].conn, image_id)
     if not image['Name'].startswith(users[user_id].projects[proj_id].name+'_'):
         raise HTTPException(status_code=403, detail=f'You are not allowed to delete the image "{image["Name"]}" because it is not a part of your project.')
 
@@ -247,3 +247,9 @@ async def user_toems_image_delete(user_id: int, proj_id: int, image_id: int):
     resp = await toems[user_id].conn.image_delete(image_id)
     if not resp['Success']:
         raise HTTPException(status_code=400, detail=resp['ErrorMessage'])
+
+async def _toems_get_image(toems_conn, image_id):
+    # create toems connection if needed
+    image = await toems_conn.image_get(image_id)
+    if not image:
+        raise HTTPException(status_code=404, detail=f'No image with id {image_id}.')
