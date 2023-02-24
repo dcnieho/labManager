@@ -51,7 +51,7 @@ class Client:
         })
         group_id = resp['Id']
         # 2. set ACLs
-        resp = await self.request('/UserGroupRight/Post', req_type='post', json=[{'UserGroupId': group_id, 'Right': r} for r in ["computerRead","imageRead","imageUploadTask","imageDeployTask"]])
+        resp = await self.request('UserGroupRight/Post', req_type='post', json=[{'UserGroupId': group_id, 'Right': r} for r in ["computerRead","imageRead","imageUploadTask","imageDeployTask"]])
         # 3. provide access to images
         # 3a. for the named images, find out what the image ids are
         image_ids = []
@@ -66,20 +66,20 @@ class Client:
         return group_id
 
     async def user_group_get_managed_images(self, group_id):
-        return await self.request(f'/UserGroup/GetManagedImageIds/{group_id}')
+        return await self.request(f'UserGroup/GetManagedImageIds/{group_id}')
 
     async def user_group_add_managed_images(self, group_id, image_ids, overwrite=False):
         ori_image_ids = []
         if not overwrite:
             ori_image_ids = await self.user_group_get_managed_images(group_id)
-        return await self.request(f'/UserGroup/UpdateImageManagement/{group_id}', req_type='post', json=[{'UserGroupId': group_id, 'ImageId': i} for i in ori_image_ids+image_ids])
+        return await self.request(f'UserGroup/UpdateImageManagement/{group_id}', req_type='post', json=[{'UserGroupId': group_id, 'ImageId': i} for i in ori_image_ids+image_ids])
 
 
     async def computer_get(self, id=None, filter_list=None):
         if id:
             return await self.request(f'UserGroup/Get/{id}')
         else:
-            comps = await self.request('/Computer/SearchAllComputers', req_type="post", json={'SearchText': "", 'Limit': "", 'CategoryType': "Any Category", 'State': "Any State", 'Status': "Any Status"})
+            comps = await self.request('Computer/SearchAllComputers', req_type="post", json={'SearchText': "", 'Limit': "", 'CategoryType': "Any Category", 'State': "Any State", 'Status': "Any Status"})
             if filter_list:
                 comps = [c for c in comps if c['Name'] in filter_list]
             return sorted(comps, key=lambda c: c['Name'])
@@ -157,10 +157,10 @@ class Client:
             return resp
         image_id = resp['Id']
 
-        # 2. get all file copy actions (/FileCopyModule/Get)
+        # 2. get all file copy actions
         actions = await self.file_copy_actions_get()
 
-        # 3. for image, set the image copy action (/ImageProfileFileCopy/Post)
+        # 3. for image, set the image copy action
         for i,act in enumerate(file_copy_actions):
             # get id of file copy action
             copy_id = None
@@ -171,7 +171,7 @@ class Client:
             if not copy_id:
                 return {'Success': False, 'ErrorMessage': f'file copy action with name "{act["name"]}" not found'}
             # activate file copy action for this image
-            resp = await self.request(f'/ImageProfileFileCopy/Post', req_type='post', json={
+            resp = await self.request(f'ImageProfileFileCopy/Post', req_type='post', json={
                 "DestinationPartition": act['partition_id'],
                 "FileCopyModuleId": copy_id,
                 "Priority": i,
@@ -207,7 +207,7 @@ class Client:
         image_id = resp['Id']
 
         # 2. delete
-        return await self.request(f'/Image/Delete/{image_id}', req_type='delete')
+        return await self.request(f'Image/Delete/{image_id}', req_type='delete')
 
 
     async def file_copy_actions_get(self, id=None):
