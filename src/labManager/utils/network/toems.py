@@ -77,7 +77,7 @@ class Client:
 
     async def computer_get(self, id=None, filter_list=None):
         if id:
-            return await self.request(f'UserGroup/Get/{id}')
+            return await self.request(f'Computer/Get/{id}')
         else:
             comps = await self.request('Computer/SearchAllComputers', req_type="post", json={'SearchText': "", 'Limit': "", 'CategoryType': "Any Category", 'State': "Any State", 'Status': "Any Status"})
             if filter_list:
