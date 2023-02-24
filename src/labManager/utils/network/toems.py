@@ -92,15 +92,19 @@ class Client:
         computers = None
         out = []
         for ni in name_or_id:
-            if isinstance(name_or_id, int):
+            if isinstance(ni, int):
                 out.append(ni)
             else:
                 if computers == None:
                     computers = await self.computer_get()
+                found = False
                 for c in computers:
-                    if c['Name']==name_or_id:
+                    if c['Name']==ni:
                         out.append(c['Id'])
-                return {'Success': False, 'ErrorMessage': f'computer with name "{name_or_id}" not found'}
+                        found = True
+                        break
+                if not found:
+                    return {'Success': False, 'ErrorMessage': f'computer with name "{name_or_id}" not found'}
 
         if is_single:
             return {'Success': True, 'Id': out[0]}
