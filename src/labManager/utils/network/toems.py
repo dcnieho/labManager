@@ -148,11 +148,11 @@ class Client:
         if size=='N/A':
             return {'Success': False}
 
-        # 4. update the selected computers so that the correct image is assigned
+        # 4. check that the selected computers have the correct image assigned
         for c in computer_ids:
-            resp = await self.computer_update(c,{'ImageId': image_id})
-            if not resp['Success']:
-                return resp
+            computer = await self.computer_get(c)
+            if computer['ImageId'] != image_id:
+                return {'Success': False, 'ErrorMessage': f'You do not have the right image (image_id: {image_id}) assigned to the computer {computer["Name"]} (computer_id: {c}).'}
 
         # 5. start deploy
         for c in computer_ids:
