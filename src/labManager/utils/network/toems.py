@@ -318,5 +318,9 @@ class Client:
         return await self.request(f'Image/Delete/{image_id}', req_type='delete')
 
 
+    async def imaging_task_get(self):
+        return await self.request('ActiveImagingTask/GetActiveTasks')
+
+
     async def file_copy_actions_get(self, id=None):
         return await self.request('FileCopyModule/Get'+(f'/{id}' if id is not None else ''))
