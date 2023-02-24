@@ -157,8 +157,8 @@ class Client:
         # 5. start deploy
         for c in computer_ids:
             resp = await self.request(f'Computer/StartDeploy/{c}')
-            if not resp['Success']:
-                return resp
+            if not 'Success' in resp['Value']:
+                return {'Success': False, 'ErrorMessage': resp['Value']}
 
         return resp
 
@@ -187,6 +187,8 @@ class Client:
 
         # 5. start deploy
         resp = await self.request(f'Computer/StartUpload/{computer_id}')
+        if not 'Success' in resp['Value']:
+            return {'Success': False, 'ErrorMessage': resp['Value']}
         return resp
 
 
