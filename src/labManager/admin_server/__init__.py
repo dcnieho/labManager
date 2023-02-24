@@ -195,21 +195,25 @@ async def user_toems_image_create(user_id: int, proj_id: int, image: Image):
     project_check(user_id, proj_id)
     await toems_check(user_id)
     resp = await toems[user_id].conn.image_create(image.name, project=users[user_id].projects[proj_id].name, project_format=config.admin_server['toems']['images']['format'], description=image.description)
-    if not resp['success']:
-        if 'Already Exists' in resp['errormessage']:
-            raise HTTPException(status_code=409, detail=resp['errormessage'])
-        elif 'Authorized' in resp['errormessage']:
-            raise HTTPException(status_code=401, detail=resp['errormessage'])
+    if not resp['Success']:
+        if 'Already Exists' in resp['ErrorMessage']:
+            raise HTTPException(status_code=409, detail=resp['ErrorMessage'])
+        elif 'Authorized' in resp['ErrorMessage']:
+            raise HTTPException(status_code=401, detail=resp['ErrorMessage'])
         else:
-            raise HTTPException(status_code=400, detail=resp['errormessage'])
+            raise HTTPException(status_code=400, detail=resp['ErrorMessage'])
 
     # set file copy actions for image
-    image_id = resp['id']
+    image_id = resp['Id']
     if config.admin_server['toems']['images']['file_copy_actions']:
         resp = await toems[user_id].conn.image_set_file_copy_actions(image_id, config.admin_server['toems']['images']['file_copy_actions'])
+        if not resp['Success']:
+            raise HTTPException(status_code=400, detail=resp['ErrorMessage'])
 
     # make managed image for user group
     resp = await toems[user_id].conn.user_group_add_managed_images(toems[user_id].group_id, [image_id])
+    if not resp['Success']:
+        raise HTTPException(status_code=400, detail=resp['ErrorMessage'])
 
     # return id of created image
     return {'id': image_id}

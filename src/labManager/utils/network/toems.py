@@ -121,6 +121,17 @@ class Client:
             images = sorted(images, key=lambda c: c['UserFacingName'])
         return images
 
+    async def _image_resolve_id_name(self, name_or_id):
+        if isinstance(name_or_id, int):
+            return {'Success': True, 'Id': name_or_id}
+        else:
+            images = await self.image_get()
+            for im in images:
+                # search both name and user-facing name
+                if im['Name']==name_or_id or im['UserFacingName']==name_or_id:
+                    return {'Success': True, 'Id': im['Id']}
+            return {'Success': False, 'ErrorMessage': f'image with name "{name_or_id}" not found'}
+
     async def image_create(self, name, project, project_format, description=None):
         # check name
         r = re.compile(project_format)
@@ -128,7 +139,7 @@ class Client:
             name = project + '_' + name
 
         # 1. create image
-        resp = await self.request('Image/Post', req_type="post", json={
+        return await self.request('Image/Post', req_type="post", json={
             "Description": description if description else "",
             "Enabled": True,
             "Environment": "linux",
@@ -138,17 +149,13 @@ class Client:
             "Protected": False,
             "Type": "Block"
         })
-        # early exit if error
-        if not resp['Success']:
-            return {k.lower():resp[k] for k in resp}
-        image_id = resp['Id']
-
-        # return
-        return {'success': True, 'id': image_id}
 
     async def image_change_protection(self, name_or_id, protect):
         # 1. get image id
-        image_id = await self._image_resolve_id_name(name_or_id)
+        resp = await self._image_resolve_id_name(name_or_id)
+        if not resp['Success']:
+            return resp
+        image_id = resp['Id']
 
         # 2. get current image info
         image = await self.image_get(image_id)
@@ -159,7 +166,10 @@ class Client:
 
     async def image_set_file_copy_actions(self, name_or_id, file_copy_actions):
         # 1. get image id
-        image_id = await self._image_resolve_id_name(name_or_id)
+        resp = await self._image_resolve_id_name(name_or_id)
+        if not resp['Success']:
+            return resp
+        image_id = resp['Id']
 
         # 2. get all file copy actions (/FileCopyModule/Get)
         actions = await self.file_copy_actions_get()
@@ -173,32 +183,20 @@ class Client:
                     copy_id = fc['Id']
                     break
             if not copy_id:
-                raise ValueError(f'file copy action with name "{act["name"]}" not found')
+                return {'Success': False, 'ErrorMessage': f'file copy action with name "{act["name"]}" not found'}
             # activate file copy action for this image
-            await self.request(f'/ImageProfileFileCopy/Post', req_type='post', json={
+            resp = await self.request(f'/ImageProfileFileCopy/Post', req_type='post', json={
                 "DestinationPartition": act['partition_id'],
                 "FileCopyModuleId": copy_id,
                 "Priority": i,
                 "ProfileId": image_id
             })
+            if not resp['Success']:
+                # early exit upon error
+                return resp
+        return resp
 
-    async def _image_resolve_id_name(self, name_or_id):
-        image_id = None
-        if isinstance(name_or_id, int):
-            image_id = name_or_id
-        else:
-            images = await self.image_get()
-            for im in images:
-                # search both name and user-facing name
-                if im['Name']==name_or_id or im['UserFacingName']==name_or_id:
-                    image_id = im['Id']
-                    break
-            if not image_id:
-                raise ValueError(f'image with name "{name_or_id}" not found')
-        return image_id
-
-
-    async def image_update(self, name, updates):
+    async def image_update(self, name_or_id, updates):
         # updates is a dict with items to be updated
         # 1. get current image info
         # 2. apply updates
