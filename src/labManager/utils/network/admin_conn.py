@@ -30,13 +30,13 @@ class Client:
             case _:
                 raise ValueError
 
-        resp = (await coro)
+        resp = await coro
         if not resp.status_code==expected_return_code:
             raise RuntimeError(f'Action failed: {resp.status_code}: {resp.reason_phrase}\n{resp.text}')
         if resp.text:
             return resp.json()
         else:
-            return {}
+            return None
 
     async def login(self, user, password):
         resp = await self.request('users', req_type='post', json={'username':user, 'password':password}, expected_return_code=201)
