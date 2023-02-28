@@ -164,7 +164,7 @@ class Client:
         for c in computer_ids:
             computer = await self.computer_get(c)
             if computer['ImageId'] != image_id:
-                return {'Success': False, 'ErrorMessage': f'You do not have the right image (image_id: {image_id}) assigned to the computer {computer["Name"]} (computer_id: {c}).'}
+                return {'Success': False, 'ErrorMessage': f'You do not have the right image (image_id should be: {image_id}, is: {computer["ImageId"]}) assigned to the computer {computer["Name"]} (computer_id: {c}).'}
 
         # 5. start deploy
         for c in computer_ids:
@@ -195,9 +195,9 @@ class Client:
         # 4. check that the selected computers have the correct image assigned
         computer = await self.computer_get(computer_id)
         if computer['ImageId'] != image_id:
-            return {'Success': False, 'ErrorMessage': f'You do not have the right image (image_id: {image_id}) assigned to the computer {computer["Name"]} (computer_id: {computer_id}).'}
+            return {'Success': False, 'ErrorMessage': f'You do not have the right image (image_id should be: {image_id}, is: {computer["ImageId"]}) assigned to the computer {computer["Name"]} (computer_id: {computer_id}).'}
 
-        # 5. start deploy
+        # 5. start upload
         resp = await self.request(f'Computer/StartUpload/{computer_id}')
         if not 'Success' in resp['Value']:
             return {'Success': False, 'ErrorMessage': resp['Value']}
