@@ -250,11 +250,9 @@ class Client:
         if isinstance(name_or_id, int):
             return {'Success': True, 'Id': name_or_id}
         else:
-            images = await self.image_get()
-            for im in images:
-                # search both name and user-facing name
-                if im['Name']==name_or_id or im['UserFacingName']==name_or_id:
-                    return {'Success': True, 'Id': im['Id']}
+            image = await self.image_get(name_or_id)
+            if image is not None:
+                return {'Success': True, 'Id': image['Id']}
             return {'Success': False, 'ErrorMessage': f'image with name "{name_or_id}" not found. You may not have access to this image.'}
 
     async def image_create(self, name, project, project_format, description=None):
