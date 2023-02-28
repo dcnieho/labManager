@@ -34,7 +34,12 @@ class Client:
                 coro = self.client.delete(url, **kwargs)
             case _:
                 raise ValueError
-        return (await coro).json()
+
+        resp = await coro
+        if resp.text:
+            return resp.json()
+        else:
+            return None
 
     async def user_group_get(self, id=None):
         return await self.request('UserGroup/Get'+(f'/{id}' if id is not None else ''), req_type="post", json={'SearchText': "", 'Limit' : 0})
