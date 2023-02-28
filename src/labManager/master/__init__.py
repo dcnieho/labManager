@@ -34,6 +34,14 @@ async def run(duration: float = None):
     image_list = await toems.image_get(project=project, project_format=config.master['toems']['images']['format'])
     comp_list = await toems.computer_get(filter_list=[c['name'] for c in config.master['clients']])
 
+    image_id = (await toems.image_get('station_base'))['Id']
+    comp_id  = (await toems.computer_get('STATION01'))['Id']
+    comp1 = await toems.computer_get('STATION01')
+    out = await client.apply_image(image_id, comp_id)
+    comp2 = await toems.computer_get('STATION01')
+    image_start = await toems.computer_deploy('station_base','STATION01')
+    image_tasks = await toems.imaging_task_get()
+
     # 4. start servers for listening to clients
     # get interfaces we can work with
     if_ips,_ = network.ifs.get_ifaces(config.master['network'])
