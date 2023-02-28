@@ -80,13 +80,20 @@ class Client:
         return await self.request(f'UserGroup/UpdateImageManagement/{group_id}', req_type='post', json=[{'UserGroupId': group_id, 'ImageId': i} for i in ori_image_ids+image_ids])
 
 
-    async def computer_get(self, id=None, filter_list=None):
-        if id:
-            return await self.request(f'Computer/Get/{id}')
+    async def computer_get(self, name_or_id=None, filter_list=None):
+        if isinstance(name_or_id, int):
+            return await self.request(f'Computer/Get/{name_or_id}')
         else:
             comps = await self.request('Computer/SearchAllComputers', req_type="post", json={'SearchText': "", 'Limit': "", 'CategoryType': "Any Category", 'State': "Any State", 'Status': "Any Status"})
             if filter_list:
                 comps = [c for c in comps if c['Name'] in filter_list]
+            if isinstance(name_or_id, str):
+                found = False
+                for c in comps:
+                    if c['Name']==name_or_id:
+                        return c
+                if not found:
+                    return None
             return sorted(comps, key=lambda c: c['Name'])
 
     async def _computer_resolve_id_name(self, name_or_id):
@@ -197,10 +204,23 @@ class Client:
         return resp
 
 
-    async def image_get(self, id=None, project=None, project_format=None):
-        images = await self.request('Image/Get'+(f'/{id}' if id is not None else ''))
-        if id is not None:
+    async def image_get(self, name_or_id=None, project=None, project_format=None):
+        images = await self.request('Image/Get'+(f'/{name_or_id}' if isinstance(name_or_id, int) else ''))
+        if isinstance(images, dict) and 'Success' in images and not images['Success']:
+            # this only happens if an id is provided that doesn't exist or we do not have access to
+            return None
+        if isinstance(name_or_id, int):
             images = [images]
+
+        if isinstance(name_or_id, str):
+            found = False
+            for im in images:
+                if im['Name']==name_or_id:
+                    images = [im]
+                    found = True
+                    break
+            if not found:
+                return None
 
         if project and project_format:
             # for images matching format, check they match project
@@ -217,7 +237,7 @@ class Client:
             if project and im['Name'].startswith(project+'_'):
                 im['UserFacingName'] = im['Name'][len(project)+1:]
 
-        if id is not None:
+        if name_or_id is not None:
             if images:
                 images = images[0]
             else:
