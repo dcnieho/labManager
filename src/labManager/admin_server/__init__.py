@@ -224,7 +224,7 @@ async def user_toems_image_update(user_id: int, proj_id: int, image_id: int, upd
     project_check(user_id, proj_id)
     await toems_check(user_id)
     # 1. first check this image belongs to the user's project (by means of name)
-    image = _toems_get_image(toems[user_id].conn, image_id)
+    image = await _toems_get_image(toems[user_id].conn, image_id)
     if not image['Name'].startswith(users[user_id].projects[proj_id].name+'_'):
         raise HTTPException(status_code=403, detail=f'You are not allowed to delete the image "{image["Name"]}" because it is not a part of your project.')
 
@@ -242,7 +242,7 @@ async def user_toems_image_delete(user_id: int, proj_id: int, image_id: int):
     project_check(user_id, proj_id)
     await toems_check(user_id)
     # 1. first check this image belongs to the user's project (by means of name)
-    image = _toems_get_image(toems[user_id].conn, image_id)
+    image = await _toems_get_image(toems[user_id].conn, image_id)
     if not image['Name'].startswith(users[user_id].projects[proj_id].name+'_'):
         raise HTTPException(status_code=403, detail=f'You are not allowed to delete the image "{image["Name"]}" because it is not a part of your project.')
 
