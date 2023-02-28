@@ -257,3 +257,15 @@ async def _toems_get_image(toems_conn, image_id):
     if not image:
         raise HTTPException(status_code=404, detail=f'No image with id {image_id}.')
     return image
+
+@app.post('/users/{user_id}/projects/{proj_id}/images/{image_id}/apply')
+async def user_toems_image_apply(user_id: int, proj_id: int, image_id: int, computer_id: dict):
+    user_check(user_id)
+    project_check(user_id, proj_id)
+    await toems_check(user_id)
+
+    # check image exists
+    image = await _toems_get_image(toems[user_id].conn, image_id)
+
+    # update computer with image
+    return await toems[user_id].conn.computer_update(computer_id['computer_id'], {'ImageId': image['Id']})

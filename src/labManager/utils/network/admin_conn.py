@@ -99,3 +99,6 @@ class Client:
 
     async def delete_image(self, image_id):
         await self.request(f'users/{self.user_id}/projects/{self.proj_id}/images/{image_id}', req_type='delete', expected_return_code=204)
+
+    async def apply_image(self, image_id, computer_id):
+        return await self.request(f'users/{self.user_id}/projects/{self.proj_id}/images/{image_id}/apply', req_type='post', json={'computer_id': computer_id})
