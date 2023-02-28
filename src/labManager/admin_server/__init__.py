@@ -215,8 +215,8 @@ async def user_toems_image_create(user_id: int, proj_id: int, image: Image):
     if not resp['Success']:
         raise HTTPException(status_code=400, detail=resp['ErrorMessage'])
 
-    # return id of created image
-    return {'id': image_id}
+    # return created image (make sure fully in sync with results of all above calls)
+    return await toems[user_id].conn.image_get(image_id)
 
 @app.put('/users/{user_id}/projects/{proj_id}/images/{image_id}')
 async def user_toems_image_update(user_id: int, proj_id: int, image_id: int, updates: dict):
@@ -232,6 +232,9 @@ async def user_toems_image_update(user_id: int, proj_id: int, image_id: int, upd
     resp = await toems[user_id].conn.image_update(image_id, updates)
     if not resp['Success']:
         raise HTTPException(status_code=400, detail=resp['ErrorMessage'])
+
+    # 3. return updated entry
+    return await toems[user_id].conn.image_get(image_id)
 
 @app.delete('/users/{user_id}/projects/{proj_id}/images/{image_id}', status_code=204)
 async def user_toems_image_delete(user_id: int, proj_id: int, image_id: int):
@@ -253,3 +256,4 @@ async def _toems_get_image(toems_conn, image_id):
     image = await toems_conn.image_get(image_id)
     if not image:
         raise HTTPException(status_code=404, detail=f'No image with id {image_id}.')
+    return image
