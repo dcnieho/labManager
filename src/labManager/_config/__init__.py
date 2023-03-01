@@ -27,3 +27,4 @@ except:
     pass
 else:
     del de
+    HAS_ADMIN = True
