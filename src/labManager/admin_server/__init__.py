@@ -4,9 +4,8 @@ import time
 import copy
 from dotenv import dotenv_values
 
-from ..utils.network import smb
+from ..utils.network import smb, ldap
 from ..utils.network import toems as toems_conn
-from ..utils.network.ldap import check_credentials
 from ..utils import config
 
 # server with REST API for dealing with stuff that needs secret we don't want users to have access to:
@@ -60,7 +59,7 @@ toems: dict[int, ToemsEntry] = {}
 @app.post('/users', status_code=201)
 def user_add(user: UserLogin):
     # test login
-    result = check_credentials(config.admin_server['LDAP']['server'], user.username, user.password, config.admin_server['LDAP']['projects']['format'])
+    result = ldap.check_credentials(config.admin_server['LDAP']['server'], user.username, user.password, config.admin_server['LDAP']['projects']['format'])
     if not result['success']:
         raise HTTPException(status_code=401, detail=f'Login failed: {result["error"]}')
 
