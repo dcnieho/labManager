@@ -1,5 +1,6 @@
 HAS_MASTER = False
 HAS_ADMIN  = False
+HAS_GUI    = False
 
 # test if the master dependencies are available
 # if not, user didn't specify the "master" extra
@@ -28,3 +29,13 @@ except:
 else:
     del de
     HAS_ADMIN = True
+
+
+# test if the GUI dependencies are available
+try:
+    import imgui_bundle as im
+except:
+    pass
+else:
+    del im
+    HAS_GUI = True
