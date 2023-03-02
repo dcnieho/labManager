@@ -80,6 +80,13 @@ def user_detail(user_id: int):
     user_check(user_id)
     return {'user': return_user(users[user_id])}
 
+@app.delete('/users/{user_id}', status_code=204)
+def user_delete(user_id: int):
+    if user_id in users:
+        del users[user_id]
+    if user_id in toems:
+        del toems[user_id]
+
 def user_check(user_id):
     if not user_id in users:
         raise HTTPException(status_code=404, detail='User not found')
