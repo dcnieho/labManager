@@ -280,10 +280,17 @@ class Client:
             return resp
         image_id = resp['Id']
 
-        # 2. get all file copy actions
+        # 2. get profile for this image
+        profiles = await self.image_get_profiles(image_id)
+        if len(profiles)==1:
+            profile_id = profiles[0]['Id']
+        else:
+            return {'Success': False, 'ErrorMessage': 'image has more than one profile, cannot select profile to apply action to'}
+
+        # 3. get all file copy actions
         actions = await self.file_copy_actions_get()
 
-        # 3. for image, set the image copy action
+        # 4. for image, set the image copy action
         for i,act in enumerate(file_copy_actions):
             # get id of file copy action
             copy_id = None
@@ -298,12 +305,23 @@ class Client:
                 "DestinationPartition": act['partition_id'],
                 "FileCopyModuleId": copy_id,
                 "Priority": i,
-                "ProfileId": image_id
+                "ProfileId": profile_id
             })
-            if not resp['Success']:
+            if not 'Success' in resp or not resp['Success']:
                 # early exit upon error
+                resp['Success'] = False # ensure this field exists, i have seen replies where it didn't...
                 return resp
         return resp
+
+    async def image_get_profiles(self, name_or_id):
+        # 1. get image id
+        resp = await self._image_resolve_id_name(name_or_id)
+        if not resp['Success']:
+            return resp
+        image_id = resp['Id']
+
+        # 2. get image profiles
+        return await self.request(f'Image/GetImageProfiles/{image_id}')
 
     async def image_get_server_size(self, name_or_id):
         # 1. get image id
