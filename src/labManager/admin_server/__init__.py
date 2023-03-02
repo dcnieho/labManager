@@ -4,7 +4,7 @@ import time
 import copy
 from dotenv import dotenv_values
 
-from ..utils.network import smb, ldap
+from ..utils.network import ldap
 from ..utils.network import toems as toems_conn
 from ..utils import config
 
@@ -55,7 +55,7 @@ class ToemsEntry(BaseModel):
 toems: dict[int, ToemsEntry] = {}
 
 
-# 1a: LDAP / user credentials
+# 1: LDAP / user credentials
 @app.post('/users', status_code=201)
 def user_add(user: UserLogin):
     # test login
@@ -97,7 +97,7 @@ def return_user(user):
     reply_user.password = '***hidden***'
     return reply_user
 
-# 1b. projects from LDAP
+# 2. projects from LDAP
 @app.get('/users/{user_id}/projects')
 def user_projects(user_id: int):
     user_check(user_id)
@@ -122,47 +122,7 @@ def project_check(user_id, proj):
         if not found:
             raise HTTPException(status_code=404, detail='Project not found')
 
-# 1c: SMB share access
-@app.get('/users/{user_id}/projects/{proj_id}/check_smb')
-def user_project_smb_check(user_id: int, proj_id: int):
-    user_check(user_id)
-    project_check(user_id, proj_id)
-    # if we already know accessible state yet, connect to SMB server and query
-    if users[user_id].projects[proj_id].smb_access == -1:  # -1 means not queried yet
-        shares = SMB_get_shares(users[user_id])
-        # set reported shares to reachable
-        for s in shares:
-            update_share_access(users[user_id].projects, s, 1)
-        # set rest to unrechable
-        for p in users[user_id].projects:
-            if p.smb_access==-1:
-                p.smb_access = 0
-    return {'has_access': users[user_id].projects[proj_id].smb_access==1}
-
-def SMB_get_shares(user):
-    # figure out domain from user, default to configured
-    domain = config.admin_server["SMB"]["domain"]
-    if '\\' in user.full_name:
-        dom, _ = user.full_name.split('\\',maxsplit=1)
-        if dom:
-            domain = dom
-    try:
-        smb_hndl = smb.SMBHandler(config.admin_server["SMB"]["server"], user.name, domain, user.password)
-    except (OSError, smb.SessionError) as exc:
-        print(f'Error connecting as {domain}\{user.name} to {config.master["SMB"]["server"]}: {exc}')
-        shares = []
-    else:
-        shares = smb_hndl.list_shares(matching=config.admin_server["SMB"]["projects"]["format"], remove_trailing=config.admin_server["SMB"]["projects"]["remove_trailing"])
-
-    return shares
-
-def update_share_access(projects, share, state):
-    for p in projects:
-        if p.name==share:
-            p.smb_access = state
-            break
-
-# 1d. user and user group management in TOEMS
+# 3. user and user group management in TOEMS
 @app.get('/users/{user_id}/projects/{proj_id}/toems')
 async def user_toems_group(user_id: int, proj_id: int):
     user_check(user_id)
@@ -194,7 +154,7 @@ async def toems_check(user_id):
         toems[user_id] = ToemsEntry(conn=toems_conn.Client(config.admin_server['toems']['server'], config.admin_server['toems']['port'], protocol='http'))
         await toems[user_id].conn.connect(username=secrets['TOEMS_ACCOUNT'], password=secrets['TOEMS_PASSWORD'])
 
-# 1e. project image management in TOEMS
+# 4. project image management in TOEMS
 @app.post('/users/{user_id}/projects/{proj_id}/images', status_code=201)
 async def user_toems_image_create(user_id: int, proj_id: int, image: Image):
     user_check(user_id)

@@ -78,18 +78,6 @@ class Client:
                 break
         return proj_id
 
-    async def check_share_access(self, proj=None):
-        self._check_user()
-
-        proj_id = self.proj_id
-        if proj is not None:
-            proj_id = self._get_project_id(proj)
-        if proj_id is None:
-            raise RuntimeError('You need to set or specify a project before checking its details')
-
-        resp = await self.request(f'users/{self.user_id}/projects/{proj_id}/check_smb')
-        return resp['has_access']
-
     async def create_image(self, name, description=None):
         resp = await self.request(f'users/{self.user_id}/projects/{self.proj_id}/images', req_type='post', json={'name':name, 'description':description}, expected_return_code=201)
         return resp['Id']

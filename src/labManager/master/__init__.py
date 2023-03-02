@@ -8,57 +8,41 @@ from ..utils import async_thread, config, eye_tracker, message, network, structs
 
 # main function for independently running master
 # NB: requires that utils.async_thread has been set up
-async def run(duration: float = None):
+def run(duration: float = None):
+    async_thread.setup()
+    asyncio.run(do_run(duration))
+    async_thread.cleanup()
+
+async def do_run(duration: float = None):
     from getpass import getpass
     username = input(f'Username: ')
     password = getpass(f'Password: ')
-    # 1. check user credentials, and list projects they have access to
-    client = network.admin_conn.Client(config.master['admin']['server'],config.master['admin']['port'])
-    projects = await client.login(username, password)
+    server = Master()
+    server.load_known_clients(config.master['clients'])
+    await server.login(username, password)
     print('You have access to the following projects, which would you like to use?')
-    for p in projects:
+    for p in server.projects:
         print(f'  {p}')
     project = input(f'Project: ')
-    if project not in projects:
-        raise ValueError(f'project "{project}" not recognized, choose one of the projects you have access to: {projects}')
-    client.set_project(project)
-    await client.prep_toems()
+    await server.set_project(project)
 
     # 2. check we also have share access
-    access = await client.check_share_access()
+    access = server.has_share_access()
 
     # 3. log into toems server
-    toems = network.toems.Client(config.master['toems']['server'], config.master['toems']['port'], protocol='http')
-    await toems.connect(username, password)
+    image_list = await server.get_images()
+    comp_list = await server.get_computers()
 
-    image_list = await toems.image_get(project=project, project_format=config.master['toems']['images']['format'])
-    comp_list = await toems.computer_get(filter_list=[c['name'] for c in config.master['clients']])
-
-    image_id = (await toems.image_get('station_base'))['Id']
-    comp_id  = (await toems.computer_get('STATION01'))['Id']
-    comp1 = await toems.computer_get('STATION01')
-    out = await client.apply_image(image_id, comp_id)
-    comp2 = await toems.computer_get('STATION01')
-    image_start = await toems.computer_deploy('station_base','STATION01')
-    image_tasks = await toems.imaging_task_get()
+    #image_start = await server.deploy_image('station_base', ['STATION01'])
+    #new = await server.create_image('test')
+    image_start = await server.upload_computer_to_image('STATION01','test')
+    # image_tasks = await toems.imaging_task_get()
 
     # 4. start servers for listening to clients
     # get interfaces we can work with
     if_ips,_ = network.ifs.get_ifaces(config.master['network'])
-    # start server to connect with clients
-    server = Master()
-    server.load_known_clients(config.master['clients'])
-    async_thread.wait(server.start((if_ips[0], 0)))
-    ip,port = server.address[0]
-
-    # start SSDP server to advertise this server
-    ssdp_server = network.ssdp.Server(
-        address=if_ips[0],
-        host_ip_port=(ip,port),
-        usn="humlab-b055-master::"+config.master['SSDP']['device_type'],
-        device_type=config.master['SSDP']['device_type'],
-        allow_loopback=True)
-    async_thread.wait(ssdp_server.start())
+    # start server to connect with stations
+    await server.start_server((if_ips[0], 0))
 
     # run
     if not duration:
@@ -68,23 +52,130 @@ async def run(duration: float = None):
         await asyncio.sleep(duration)
 
     # stop servers
-    async_thread.run(ssdp_server.stop()).result()
-    async_thread.run(server.stop()).result()
+    async_thread.wait(server.stop_server())
 
 
 class Master:
     def __init__(self):
+        ### user interface
+        # credentials
+        self.username = None
+        self.password = None
+        # all projects user has access to and selected project
+        self.projects = []
+        self.project  = None
+        self._shares  = []
+
+        # connections to servers
+        self.admin: network.admin_conn.Client = None
+        self.toems: network.toems.Client = None
+
+        # server
         self.address = None
+        self.ssdp_server: network.ssdp.Server = None
 
         self.clients: Dict[int, structs.Client] = {}
         self.known_clients: Dict[int, structs.KnownClient] = {}
 
         self.task_groups: Dict[int, task.TaskGroup] = {}
 
-    def add_client(self, client: structs.Client):
+    async def login(self, username: str, password: str):
+        # clean up old session, if any
+        self.username, self.password = None, None
+        self.projects = []
+        self.project  = None
+        self._shares  = []
+        if self.admin is not None:
+            self.admin = None
+        if self.toems is not None:
+            self.toems = None
+
+        # check user credentials, and list projects they have access to
+        self.admin = network.admin_conn.Client(config.master['admin']['server'], config.master['admin']['port'])
+        self.projects = await self.admin.login(username, password)
+        self.username, self.password = username, password
+
+        # list project shares user has access to
+        self._shares = _SMB_get_shares(self.admin.user, password)
+
+    async def set_project(self, project: str):
+        if project not in self.projects:
+            raise ValueError(f'project "{project}" not recognized, choose one of the projects you have access to: {self.projects}')
+
+        if project == self.project:
+            return
+
+        # we got a different project, unload old
+        if self.toems is not None:
+            self.toems = None
+
+        # set new project
+        self.project = project
+        self.admin.set_project(self.project)
+
+        # log into toems server
+        await self.admin.prep_toems()
+        self.toems = network.toems.Client(config.master['toems']['server'], config.master['toems']['port'], protocol='http')
+        await self.toems.connect(self.username, self.password)
+
+    def has_share_access(self):
+        return self.project in self._shares
+
+
+    async def get_computers(self):
+        return await self.toems.computer_get(filter_list=[c['name'] for c in config.master['clients']])
+
+    async def get_images(self):
+        return await self.toems.image_get(project=self.project, project_format=config.master['toems']['images']['format'])
+
+    async def create_image(self, name: str, description: str|None = None):
+        return await self.admin.create_image(name, description)
+
+    async def delete_image(self, name: str):
+        image_id = (await self.toems.image_get(name))['Id']
+        return await self.admin.delete_image(image_id)
+
+    async def deploy_image(self, image: str, computers: List[str]):
+        image_id = (await self.toems.image_get(image))['Id']
+
+        if isinstance(computers,str):
+            computers = [computers]
+        comp_ids = [(await self.toems.computer_get(c))['Id'] for c in computers]
+        for c in comp_ids:
+            resp = await self.admin.apply_image(image_id, c)
+            if not resp['Success']:
+                raise RuntimeError(f"can't deploy: failed to apply image to computer ({resp['ErrorMessage']})")
+
+        resp = await self.toems.computer_deploy(image_id, comp_ids)
+        if not 'Success' in resp['Value']:
+            raise RuntimeError(f"can't deploy: failed to start task ({resp['ErrorMessage']})")
+
+    async def upload_computer_to_image(self, computer: str, image: str):
+        # we can only ever upload to an image belonging to this project, so check it is a project image
+        if not image.startswith(self.project+'_'):
+            image = self.project+'_'+image
+        im = await self.toems.image_get(image)
+        if im is None:
+            raise RuntimeError(f"can't upload: image with name '{image}' not found")
+        image_id = im['Id']
+
+        comp = await self.toems.computer_get(computer)
+        if comp is None:
+            raise RuntimeError(f"can't upload: computer with name '{computer}' not found")
+        comp_id  = comp['Id']
+        resp = await self.admin.apply_image(image_id, comp_id)
+        if not resp['Success']:
+            raise RuntimeError(f"can't upload: failed to apply image to computer ({resp['ErrorMessage']})")
+
+        resp = await self.toems.computer_upload(comp_id, image_id)
+        if not 'Success' in resp['Value']:
+            raise RuntimeError(f"can't upload: failed to start task ({resp['ErrorMessage']})")
+
+
+    def _add_client(self, client: structs.Client):
         self.clients[client.id] = client
 
-    def remove_client(self, client: structs.Client):
+    def _remove_client(self, client: structs.Client):
         self._remove_known_client(client)
         del self.clients[client.id]
 
@@ -105,7 +196,7 @@ class Master:
             client.known_client.client = None
         client.known_client = None
 
-    async def start(self, local_addr: Tuple[str,int]):
+    async def start_server(self, local_addr: Tuple[str,int], start_ssdp_advertise=True):
         self.server = await asyncio.start_server(self._handle_client, *local_addr)
 
         addr = [sock.getsockname() for sock in self.server.sockets]
@@ -116,7 +207,22 @@ class Master:
         # should already have started serving in asyncio.start_server, but to be save and sure:
         await self.server.start_serving()
 
-    async def stop(self):
+        # start SSDP server if wanted
+        if start_ssdp_advertise:
+            # start SSDP server to advertise this server
+            self.ssdp_server = network.ssdp.Server(
+                address=local_addr[0],
+                host_ip_port=self.address,
+                usn="humlab-b055-master::"+config.master['SSDP']['device_type'],
+                device_type=config.master['SSDP']['device_type'],
+                allow_loopback=True)
+            await self.ssdp_server.start()
+
+    async def stop_server(self):
+        if self.ssdp_server is not None:
+            await self.ssdp_server.stop()
+
+
         self.server.close()
         await self.server.wait_closed()
 
@@ -124,7 +230,7 @@ class Master:
         network.keepalive.set(writer.get_extra_info('socket'))
 
         me = structs.Client(writer)
-        self.add_client(me)
+        self._add_client(me)
 
         # request info about client
         await network.comms.typed_send(writer, message.Message.IDENTIFY)
@@ -142,7 +248,6 @@ class Master:
                     case message.Message.IDENTIFY:
                         me.name = msg['name']
                         me.MACs = msg['MACs']
-                        print(f'setting name for {me.host}:{me.port} to: {me.name}')
                         self._find_known_client(me)
                     case message.Message.INFO:
                         print(f'{me.host}:{me.port}: {msg}')
@@ -183,7 +288,7 @@ class Master:
         writer.close()
 
         # remove from client list
-        self.remove_client(me)
+        self._remove_client(me)
 
     async def broadcast(self, type: message.Message, message: str=''):
         for c in self.clients:
@@ -223,3 +328,22 @@ class Master:
             coros.append(task.send(mytask, self.clients[c].writer))
 
         await asyncio.gather(*coros)
+
+
+
+def _SMB_get_shares(user, password):
+    # figure out domain from user, default to configured
+    domain = config.master["SMB"]["domain"]
+    if '\\' in user['full_name']:
+        dom, _ = user['full_name'].split('\\', maxsplit=1)
+        if dom:
+            domain = dom
+    try:
+        smb_hndl = network.smb.SMBHandler(config.master["SMB"]["server"], user['name'], domain, password)
+    except (OSError, network.smb.SessionError) as exc:
+        print(f'Error connecting as {domain}\{user["name"]} to {config.master["SMB"]["server"]}: {exc}')
+        shares = []
+    else:
+        shares = smb_hndl.list_shares(matching=config.master["SMB"]["projects"]["format"], remove_trailing=config.master["SMB"]["projects"]["remove_trailing"])
+
+    return shares

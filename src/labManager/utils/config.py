@@ -64,14 +64,6 @@ _server_schema = s.Map({
             'format': s.Str(),
         }),
     }),
-    'SMB': s.Map({
-        'server': s.Str(),
-        'domain': s.Str(),
-        'projects': s.Map({
-            'format': s.Str(),
-            s.Optional('remove_trailing'): s.Str(),
-        }),
-    }),
     'toems': s.Map({
         'server': s.Str(),
         'port': s.Int(),
