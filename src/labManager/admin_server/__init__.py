@@ -173,7 +173,7 @@ async def user_toems_group(user_id: int, proj_id: int):
 
     return group_id is not None
 
-@app.post('/users/{user_id}/projects/{proj_id}/toems_create', status_code=204)
+@app.post('/users/{user_id}/projects/{proj_id}/toems', status_code=204)
 async def user_toems_group_create(user_id: int, proj_id: int):
     user_check(user_id)
     project_check(user_id, proj_id)
