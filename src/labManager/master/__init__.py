@@ -7,12 +7,13 @@ from ..utils import async_thread, config, eye_tracker, message, network, structs
 
 
 # main function for independently running master
-# NB: requires that utils.async_thread has been set up
-def run(duration: float = None):
+# does not return until master has closed down
+def run(use_GUI: bool = True, duration: float = None):
     async_thread.setup()
     asyncio.run(do_run(duration))
     async_thread.cleanup()
 
+# coroutine that runs command-line master
 async def do_run(duration: float = None):
     from getpass import getpass
     username = input(f'Username: ')
@@ -52,7 +53,7 @@ async def do_run(duration: float = None):
         await asyncio.sleep(duration)
 
     # stop servers
-    async_thread.wait(server.stop_server())
+    await server.stop_server()
 
 
 class Master:
@@ -221,7 +222,6 @@ class Master:
     async def stop_server(self):
         if self.ssdp_server is not None:
             await self.ssdp_server.stop()
-
 
         self.server.close()
         await self.server.wait_closed()
