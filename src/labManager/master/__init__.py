@@ -1,6 +1,7 @@
 import asyncio
 import aiofile
 import traceback
+import sys
 from typing import Dict, List, Tuple
 
 from ..utils import async_thread, config, eye_tracker, message, network, structs, task
@@ -8,9 +9,24 @@ from ..utils import async_thread, config, eye_tracker, message, network, structs
 
 # main function for independently running master
 # does not return until master has closed down
+# duration parameter only applies to command-line master (use_GUI==False)
 def run(use_GUI: bool = True, duration: float = None):
+    # if we want a GUI, first check we have that functionality installed
+    if use_GUI:
+        from .. import _config
+        if not _config.HAS_GUI:
+            raise RuntimeError('You must install labManager with the [GUI] extra if you wish to use the GUI. Required dependencies for the GUI not available...')
+
+    # set up thread for running asyncs
     async_thread.setup()
-    asyncio.run(do_run(duration))
+
+    # run actual master
+    if use_GUI:
+        do_run_GUI()
+    else:
+        asyncio.run(do_run(duration))
+
+    # clean up
     async_thread.cleanup()
 
 # coroutine that runs command-line master
@@ -54,6 +70,17 @@ async def do_run(duration: float = None):
 
     # stop servers
     await server.stop_server()
+
+# run GUI master
+def do_run_GUI():
+    from . import GUI
+    if getattr(sys, "frozen", False) and "nohide" not in sys.argv:
+        import ctypes
+        ctypes.windll.user32.ShowWindow(ctypes.windll.kernel32.GetConsoleWindow(), 0)
+
+    gui = GUI.MainGUI()
+    # returns when GUI closed
+    gui.run()
 
 
 class Master:
