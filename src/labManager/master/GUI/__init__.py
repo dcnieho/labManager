@@ -12,10 +12,10 @@ from .. import Master
 from ._impl import msgbox, utils
 
 # Struct that holds the application's state
-class LoginState(Enum):
-    Not_Logged_In = auto()
-    Processing    = auto()
-    Logged_In     = auto()
+class ActionState(Enum):
+    Not_Done    = auto()
+    Processing  = auto()
+    Done        = auto()
 
 class MainGUI:
     def __init__(self):
@@ -25,9 +25,11 @@ class MainGUI:
         self.master = Master()
         self.master.load_known_clients(config.master['clients'])
 
-        self.username = ''
-        self.password = ''
-        self.login_state= LoginState.Not_Logged_In
+        self.username         = ''
+        self.password         = ''
+        self.login_state      = ActionState.Not_Done
+        self.proj_select_state= ActionState.Not_Done
+        self.proj_idx         = -1
 
         # Show errors in threads
         def asyncexcepthook(future: asyncio.Future):
@@ -89,15 +91,7 @@ class MainGUI:
 
         # Menu bar
         runner_params.imgui_window_params.show_menu_bar = True
-        def _show_app_menu_items():
-            clicked, _ = imgui.menu_item("Log out", "", False)
-            if clicked:
-                hello_imgui.log(hello_imgui.LogLevel.info, "Logging out...")
-            clicked, _ = imgui.menu_item("Close project", "", False)
-            if clicked:
-                hello_imgui.log(hello_imgui.LogLevel.info, "Closing project...")
-
-        runner_params.callbacks.show_app_menu_items = _show_app_menu_items
+        runner_params.callbacks.show_app_menu_items = self._show_app_menu_items
 
 
         # optional native events handling
@@ -168,57 +162,96 @@ class MainGUI:
         addons_params.with_markdown = True
         immapp.run(runner_params, addons_params)
 
+    def _show_app_menu_items(self):
+        clicked, _ = imgui.menu_item("Close project", "", False)
+        if clicked:
+            self.proj_select_state= ActionState.Not_Done
+            self.proj_idx         = -1
+        clicked, _ = imgui.menu_item("Log out", "", False)
+        if clicked:
+            self.username         = ''
+            self.password         = ''
+            self.login_state      = ActionState.Not_Done
+            self.proj_select_state= ActionState.Not_Done
+            self.proj_idx         = -1
+
     def _login_GUI(self):
-        disabled = self.login_state==LoginState.Processing
-        if disabled:
-            utils.push_disabled()
-        i1,self.username = imgui.input_text('User name',self.username, flags=imgui.InputTextFlags_.enter_returns_true)
-        i2,self.password = imgui.input_text('Password' ,self.password, flags=imgui.InputTextFlags_.enter_returns_true|imgui.InputTextFlags_.password)
+        if self.login_state != ActionState.Done:
+            disabled = self.login_state==ActionState.Processing
+            if disabled:
+                utils.push_disabled()
+            i1,self.username = imgui.input_text('User name',self.username, flags=imgui.InputTextFlags_.enter_returns_true)
+            i2,self.password = imgui.input_text('Password' ,self.password, flags=imgui.InputTextFlags_.enter_returns_true|imgui.InputTextFlags_.password)
 
-        if self.login_state==LoginState.Processing:
-            symbol_size = imgui.calc_text_size("x").y*2
-            spinner_radii = [x/22/2*symbol_size for x in [22, 16, 10]]
-            lw = 3.5/22/2*symbol_size
-            imspinner.spinner_ang_triple(f'loginSpinner', *spinner_radii, lw, c1=imgui.get_style().color_(imgui.Col_.text_selected_bg), c2=imgui.get_style().color_(imgui.Col_.text), c3=imgui.get_style().color_(imgui.Col_.text_selected_bg))
+            if self.login_state==ActionState.Processing:
+                symbol_size = imgui.calc_text_size("x").y*2
+                spinner_radii = [x/22/2*symbol_size for x in [22, 16, 10]]
+                lw = 3.5/22/2*symbol_size
+                imspinner.spinner_ang_triple(f'loginSpinner', *spinner_radii, lw, c1=imgui.get_style().color_(imgui.Col_.text_selected_bg), c2=imgui.get_style().color_(imgui.Col_.text), c3=imgui.get_style().color_(imgui.Col_.text_selected_bg))
+            else:
+                if imgui.button("Log in") | i1 | i2:
+                    if not self.username:
+                        utils.push_popup(self, msgbox.msgbox, "Login error", 'Fill in a username', msgbox.MsgBox.error)
+                    else:
+                        self.login_state = ActionState.Processing
+                        async_thread.run(self.master.login(self.username,self.password), lambda fut: self._login_result('login',fut))
+
+            if disabled:
+                utils.pop_disabled()
         else:
-            if imgui.button("Log in") | i1 | i2:
-                if not self.username:
-                    utils.push_popup(self, msgbox.msgbox, "Login error", 'Fill in a username', msgbox.MsgBox.error)
-                else:
-                    self.login_state = LoginState.Processing
-                    async_thread.run(self.master.login(self.username,self.password), self._login_result)
+            disabled = self.proj_select_state==ActionState.Processing
+            if disabled:
+                utils.push_disabled()
+            imgui.text('Select project:')
+            _,self.proj_idx = imgui.list_box('##Project', 0 if self.proj_idx==-1 else self.proj_idx, self.master.projects)
 
-        if disabled:
-            utils.pop_disabled()
+            if self.proj_select_state==ActionState.Processing:
+                symbol_size = imgui.calc_text_size("x").y*2
+                spinner_radii = [x/22/2*symbol_size for x in [22, 16, 10]]
+                lw = 3.5/22/2*symbol_size
+                imspinner.spinner_ang_triple(f'projSpinner', *spinner_radii, lw, c1=imgui.get_style().color_(imgui.Col_.text_selected_bg), c2=imgui.get_style().color_(imgui.Col_.text), c3=imgui.get_style().color_(imgui.Col_.text_selected_bg))
+            else:
+                if imgui.button("Select"):
+                    self.proj_select_state = ActionState.Processing
+                    async_thread.run(self.master.set_project(self.master.projects[self.proj_idx]), lambda fut: self._login_result('project',fut))
 
-    def _login_result(self, future: asyncio.Future):
+            if disabled:
+                utils.pop_disabled()
+
+    def _login_result(self, stage, future: asyncio.Future):
         try:
             exc = future.exception()
         except concurrent.futures.CancelledError:
             return
         if not exc:
             # log in successful
-            self.login_state = LoginState.Logged_In
+            if stage=='login':
+                self.login_state = ActionState.Done
+            elif stage=='project':
+                self.proj_select_state = ActionState.Done
             return
 
         # error occurred
-        self.login_state = LoginState.Not_Logged_In
+        if stage=='login':
+            self.login_state = ActionState.Not_Done
+        elif stage=='project':
+            self.proj_select_state = ActionState.Not_Done
         msg = str(exc)
         if '401' in msg:
             msg = msg.splitlines()
             try:
                 msg = json.loads(msg[-1])['detail']
-                utils.push_popup(self, msgbox.msgbox, "Login error", msg, msgbox.MsgBox.error)
+                utils.push_popup(self, msgbox.msgbox, f"{'Login' if stage=='login' else 'Project selection'} error", msg, msgbox.MsgBox.error)
                 return
             except:
                 pass
 
         # not handled by above, display more generic error
         tb = utils.get_traceback(type(exc), exc, exc.__traceback__)
-        utils.push_popup(self, msgbox.msgbox, "Login error", f"Something went wrong when logging in...", msgbox.MsgBox.error, more=tb)
+        utils.push_popup(self, msgbox.msgbox, "Login error", f"Something went wrong when {'logging in' if stage=='login' else 'selecting project'}...", msgbox.MsgBox.error, more=tb)
 
     def _computer_list(self):
-        if self.login_state==LoginState.Logged_In:
+        if self.proj_select_state==ActionState.Done:
             if imgui.button("Add window"):
                 temp2 = hello_imgui.DockableWindow()
                 temp2.label = "Test"
