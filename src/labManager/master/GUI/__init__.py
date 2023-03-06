@@ -1,25 +1,33 @@
-from enum import Enum
+from enum import Enum, auto
 import numpy as np
 import asyncio
 import concurrent
+import json
 
-from imgui_bundle import hello_imgui, icons_fontawesome, imgui, imgui_md, immapp
+from imgui_bundle import hello_imgui, icons_fontawesome, imgui, immapp, imspinner
 from imgui_bundle.demos_python import demo_utils
 
-from ...utils import async_thread
+from ...utils import async_thread, config
+from .. import Master
 from ._impl import msgbox, utils
 
-
 # Struct that holds the application's state
-class MainGUI:
-    class RocketState(Enum):
-        Init = 0
-        Preparing = 1
-        Launched = 2
+class LoginState(Enum):
+    Not_Logged_In = auto()
+    Processing    = auto()
+    Logged_In     = auto()
 
+class MainGUI:
     def __init__(self):
         # Constants
         self.popup_stack = []
+
+        self.master = Master()
+        self.master.load_known_clients(config.master['clients'])
+
+        self.username = ''
+        self.password = ''
+        self.login_state= LoginState.Not_Logged_In
 
         # Show errors in threads
         def asyncexcepthook(future: asyncio.Future):
@@ -31,9 +39,9 @@ class MainGUI:
                 return
             tb = utils.get_traceback(type(exc), exc, exc.__traceback__)
             if isinstance(exc, asyncio.TimeoutError):
-                utils.push_popup(msgbox.msgbox, "Processing error", f"A background process has failed:\n{type(exc).__name__}: {str(exc) or 'No further details'}", msgbox.MsgBox.warn, more=tb)
+                utils.push_popup(self, msgbox.msgbox, "Processing error", f"A background process has failed:\n{type(exc).__name__}: {str(exc) or 'No further details'}", msgbox.MsgBox.warn, more=tb)
                 return
-            utils.push_popup(msgbox.msgbox, "Processing error", f"Something went wrong in an asynchronous task of a separate thread:\n\n{tb}", msgbox.MsgBox.error)
+            utils.push_popup(self, msgbox.msgbox, "Processing error", f"Something went wrong in an asynchronous task of a separate thread:\n\n{tb}", msgbox.MsgBox.error)
         async_thread.done_callback = asyncexcepthook
 
 
@@ -138,19 +146,19 @@ class MainGUI:
 
         # Computer list on the left
         self.computer_list = hello_imgui.DockableWindow()
-        self.computer_list.label = "Commands"
+        self.computer_list.label = "Computers"
         self.computer_list.dock_space_name = "LeftSpace"
-        self.computer_list.gui_function = self._command_gui
+        self.computer_list.gui_function = self._computer_list
         # Other window will be placed in "MainDockSpace" on the right
-        temp = hello_imgui.DockableWindow()
-        temp.label = "Dear ImGui Demo"
-        temp.dock_space_name = "MainDockSpace"
-        temp.gui_function = imgui.show_demo_window
+        login_view = hello_imgui.DockableWindow()
+        login_view.label = "Login"
+        login_view.dock_space_name = "MainDockSpace"
+        login_view.gui_function = self._login_GUI
 
         # Finally, transmit these windows to HelloImGui
         runner_params.docking_params.dockable_windows = [
             self.computer_list,
-            temp,
+            login_view,
         ]
 
         ################################################################################################
@@ -160,16 +168,65 @@ class MainGUI:
         addons_params.with_markdown = True
         immapp.run(runner_params, addons_params)
 
-    # CommandGui: the widgets on the left panel
-    def _command_gui(self):
-        if imgui.button("Add window"):
-            temp2 = hello_imgui.DockableWindow()
-            temp2.label = "Test"
-            temp2.dock_space_name = "MainDockSpace"
-            temp2.gui_function = self._simple
-            wins = hello_imgui.get_runner_params().docking_params.dockable_windows
-            wins.append(temp2)
-            hello_imgui.get_runner_params().docking_params.dockable_windows = wins
+    def _login_GUI(self):
+        disabled = self.login_state==LoginState.Processing
+        if disabled:
+            utils.push_disabled()
+        i1,self.username = imgui.input_text('User name',self.username, flags=imgui.InputTextFlags_.enter_returns_true)
+        i2,self.password = imgui.input_text('Password' ,self.password, flags=imgui.InputTextFlags_.enter_returns_true|imgui.InputTextFlags_.password)
+
+        if self.login_state==LoginState.Processing:
+            symbol_size = imgui.calc_text_size("x").y*2
+            spinner_radii = [x/22/2*symbol_size for x in [22, 16, 10]]
+            lw = 3.5/22/2*symbol_size
+            imspinner.spinner_ang_triple(f'loginSpinner', *spinner_radii, lw, c1=imgui.get_style().color_(imgui.Col_.text_selected_bg), c2=imgui.get_style().color_(imgui.Col_.text), c3=imgui.get_style().color_(imgui.Col_.text_selected_bg))
+        else:
+            if imgui.button("Log in") | i1 | i2:
+                if not self.username:
+                    utils.push_popup(self, msgbox.msgbox, "Login error", 'Fill in a username', msgbox.MsgBox.error)
+                else:
+                    self.login_state = LoginState.Processing
+                    async_thread.run(self.master.login(self.username,self.password), self._login_result)
+
+        if disabled:
+            utils.pop_disabled()
+
+    def _login_result(self, future: asyncio.Future):
+        try:
+            exc = future.exception()
+        except concurrent.futures.CancelledError:
+            return
+        if not exc:
+            # log in successful
+            self.login_state = LoginState.Logged_In
+            return
+
+        # error occurred
+        self.login_state = LoginState.Not_Logged_In
+        msg = str(exc)
+        if '401' in msg:
+            msg = msg.splitlines()
+            try:
+                msg = json.loads(msg[-1])['detail']
+                utils.push_popup(self, msgbox.msgbox, "Login error", msg, msgbox.MsgBox.error)
+                return
+            except:
+                pass
+
+        # not handled by above, display more generic error
+        tb = utils.get_traceback(type(exc), exc, exc.__traceback__)
+        utils.push_popup(self, msgbox.msgbox, "Login error", f"Something went wrong when logging in...", msgbox.MsgBox.error, more=tb)
+
+    def _computer_list(self):
+        if self.login_state==LoginState.Logged_In:
+            if imgui.button("Add window"):
+                temp2 = hello_imgui.DockableWindow()
+                temp2.label = "Test"
+                temp2.dock_space_name = "MainDockSpace"
+                temp2.gui_function = self._simple
+                wins = hello_imgui.get_runner_params().docking_params.dockable_windows
+                wins.append(temp2)
+                hello_imgui.get_runner_params().docking_params.dockable_windows = wins
 
 
         # handle popups
