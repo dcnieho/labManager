@@ -1,7 +1,7 @@
 import random
 import functools
 import traceback
-from imgui_bundle import imgui
+from imgui_bundle import imgui, icons_fontawesome
 import sys
 import typing
 
@@ -53,7 +53,7 @@ popup_flags: int = (
 def popup(label: str, popup_content: typing.Callable, buttons: dict[str, typing.Callable] = None, closable=True, outside=True):
     if buttons is True:
         buttons = {
-            "󰄬 Ok": None
+            icons_fontawesome.ICON_FA_CHECK + " Ok": None
         }
     if not imgui.is_popup_open(label):
         imgui.open_popup(label)
