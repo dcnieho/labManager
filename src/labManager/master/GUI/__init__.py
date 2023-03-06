@@ -19,15 +19,6 @@ class MainGUI:
 
     def __init__(self):
         # Constants
-        self.sz1 = 300.
-        self.sz2 = 300.
-
-        self.f: float = 0.0
-        self.counter: int = 0
-        self.rocket_progress: float = 0.0
-
-        self.rocket_state: MainGUI.RocketState = MainGUI.RocketState.Init
-
         self.popup_stack = []
 
         # Show errors in threads
@@ -68,16 +59,8 @@ class MainGUI:
             imgui.get_io().fonts.add_font_from_file_ttf(font_filename, size_69, glyph_ranges_as_int_list=icons_range)
 
     def run(self):
-        # Important: HelloImGui uses an assets dir where it can find assets (fonts, images, etc.)
-        #
-        # By default an assets folder is installed via pip inside site-packages/lg_imgui_bundle/assets
-        # and provides two fonts (fonts/DroidSans.ttf and fonts/fontawesome-webfont.ttf)
-        # If you need to add more assets, make a copy of this assets folder and add your own files, and call set_assets_folder
+        # help hello_imgui find its assets
         hello_imgui.set_assets_folder(demo_utils.demos_assets_folder())
-
-        ################################################################################################
-        # Part 1: Define the application state, fill the status and menu bars, and load additional font
-        ################################################################################################
 
         # Hello ImGui params (they hold the settings as well as the Gui callbacks)
         runner_params = hello_imgui.RunnerParams()
@@ -89,22 +72,15 @@ class MainGUI:
         runner_params.imgui_window_params.menu_app_title = "File"
         runner_params.app_window_params.window_geometry.size = (1400, 700)
         runner_params.app_window_params.restore_previous_geometry = True
+        runner_params.callbacks.load_additional_fonts = self._load_fonts
 
-        #
-        # Status bar
-        #
-        runner_params.imgui_window_params.show_status_bar = True
+        # Status bar, idle throttling
+        runner_params.imgui_window_params.show_status_bar = False
         runner_params.imgui_window_params.show_status_fps = False
         runner_params.fps_idling.enable_idling = False
-        runner_params.callbacks.load_additional_fonts = self._load_fonts
-        runner_params.callbacks.show_status = self._status_bar_gui
 
-        #
         # Menu bar
-        #
-        # We use the default menu of Hello ImGui, to which we add some more items
         runner_params.imgui_window_params.show_menu_bar = True
-
         def _show_app_menu_items():
             clicked, _ = imgui.menu_item("Log out", "", False)
             if clicked:
@@ -123,7 +99,6 @@ class MainGUI:
         # Part 2: Define the application layout and windows
         ################################################################################################
 
-        #
         #    2.1 Define the docking splits,
         #    i.e. the way the screen space is split in different target zones for the dockable windows
         #     We want to split "MainDockSpace" (which is provided automatically) into two zones, like this:
@@ -142,8 +117,6 @@ class MainGUI:
         runner_params.imgui_window_params.default_imgui_window_type = (
             hello_imgui.DefaultImGuiWindowType.provide_full_screen_dock_space
         )
-        # In this demo, we also demonstrate multiple viewports.
-        # you can drag windows outside out the main window in order to put their content into new native windows
         runner_params.imgui_window_params.enable_viewports = True
 
         # Always start with this layout, do not persist changes made by the user
@@ -160,26 +133,24 @@ class MainGUI:
         # Finally, transmit these splits to HelloImGui
         runner_params.docking_params.docking_splits = [split_main_left]
 
-        #
-        # 2.1 Define our dockable windows : each window provide a Gui callback, and will be displayed
+        # 2.2 Define our dockable windows : each window provide a Gui callback, and will be displayed
         #     in a docking split.
-        #
 
-        # A Command panel named "Commands" will be placed in "LeftSpace". Its Gui is provided calls "CommandGui"
-        commands_window = hello_imgui.DockableWindow()
-        commands_window.label = "Commands"
-        commands_window.dock_space_name = "LeftSpace"
-        commands_window.gui_function = self._command_gui
-        # A Window named "Dear ImGui Demo" will be placed in "MainDockSpace"
-        dear_imgui_demo_window = hello_imgui.DockableWindow()
-        dear_imgui_demo_window.label = "Dear ImGui Demo"
-        dear_imgui_demo_window.dock_space_name = "MainDockSpace"
-        dear_imgui_demo_window.gui_function = imgui.show_demo_window
+        # Computer list on the left
+        self.computer_list = hello_imgui.DockableWindow()
+        self.computer_list.label = "Commands"
+        self.computer_list.dock_space_name = "LeftSpace"
+        self.computer_list.gui_function = self._command_gui
+        # Other window will be placed in "MainDockSpace" on the right
+        temp = hello_imgui.DockableWindow()
+        temp.label = "Dear ImGui Demo"
+        temp.dock_space_name = "MainDockSpace"
+        temp.gui_function = imgui.show_demo_window
 
         # Finally, transmit these windows to HelloImGui
         runner_params.docking_params.dockable_windows = [
-            commands_window,
-            dear_imgui_demo_window,
+            self.computer_list,
+            temp,
         ]
 
         ################################################################################################
@@ -191,50 +162,15 @@ class MainGUI:
 
     # CommandGui: the widgets on the left panel
     def _command_gui(self):
-        _,self.sz1,self.sz2 = splitter(False,2.,self.sz1,self.sz2,100.,100.)
-        imgui.begin_child("basic",(-1,self.sz1))
-        imgui_md.render_unindented(
-            """
-            # Basic widgets demo
-            The widgets below will interact with the log window and the status bar.
-            """
-        )
-        # Edit 1 float using a slider from 0.0f to 1.0f
-        changed, self.f = imgui.slider_float("float", self.f, 0.0, 1.0)
-        if changed:
-            hello_imgui.log(hello_imgui.LogLevel.warning, f"state.f was changed to {self.f}")
+        if imgui.button("Add window"):
+            temp2 = hello_imgui.DockableWindow()
+            temp2.label = "Test"
+            temp2.dock_space_name = "MainDockSpace"
+            temp2.gui_function = self._simple
+            wins = hello_imgui.get_runner_params().docking_params.dockable_windows
+            wins.append(temp2)
+            hello_imgui.get_runner_params().docking_params.dockable_windows = wins
 
-        # Buttons return true when clicked (most widgets return true when edited/activated)
-        if imgui.button("Button"):
-            self.counter += 1
-            hello_imgui.log(hello_imgui.LogLevel.info, "Button was pressed")
-
-        imgui.same_line()
-        imgui.text(f"counter = {self.counter}")
-
-        if self.rocket_state == MainGUI.RocketState.Init:
-            if imgui.button(icons_fontawesome.ICON_FA_ROCKET + " Launch rocket"):
-                self.rocket_state = self.RocketState.Preparing
-                hello_imgui.log(hello_imgui.LogLevel.warning, "Rocket is being prepared")
-        elif self.rocket_state == self.RocketState.Preparing:
-            imgui.text("Please Wait")
-            self.rocket_progress += 0.003
-            if self.rocket_progress >= 1.0:
-                self.rocket_state = self.RocketState.Launched
-                hello_imgui.log(hello_imgui.LogLevel.warning, "Rocket was launched")
-        elif self.rocket_state == self.RocketState.Launched:
-            imgui.text(icons_fontawesome.ICON_FA_ROCKET + " Rocket Launched")
-            if imgui.button("Reset Rocket"):
-                self.rocket_state = self.RocketState.Init
-                self.rocket_progress = 0.0
-        imgui.end_child()
-
-        # Note, you can also show the tweak theme widgets via:
-        imgui.begin_child("theme",(-1,self.sz2))
-        imgui.text('simple')
-        if imgui.button("Popup"):
-            utils.push_popup(self, msgbox.msgbox, "Project opening error", "A single project directory should be provided. None provided so cannot open.", msgbox.MsgBox.error, more="Dropped paths:\n")
-        imgui.end_child()
 
         # handle popups
         self._fix_popup_transparency()
@@ -252,13 +188,8 @@ class MainGUI:
         for _ in range(open_popup_count):
             imgui.end_popup()
 
-
-    # Our Gui in the status bar
-    def _status_bar_gui(self):
-        if self.rocket_state == self.RocketState.Preparing:
-            imgui.text("Rocket completion: ")
-            imgui.same_line()
-            imgui.progress_bar(self.rocket_progress, hello_imgui.em_to_vec2(7.0, 1.0))  # type: ignore
+    def _simple(self):
+        imgui.text('simple')
 
 
 
