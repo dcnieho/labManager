@@ -109,14 +109,7 @@ class Master:
 
     async def login(self, username: str, password: str):
         # clean up old session, if any
-        self.username, self.password = None, None
-        self.projects = []
-        self.project  = None
-        self._shares  = []
-        if self.admin is not None:
-            self.admin = None
-        if self.toems is not None:
-            self.toems = None
+        self.logout()
 
         # check user credentials, and list projects they have access to
         self.admin = network.admin_conn.Client(config.master['admin']['server'], config.master['admin']['port'])
@@ -125,6 +118,16 @@ class Master:
 
         # list project shares user has access to
         self._shares = _SMB_get_shares(self.admin.user, password)
+
+    def logout(self):
+        self.username, self.password = None, None
+        self.projects = []
+        self.project  = None
+        self._shares  = []
+        if self.admin is not None:
+            self.admin = None
+        if self.toems is not None:
+            self.toems = None
 
     async def set_project(self, project: str):
         if project not in self.projects:
@@ -145,6 +148,12 @@ class Master:
         await self.admin.prep_toems()
         self.toems = network.toems.Client(config.master['toems']['server'], config.master['toems']['port'], protocol='http')
         await self.toems.connect(self.username, self.password)
+
+    def unset_project(self):
+        if self.toems is not None:
+            self.toems = None
+        self.project = None
+        self.admin.unset_project()
 
     def has_share_access(self):
         return self.project in self._shares

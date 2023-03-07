@@ -31,6 +31,8 @@ class MainGUI:
         self.proj_select_state= ActionState.Not_Done
         self.proj_idx         = -1
 
+        self._window_list     = []
+
         # Show errors in threads
         def asyncexcepthook(future: asyncio.Future):
             try:
@@ -83,6 +85,7 @@ class MainGUI:
         runner_params.app_window_params.window_geometry.size = (1400, 700)
         runner_params.app_window_params.restore_previous_geometry = True
         runner_params.callbacks.load_additional_fonts = self._load_fonts
+        runner_params.callbacks.pre_new_frame = self._update_windows
 
         # Status bar, idle throttling
         runner_params.imgui_window_params.show_status_bar = False
@@ -143,11 +146,9 @@ class MainGUI:
         self.computer_list.label = "Computers"
         self.computer_list.dock_space_name = "LeftSpace"
         self.computer_list.gui_function = self._computer_list
+        self.computer_list.can_be_closed = False
         # Other window will be placed in "MainDockSpace" on the right
-        login_view = hello_imgui.DockableWindow()
-        login_view.label = "Login"
-        login_view.dock_space_name = "MainDockSpace"
-        login_view.gui_function = self._login_GUI
+        login_view = self._make_login_view()
 
         # Finally, transmit these windows to HelloImGui
         runner_params.docking_params.dockable_windows = [
@@ -162,11 +163,24 @@ class MainGUI:
         addons_params.with_markdown = True
         immapp.run(runner_params, addons_params)
 
+    def _update_windows(self):
+        if self._window_list:
+            hello_imgui.get_runner_params().docking_params.dockable_windows = self._window_list
+            self._window_list = []
+
+    def _make_login_view(self):
+        login_view = hello_imgui.DockableWindow()
+        login_view.label = "Login"
+        login_view.dock_space_name = "MainDockSpace"
+        login_view.gui_function = self._login_GUI
+        return login_view
+
     def _show_app_menu_items(self):
         clicked, _ = imgui.menu_item("Close project", "", False)
         if clicked:
             self.proj_select_state= ActionState.Not_Done
             self.proj_idx         = -1
+            self.master.unset_project()
         clicked, _ = imgui.menu_item("Log out", "", False)
         if clicked:
             self.username         = ''
@@ -174,6 +188,10 @@ class MainGUI:
             self.login_state      = ActionState.Not_Done
             self.proj_select_state= ActionState.Not_Done
             self.proj_idx         = -1
+            self.master.logout()
+        if self.proj_select_state==ActionState.Not_Done:
+            login_view = self._make_login_view()
+            self._window_list = [self.computer_list, login_view]
 
     def _login_GUI(self):
         if self.login_state != ActionState.Done:
@@ -229,6 +247,8 @@ class MainGUI:
                 self.login_state = ActionState.Done
             elif stage=='project':
                 self.proj_select_state = ActionState.Done
+                # update GUI
+                self._window_list = [self.computer_list]
             return
 
         # error occurred
@@ -259,10 +279,10 @@ class MainGUI:
                 temp2.gui_function = self._simple
                 wins = hello_imgui.get_runner_params().docking_params.dockable_windows
                 wins.append(temp2)
-                hello_imgui.get_runner_params().docking_params.dockable_windows = wins
+                self._window_list = wins
 
 
-        # handle popups
+        # this pane is always visible, so we handle popups here
         self._fix_popup_transparency()
         open_popup_count = 0
         for popup in self.popup_stack:

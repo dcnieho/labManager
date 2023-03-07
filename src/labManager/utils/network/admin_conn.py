@@ -50,6 +50,9 @@ class Client:
         if self.proj_id is None:
             raise RuntimeError(f'project "{project}" not recognized, choose one of the projects you have access to: {[p["name"] for p in self.user["projects"]]}')
 
+    def unset_project(self):
+        self.proj_id = None
+
     async def prep_toems(self):
         # check there is a user group for the selected project. If not, make one
         self._check_user()
