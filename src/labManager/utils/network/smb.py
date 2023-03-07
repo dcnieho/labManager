@@ -25,7 +25,7 @@ class SMBHandler:
         self.smb_client = smbconnection.SMBConnection(remoteName='*SMBSERVER', remoteHost=self.server)
         self.smb_client.login(self.username, password, self.domain)
 
-    def list_shares(self, check_access=True, matching='', remove_trailing=''):
+    def list_shares(self, check_access=True, matching='', remove_trailing='', contains=None):
         # get all shares on the server
         all_shares = self.smb_client.listShares()
 
@@ -45,6 +45,9 @@ class SMBHandler:
             if matching:
                 if not r.match(share):
                     continue
+
+            if contains and contains not in share:
+                continue
 
             if check_access:
                 # connect to the share so we can read the user's access rights

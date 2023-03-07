@@ -92,7 +92,7 @@ class Master:
         # all projects user has access to and selected project
         self.projects = []
         self.project  = None
-        self._shares  = []
+        self.has_share_access = False
 
         # connections to servers
         self.admin: network.admin_conn.Client = None
@@ -116,18 +116,12 @@ class Master:
         self.projects = await self.admin.login(username, password)
         self.username, self.password = username, password
 
-        # list project shares user has access to
-        self._shares = _SMB_get_shares(self.admin.user, password)
-
     def logout(self):
+        self.unset_project()
         self.username, self.password = None, None
         self.projects = []
-        self.project  = None
-        self._shares  = []
         if self.admin is not None:
             self.admin = None
-        if self.toems is not None:
-            self.toems = None
 
     async def set_project(self, project: str):
         if project not in self.projects:
@@ -144,6 +138,9 @@ class Master:
         self.project = project
         self.admin.set_project(self.project)
 
+        # check SMB access
+        self.has_share_access = _SMB_get_shares(self.admin.user, self.password, self.project)
+
         # log into toems server
         await self.admin.prep_toems()
         self.toems = network.toems.Client(config.master['toems']['server'], config.master['toems']['port'], protocol='http')
@@ -153,10 +150,9 @@ class Master:
         if self.toems is not None:
             self.toems = None
         self.project = None
-        self.admin.unset_project()
-
-    def has_share_access(self):
-        return self.project in self._shares
+        self.has_share_access = False
+        if self.admin is not None:
+            self.admin.unset_project()
 
 
     async def get_computers(self):
@@ -367,7 +363,7 @@ class Master:
 
 
 
-def _SMB_get_shares(user, password):
+def _SMB_get_shares(user, password, project=None):
     # figure out domain from user, default to configured
     domain = config.master["SMB"]["domain"]
     if '\\' in user['full_name']:
@@ -380,6 +376,6 @@ def _SMB_get_shares(user, password):
         print(f'Error connecting as {domain}\{user["name"]} to {config.master["SMB"]["server"]}: {exc}')
         shares = []
     else:
-        shares = smb_hndl.list_shares(matching=config.master["SMB"]["projects"]["format"], remove_trailing=config.master["SMB"]["projects"]["remove_trailing"])
+        shares = smb_hndl.list_shares(matching=config.master["SMB"]["projects"]["format"], remove_trailing=config.master["SMB"]["projects"]["remove_trailing"], contains=project)
 
     return shares
