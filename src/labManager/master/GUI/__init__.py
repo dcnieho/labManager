@@ -276,11 +276,14 @@ class MainGUI:
                 temp2 = hello_imgui.DockableWindow()
                 temp2.label = "Test"
                 temp2.dock_space_name = "MainDockSpace"
-                temp2.gui_function = self._simple
+                temp2.gui_function = lambda: imgui.text('simple')
                 wins = hello_imgui.get_runner_params().docking_params.dockable_windows
                 wins.append(temp2)
                 self._window_list = wins
 
+        for i in self.master.known_clients:
+            c = self.master.known_clients[i]
+            _computer(c)
 
         # this pane is always visible, so we handle popups here
         self._fix_popup_transparency()
@@ -298,12 +301,75 @@ class MainGUI:
         for _ in range(open_popup_count):
             imgui.end_popup()
 
-    def _simple(self):
-        imgui.text('simple')
 
+def _computer(comp):
+    label   = comp.name
+    prepend = icons_fontawesome.ICON_FA_EYE + icons_fontawesome.ICON_FA_TV
 
+    g = imgui.get_current_context()
+    window = g.current_window
+    id = window.get_id(f"{label}##Button")
+    style = imgui.get_style()
 
-def splitter(split_vertically, thickness, size1, size2, min_size1, min_size2, splitter_long_axis_size = -1.0):
+    label_size = imgui.calc_text_size(prepend+'  '+label)
+    prep_size  = [imgui.calc_text_size(c+' ') for c in prepend]
+    prep_sizex = [p.x for p in prep_size]
+    prep_sizex = [0.]+prep_sizex
+    prep_off   = [sum(prep_sizex[0:i+1]) for i in range(len(prep_sizex))]
+    pos = window.dc.cursor_pos
+    size = imgui.internal.calc_item_size((0,0), label_size.x + style.frame_padding.x * 2., label_size.y + style.frame_padding.y * 2.)
+
+    bb = imgui.internal.ImRect(pos[0],pos[1], pos[0]+size[0],pos[1]+size[1])
+    imgui.internal.item_size(size, style.frame_padding.y)
+    if not imgui.internal.item_add(bb, id):
+        return
+
+    if (g.last_item_data.in_flags & imgui.internal.ItemFlags_.button_repeat):
+        flags |= imgui.internal.ItemFlags_.button_repeat
+
+    pressed, hovered, held = imgui.internal.button_behavior(bb, id, False, False)
+
+    # Render
+    col = imgui.Col_.button
+    if held and hovered:
+        col = imgui.Col_.button_active
+    elif hovered:
+        col = imgui.Col_.button_hovered
+    col = imgui.get_color_u32(idx=col)
+    imgui.internal.render_nav_highlight(bb, id)
+    imgui.internal.render_frame(bb.min, bb.max, col, True, style.frame_rounding)
+
+    # render text
+    imgui.push_style_color(imgui.Col_.text, (1., 0.2824, 0.2824, 1.))
+    pos = (bb.min[0]+style.frame_padding.x            , bb.min[1]+style.frame_padding.y)
+    imgui.internal.render_text_clipped(pos, (pos[0]+prep_off[0], bb.max[1]-style.frame_padding.y), prepend[0], None, prep_size[0], style.button_text_align, bb)
+    imgui.pop_style_color()
+    imgui.push_style_color(imgui.Col_.text, (0.0588, 0.4510, 0.0471, 1.))
+    pos = (bb.min[0]+style.frame_padding.x+prep_off[1], bb.min[1]+style.frame_padding.y)
+    imgui.internal.render_text_clipped(pos, (pos[0]+prep_off[1], bb.max[1]-style.frame_padding.y), prepend[1], None, prep_size[1], style.button_text_align, bb)
+    imgui.pop_style_color()
+
+    pos = (bb.min[0]+style.frame_padding.x+prep_off[2], bb.min[1]+style.frame_padding.y)
+    imgui.internal.render_text_clipped(pos, (pos[0]+prep_off[2], bb.max[1]-style.frame_padding.y), label, None, label_size, style.button_text_align, bb)
+
+    draw_hover_text('test',text='')
+
+def draw_tooltip(hover_text):
+    imgui.begin_tooltip()
+    imgui.push_text_wrap_pos(min(imgui.get_font_size() * 35, imgui.get_io().display_size.x))
+    imgui.text_unformatted(hover_text)
+    imgui.pop_text_wrap_pos()
+    imgui.end_tooltip()
+
+def draw_hover_text(hover_text: str, text="(?)", force=False, *args, **kwargs):
+    if text:
+        imgui.text_disabled(text, *args, **kwargs)
+    if force or imgui.is_item_hovered():
+        draw_tooltip(hover_text)
+        return True
+    return False
+
+def _splitter(split_vertically, thickness, size1, size2, min_size1, min_size2, splitter_long_axis_size = -1.0):
     g = imgui.get_current_context()
     window = g.current_window
     id = window.get_id("##Splitter")
