@@ -217,12 +217,17 @@ class Master:
             kc = structs.KnownClient(client['name'], client['MAC'])
             self.known_clients[kc.id] = kc
 
-    def _find_known_client(self, client: structs.Client):
+    def _find_or_add_known_client(self, client: structs.Client):
         for id in self.known_clients:
             if self.known_clients[id].MAC in client.MACs:
                 client.known_client = self.known_clients[id]
                 self.known_clients[id].client = client
                 return
+
+        # client not known, add
+        kc = structs.KnownClient(client['name'], client['MAC'], client=client)
+        self.known_clients[kc.id] = kc
+        client.known_client = self.known_clients[kc.id]
 
     def _remove_known_client(self, client: structs.Client):
         if client.known_client:
@@ -280,7 +285,7 @@ class Master:
                     case message.Message.IDENTIFY:
                         me.name = msg['name']
                         me.MACs = msg['MACs']
-                        self._find_known_client(me)
+                        self._find_or_add_known_client(me)
                     case message.Message.INFO:
                         print(f'{me.host}:{me.port}: {msg}')
 

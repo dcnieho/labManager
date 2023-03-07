@@ -7,7 +7,7 @@ import json
 from imgui_bundle import hello_imgui, icons_fontawesome, imgui, immapp, imspinner
 from imgui_bundle.demos_python import demo_utils
 
-from ...utils import async_thread, config
+from ...utils import async_thread, config, structs
 from .. import Master
 from ._impl import msgbox, utils
 
@@ -271,20 +271,6 @@ class MainGUI:
         utils.push_popup(self, msgbox.msgbox, "Login error", f"Something went wrong when {'logging in' if stage=='login' else 'selecting project'}...", msgbox.MsgBox.error, more=tb)
 
     def _computer_list(self):
-        if self.proj_select_state==ActionState.Done:
-            if imgui.button("Add window"):
-                temp2 = hello_imgui.DockableWindow()
-                temp2.label = "Test"
-                temp2.dock_space_name = "MainDockSpace"
-                temp2.gui_function = lambda: imgui.text('simple')
-                wins = hello_imgui.get_runner_params().docking_params.dockable_windows
-                wins.append(temp2)
-                self._window_list = wins
-
-        for i in self.master.known_clients:
-            c = self.master.known_clients[i]
-            _computer(c)
-
         # this pane is always visible, so we handle popups here
         self._fix_popup_transparency()
         open_popup_count = 0
@@ -301,9 +287,16 @@ class MainGUI:
         for _ in range(open_popup_count):
             imgui.end_popup()
 
+        # now render actual pane
+        if self.proj_select_state!=ActionState.Done:
+            return
 
-def _computer(comp):
-    label   = comp.name
+        for i in self.master.known_clients:
+            _computer(self.master.known_clients[i])
+
+
+def _computer(client: structs.KnownClient):
+    label   = client.name
     prepend = icons_fontawesome.ICON_FA_EYE + icons_fontawesome.ICON_FA_TV
 
     g = imgui.get_current_context()
@@ -352,7 +345,11 @@ def _computer(comp):
     pos = (bb.min[0]+style.frame_padding.x+prep_off[2], bb.min[1]+style.frame_padding.y)
     imgui.internal.render_text_clipped(pos, (pos[0]+prep_off[2], bb.max[1]-style.frame_padding.y), label, None, label_size, style.button_text_align, bb)
 
-    draw_hover_text('test',text='')
+    if client.client:
+        info = f'{client.client.host}:{client.client.port}'
+        if client.client.eye_tracker.serial:
+            info += f'\n{client.client.eye_tracker.model}@{client.client.eye_tracker.frequency}Hz ({client.client.eye_tracker.firmware_version}, {client.client.eye_tracker.serial})'
+        draw_hover_text(info,text='')
 
 def draw_tooltip(hover_text):
     imgui.begin_tooltip()
