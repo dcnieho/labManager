@@ -4,7 +4,7 @@ import asyncio
 import concurrent
 import json
 
-from imgui_bundle import hello_imgui, icons_fontawesome, imgui, immapp, imspinner
+from imgui_bundle import hello_imgui, icons_fontawesome, imgui, immapp, imspinner, imgui_md
 from imgui_bundle.demos_python import demo_utils
 
 from ...utils import async_thread, config, structs
@@ -30,6 +30,7 @@ class MainGUI:
         self.login_state      = ActionState.Not_Done
         self.proj_select_state= ActionState.Not_Done
         self.proj_idx         = -1
+        self.project          = ''
 
         self._window_list     = []
 
@@ -176,19 +177,21 @@ class MainGUI:
         return login_view
 
     def _show_app_menu_items(self):
-        clicked, _ = imgui.menu_item("Close project", "", False)
-        if clicked:
+        do_close , _ = imgui.menu_item("Close project", "", False)
+        do_logout, _ = imgui.menu_item("Log out", "", False)
+
+        if do_close or do_logout:
             self.proj_select_state= ActionState.Not_Done
             self.proj_idx         = -1
+            self.project          = ''
             self.master.unset_project()
-        clicked, _ = imgui.menu_item("Log out", "", False)
-        if clicked:
+
+        if do_logout:
             self.username         = ''
             self.password         = ''
             self.login_state      = ActionState.Not_Done
-            self.proj_select_state= ActionState.Not_Done
-            self.proj_idx         = -1
             self.master.logout()
+
         if self.proj_select_state==ActionState.Not_Done:
             login_view = self._make_login_view()
             self._window_list = [self.computer_list, login_view]
@@ -248,6 +251,7 @@ class MainGUI:
             elif stage=='project':
                 self.proj_select_state = ActionState.Done
                 # update GUI
+                self.project = self.master.projects[self.proj_idx]
                 self._window_list = [self.computer_list]
             return
 
@@ -290,6 +294,14 @@ class MainGUI:
         # now render actual pane
         if self.proj_select_state!=ActionState.Done:
             return
+
+        imgui_md.render_unindented(
+            f"""
+            ### User: {self.username}
+            ### Project: {self.project}
+            """
+        )
+        imgui.new_line()
 
         for i in self.master.known_clients:
             _computer(self.master.known_clients[i])
