@@ -7,7 +7,7 @@ import json
 from imgui_bundle import hello_imgui, icons_fontawesome, imgui, immapp, imspinner, imgui_md
 from imgui_bundle.demos_python import demo_utils
 
-from ...utils import async_thread, config, structs
+from ...utils import async_thread, config, network, structs
 from .. import Master
 from ._impl import msgbox, utils
 
@@ -87,6 +87,7 @@ class MainGUI:
         runner_params.app_window_params.restore_previous_geometry = True
         runner_params.callbacks.load_additional_fonts = self._load_fonts
         runner_params.callbacks.pre_new_frame = self._update_windows
+        runner_params.callbacks.before_exit = self._logout
 
         # Status bar, idle throttling
         runner_params.imgui_window_params.show_status_bar = False
@@ -180,21 +181,40 @@ class MainGUI:
         do_close , _ = imgui.menu_item("Close project", "", False)
         do_logout, _ = imgui.menu_item("Log out", "", False)
 
-        if do_close or do_logout:
-            self.proj_select_state= ActionState.Not_Done
-            self.proj_idx         = -1
-            self.project          = ''
-            self.master.unset_project()
-
         if do_logout:
-            self.username         = ''
-            self.password         = ''
-            self.login_state      = ActionState.Not_Done
-            self.master.logout()
+            self._logout()
+        elif do_close:
+            self._unload_project()
 
-        if self.proj_select_state==ActionState.Not_Done:
-            login_view = self._make_login_view()
-            self._window_list = [self.computer_list, login_view]
+    def _unload_project(self):
+        if self.master.is_serving():
+            async_thread.wait(self.master.stop_server())
+        self.proj_select_state= ActionState.Not_Done
+        self.proj_idx         = -1
+        self.project          = ''
+        self.master.unset_project()
+
+        self._window_list = [self.computer_list, self._make_login_view()]
+
+    def _logout(self):
+        self._unload_project()
+
+        self.username         = ''
+        self.password         = ''
+        self.login_state      = ActionState.Not_Done
+        self.master.logout()
+
+    def _login_done(self):
+        self.login_state = ActionState.Not_Done
+
+    def _project_selected(self):
+        self.proj_select_state = ActionState.Done
+        # update GUI
+        self.project = self.master.projects[self.proj_idx]
+        self._window_list = [self.computer_list]
+        # start server
+        if_ips,_ = network.ifs.get_ifaces(config.master['network'])
+        async_thread.run(self.master.start_server((if_ips[0], 0)))
 
     def _login_GUI(self):
         if self.login_state != ActionState.Done:
@@ -249,15 +269,12 @@ class MainGUI:
             if stage=='login':
                 self.login_state = ActionState.Done
             elif stage=='project':
-                self.proj_select_state = ActionState.Done
-                # update GUI
-                self.project = self.master.projects[self.proj_idx]
-                self._window_list = [self.computer_list]
+                self._project_selected()
             return
 
         # error occurred
         if stage=='login':
-            self.login_state = ActionState.Not_Done
+            self._login_done()
         elif stage=='project':
             self.proj_select_state = ActionState.Not_Done
         msg = str(exc)
