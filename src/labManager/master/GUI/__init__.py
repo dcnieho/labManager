@@ -309,7 +309,23 @@ class MainGUI:
 
 def _computer(client: structs.KnownClient):
     label   = client.name
-    prepend = icons_fontawesome.ICON_FA_EYE + icons_fontawesome.ICON_FA_TV
+
+    is_online = client.client is not None
+    prepend = icons_fontawesome.ICON_FA_EYE
+    clr_off = (1., 0.2824, 0.2824, 1.)
+    clr_on  = (0.0588, 0.4510, 0.0471, 1.)
+    clrs = []
+    if is_online:
+        prepend += icons_fontawesome.ICON_FA_PLAY
+        if False:   # TODO: some check for eye tracker state
+            clrs.append(clr_on)
+        else:
+            clrs.append(clr_off)
+        clrs.append(clr_on)
+    else:
+        prepend += icons_fontawesome.ICON_FA_POWER_OFF
+        clrs.append(clr_off)
+        clrs.append(clr_off)
 
     g = imgui.get_current_context()
     window = g.current_window
@@ -345,11 +361,11 @@ def _computer(client: structs.KnownClient):
     imgui.internal.render_frame(bb.min, bb.max, col, True, style.frame_rounding)
 
     # render text
-    imgui.push_style_color(imgui.Col_.text, (1., 0.2824, 0.2824, 1.))
+    imgui.push_style_color(imgui.Col_.text, clrs[0])
     pos = (bb.min[0]+style.frame_padding.x            , bb.min[1]+style.frame_padding.y)
     imgui.internal.render_text_clipped(pos, (pos[0]+prep_off[0], bb.max[1]-style.frame_padding.y), prepend[0], None, prep_size[0], style.button_text_align, bb)
     imgui.pop_style_color()
-    imgui.push_style_color(imgui.Col_.text, (0.0588, 0.4510, 0.0471, 1.))
+    imgui.push_style_color(imgui.Col_.text, clrs[1])
     pos = (bb.min[0]+style.frame_padding.x+prep_off[1], bb.min[1]+style.frame_padding.y)
     imgui.internal.render_text_clipped(pos, (pos[0]+prep_off[1], bb.max[1]-style.frame_padding.y), prepend[1], None, prep_size[1], style.button_text_align, bb)
     imgui.pop_style_color()
