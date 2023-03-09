@@ -26,6 +26,63 @@ def pop_disabled(block_interaction=True):
         imgui.internal.pop_item_flag()
     imgui.pop_style_var()
 
+def set_all(input: dict[int, bool], value, subset: list[int] = None, predicate: typing.Callable = None):
+    if subset is None:
+        subset = (r for r in input)
+    for r in subset:
+        if not predicate or predicate(r):
+            input[r] = value
+
+def selectable_item_logic(id: int, selected: dict[int,typing.Any], last_clicked_id: int, sorted_ids: list[int],
+                          selectable_clicked: bool, new_selectable_state: bool,
+                          allow_multiple=True, overlayed_hovered=False, overlayed_clicked=False, new_overlayed_state=False):
+    if overlayed_clicked:
+        if not allow_multiple:
+            set_all(selected, False)
+        selected[id] = new_overlayed_state
+        last_clicked_id = id
+    elif selectable_clicked and not overlayed_hovered: # don't enter this branch if interaction is with another overlaid actionable item
+        if not allow_multiple:
+            set_all(selected, False)
+            selected[id] = new_selectable_state
+        else:
+            num_selected = sum([selected[id] for id in sorted_ids])
+            if not imgui.get_io().key_ctrl:
+                # deselect all, below we'll either select all, or range between last and current clicked
+                set_all(selected, False)
+
+            if imgui.get_io().key_shift:
+                # select range between last clicked and just clicked item
+                idx              = sorted_ids.index(id)
+                last_clicked_idx = sorted_ids.index(last_clicked_id)
+                idxs = sorted([idx, last_clicked_idx])
+                for rid in range(idxs[0],idxs[1]+1):
+                    selected[sorted_ids[rid]] = True
+            else:
+                selected[id] = True if num_selected>1 and not imgui.get_io().key_ctrl else new_selectable_state
+
+            # consistent with Windows behavior, only update last clicked when shift not pressed
+            if not imgui.get_io().key_shift:
+                last_clicked_id = id
+
+    return last_clicked_id
+
+
+def draw_tooltip(hover_text):
+    imgui.begin_tooltip()
+    imgui.push_text_wrap_pos(min(imgui.get_font_size() * 35, imgui.get_io().display_size.x))
+    imgui.text_unformatted(hover_text)
+    imgui.pop_text_wrap_pos()
+    imgui.end_tooltip()
+
+def draw_hover_text(hover_text: str, text="(?)", force=False, *args, **kwargs):
+    if text:
+        imgui.text_disabled(text, *args, **kwargs)
+    if force or imgui.is_item_hovered():
+        draw_tooltip(hover_text)
+        return True
+    return False
+
 
 def close_weak_popup():
     if not imgui.is_popup_open("", imgui.PopupFlags_.any_popup_id):

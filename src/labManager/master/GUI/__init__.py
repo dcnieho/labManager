@@ -9,7 +9,7 @@ from imgui_bundle.demos_python import demo_utils
 
 from ...utils import async_thread, config, network, structs
 from .. import Master
-from ._impl import msgbox, utils
+from ._impl import computer_list, msgbox, utils
 
 # Struct that holds the application's state
 class ActionState(Enum):
@@ -33,6 +33,9 @@ class MainGUI:
         self.project          = ''
 
         self._window_list     = []
+
+        self.selected_computers: dict[int, bool] = {k:False for k in self.master.known_clients}
+        self.computer_lister  = computer_list.ComputerList(self.master.known_clients, self.selected_computers)
 
         # Show errors in threads
         def asyncexcepthook(future: asyncio.Future):
@@ -147,7 +150,7 @@ class MainGUI:
         self.computer_list = hello_imgui.DockableWindow()
         self.computer_list.label = "Computers"
         self.computer_list.dock_space_name = "LeftSpace"
-        self.computer_list.gui_function = self._computer_list
+        self.computer_list.gui_function = self._computer_pane
         self.computer_list.can_be_closed = False
 
         # Finally, transmit these windows to HelloImGui
@@ -299,7 +302,7 @@ class MainGUI:
         tb = utils.get_traceback(type(exc), exc, exc.__traceback__)
         utils.push_popup(self, msgbox.msgbox, "Login error", f"Something went wrong when {'logging in' if stage=='login' else 'selecting project'}...", msgbox.MsgBox.error, more=tb)
 
-    def _computer_list(self):
+    def _computer_pane(self):
         # this pane is always visible, so we handle popups here
         self._fix_popup_transparency()
         open_popup_count = 0
@@ -329,96 +332,17 @@ class MainGUI:
         imgui.new_line()
 
         with self.master.known_clients_lock:
-            for i in self.master.known_clients:
-                _computer(self.master.known_clients[i])
+            if len(self.selected_computers)!=len(self.master.known_clients):
+                # update: remove or add to selected as needed
+                # NB: slightly complicated as we cannot replace the dict. A ref to it is
+                # held by self.computer_lister, and that reffed object needs to be updated
+                new_vals = {k:(self.selected_computers[k] if k in self.selected_computers else False) for k in self.master.known_clients}
+                self.selected_computers.clear()
+                self.selected_computers |= new_vals
+            imgui.begin_child("##computer_list_frame", size=(0,-imgui.get_frame_height_with_spacing()), flags=imgui.WindowFlags_.horizontal_scrollbar)
+            self.computer_lister.draw()
+            imgui.end_child()
 
-
-def _computer(client: structs.KnownClient):
-    label   = client.name
-
-    is_online = client.client is not None
-    prepend = icons_fontawesome.ICON_FA_EYE
-    clr_off = (1., 0.2824, 0.2824, 1.)
-    clr_on  = (0.0588, 0.4510, 0.0471, 1.)
-    clrs = []
-    if is_online:
-        prepend += icons_fontawesome.ICON_FA_PLAY
-        if client.client.eye_tracker:
-            clrs.append(clr_on)
-        else:
-            clrs.append(clr_off)
-        clrs.append(clr_on)
-    else:
-        prepend += icons_fontawesome.ICON_FA_POWER_OFF
-        clrs.append(clr_off)
-        clrs.append(clr_off)
-
-    g = imgui.get_current_context()
-    window = g.current_window
-    id = window.get_id(f"{label}##Button")
-    style = imgui.get_style()
-
-    label_size = imgui.calc_text_size(prepend+'  '+label)
-    prep_size  = [imgui.calc_text_size(c+' ') for c in prepend]
-    prep_sizex = [p.x for p in prep_size]
-    prep_sizex = [0.]+prep_sizex
-    prep_off   = [sum(prep_sizex[0:i+1]) for i in range(len(prep_sizex))]
-    pos = window.dc.cursor_pos
-    size = imgui.internal.calc_item_size((0,0), label_size.x + style.frame_padding.x * 2., label_size.y + style.frame_padding.y * 2.)
-
-    bb = imgui.internal.ImRect(pos[0],pos[1], pos[0]+size[0],pos[1]+size[1])
-    imgui.internal.item_size(size, style.frame_padding.y)
-    if not imgui.internal.item_add(bb, id):
-        return
-
-    if (g.last_item_data.in_flags & imgui.internal.ItemFlags_.button_repeat):
-        flags |= imgui.internal.ItemFlags_.button_repeat
-
-    pressed, hovered, held = imgui.internal.button_behavior(bb, id, False, False)
-
-    # Render
-    col = imgui.Col_.button
-    if held and hovered:
-        col = imgui.Col_.button_active
-    elif hovered:
-        col = imgui.Col_.button_hovered
-    col = imgui.get_color_u32(idx=col)
-    imgui.internal.render_nav_highlight(bb, id)
-    imgui.internal.render_frame(bb.min, bb.max, col, True, style.frame_rounding)
-
-    # render text
-    imgui.push_style_color(imgui.Col_.text, clrs[0])
-    pos = (bb.min[0]+style.frame_padding.x            , bb.min[1]+style.frame_padding.y)
-    imgui.internal.render_text_clipped(pos, (pos[0]+prep_off[0], bb.max[1]-style.frame_padding.y), prepend[0], None, prep_size[0], style.button_text_align, bb)
-    imgui.pop_style_color()
-    imgui.push_style_color(imgui.Col_.text, clrs[1])
-    pos = (bb.min[0]+style.frame_padding.x+prep_off[1], bb.min[1]+style.frame_padding.y)
-    imgui.internal.render_text_clipped(pos, (pos[0]+prep_off[1], bb.max[1]-style.frame_padding.y), prepend[1], None, prep_size[1], style.button_text_align, bb)
-    imgui.pop_style_color()
-
-    pos = (bb.min[0]+style.frame_padding.x+prep_off[2], bb.min[1]+style.frame_padding.y)
-    imgui.internal.render_text_clipped(pos, (pos[0]+prep_off[2], bb.max[1]-style.frame_padding.y), label, None, label_size, style.button_text_align, bb)
-
-    if client.client:
-        info = f'{client.client.host}:{client.client.port}'
-        if client.client.eye_tracker:
-            info += f'\n{client.client.eye_tracker.model}@{client.client.eye_tracker.frequency}Hz ({client.client.eye_tracker.firmware_version}, {client.client.eye_tracker.serial})'
-        draw_hover_text(info,text='')
-
-def draw_tooltip(hover_text):
-    imgui.begin_tooltip()
-    imgui.push_text_wrap_pos(min(imgui.get_font_size() * 35, imgui.get_io().display_size.x))
-    imgui.text_unformatted(hover_text)
-    imgui.pop_text_wrap_pos()
-    imgui.end_tooltip()
-
-def draw_hover_text(hover_text: str, text="(?)", force=False, *args, **kwargs):
-    if text:
-        imgui.text_disabled(text, *args, **kwargs)
-    if force or imgui.is_item_hovered():
-        draw_tooltip(hover_text)
-        return True
-    return False
 
 def _splitter(split_vertically, thickness, size1, size2, min_size1, min_size2, splitter_long_axis_size = -1.0):
     g = imgui.get_current_context()

@@ -59,4 +59,4 @@ class KnownClient:
             self.id = _known_client_id_provider.count
 
     def __repr__(self):
-        return f'{self.name}@{self.MAC}, {"" if self.client else "not"} connected'
+        return f'{self.name}@{self.MAC}, {"" if self.client else "not "}connected'
