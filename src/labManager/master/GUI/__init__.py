@@ -335,7 +335,7 @@ def _computer(client: structs.KnownClient):
     clrs = []
     if is_online:
         prepend += icons_fontawesome.ICON_FA_PLAY
-        if False:   # TODO: some check for eye tracker state
+        if client.client.eye_tracker:
             clrs.append(clr_on)
         else:
             clrs.append(clr_off)
@@ -393,7 +393,7 @@ def _computer(client: structs.KnownClient):
 
     if client.client:
         info = f'{client.client.host}:{client.client.port}'
-        if client.client.eye_tracker.serial:
+        if client.client.eye_tracker:
             info += f'\n{client.client.eye_tracker.model}@{client.client.eye_tracker.frequency}Hz ({client.client.eye_tracker.firmware_version}, {client.client.eye_tracker.serial})'
         draw_hover_text(info,text='')
 
