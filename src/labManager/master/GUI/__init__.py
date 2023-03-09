@@ -149,13 +149,11 @@ class MainGUI:
         self.computer_list.dock_space_name = "LeftSpace"
         self.computer_list.gui_function = self._computer_list
         self.computer_list.can_be_closed = False
-        # Other window will be placed in "MainDockSpace" on the right
-        login_view = self._make_login_view()
 
         # Finally, transmit these windows to HelloImGui
         runner_params.docking_params.dockable_windows = [
             self.computer_list,
-            login_view,
+            self._make_main_space_window("Login", self._login_GUI),
         ]
 
         ################################################################################################
@@ -170,11 +168,11 @@ class MainGUI:
             hello_imgui.get_runner_params().docking_params.dockable_windows = self._window_list
             self._window_list = []
 
-    def _make_login_view(self):
+    def _make_main_space_window(self, name, gui_func):
         login_view = hello_imgui.DockableWindow()
-        login_view.label = "Login"
+        login_view.label = name
         login_view.dock_space_name = "MainDockSpace"
-        login_view.gui_function = self._login_GUI
+        login_view.gui_function = gui_func
         return login_view
 
     def _show_app_menu_items(self):
@@ -186,15 +184,8 @@ class MainGUI:
         elif do_close:
             self._unload_project()
 
-    def _unload_project(self):
-        if self.master.is_serving():
-            async_thread.wait(self.master.stop_server())
-        self.proj_select_state= ActionState.Not_Done
-        self.proj_idx         = -1
-        self.project          = ''
-        self.master.unset_project()
-
-        self._window_list = [self.computer_list, self._make_login_view()]
+    def _login_done(self):
+        self.login_state = ActionState.Not_Done
 
     def _logout(self):
         self._unload_project()
@@ -204,9 +195,6 @@ class MainGUI:
         self.login_state      = ActionState.Not_Done
         self.master.logout()
 
-    def _login_done(self):
-        self.login_state = ActionState.Not_Done
-
     def _project_selected(self):
         self.proj_select_state = ActionState.Done
         # update GUI
@@ -215,6 +203,16 @@ class MainGUI:
         # start server
         if_ips,_ = network.ifs.get_ifaces(config.master['network'])
         async_thread.run(self.master.start_server((if_ips[0], 0)))
+
+    def _unload_project(self):
+        if self.master.is_serving():
+            async_thread.wait(self.master.stop_server())
+        self.proj_select_state= ActionState.Not_Done
+        self.proj_idx         = -1
+        self.project          = ''
+        self.master.unset_project()
+
+        self._window_list = [self.computer_list, self._make_main_space_window("Login", self._login_GUI)]
 
     def _login_GUI(self):
         if self.login_state != ActionState.Done:
