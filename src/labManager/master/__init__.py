@@ -250,7 +250,7 @@ class Master:
             # start SSDP server to advertise this server
             self.ssdp_server = network.ssdp.Server(
                 address=local_addr[0],
-                host_ip_port=self.address,
+                host_ip_port=self.address[0],
                 usn="humlab-b055-master::"+config.master['SSDP']['device_type'],
                 device_type=config.master['SSDP']['device_type'],
                 allow_loopback=True)
