@@ -264,8 +264,9 @@ class Master:
         if self.ssdp_server is not None:
             await self.ssdp_server.stop()
 
-        self.server.close()
-        await self.server.wait_closed()
+        if self.server:
+            self.server.close()
+            await self.server.wait_closed()
         self.server = None
 
     async def _handle_client(self, reader: asyncio.streams.StreamReader, writer: asyncio.streams.StreamWriter):
