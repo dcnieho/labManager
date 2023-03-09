@@ -226,7 +226,7 @@ class Master:
                 return
 
         # client not known, add
-        kc = structs.KnownClient(client['name'], client['MAC'], client=client)
+        kc = structs.KnownClient(client.name, client.MACs[0], client=client)
         self.known_clients[kc.id] = kc
         client.known_client = self.known_clients[kc.id]
 
