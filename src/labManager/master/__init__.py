@@ -2,6 +2,7 @@ import asyncio
 import aiofile
 import traceback
 import sys
+import threading
 from typing import Dict, List, Tuple
 
 from ..utils import async_thread, config, eye_tracker, message, network, structs, task
@@ -105,6 +106,7 @@ class Master:
 
         self.clients: Dict[int, structs.Client] = {}
         self.known_clients: Dict[int, structs.KnownClient] = {}
+        self.known_clients_lock = threading.Lock()
 
         self.task_groups: Dict[int, task.TaskGroup] = {}
 
@@ -214,21 +216,23 @@ class Master:
         del self.clients[client.id]
 
     def load_known_clients(self, known_clients: List[Tuple[str,str]]):
-        for client in known_clients:
-            kc = structs.KnownClient(client['name'], client['MAC'])
-            self.known_clients[kc.id] = kc
+        with self.known_clients_lock:
+            for client in known_clients:
+                kc = structs.KnownClient(client['name'], client['MAC'])
+                self.known_clients[kc.id] = kc
 
     def _find_or_add_known_client(self, client: structs.Client):
-        for id in self.known_clients:
-            if self.known_clients[id].MAC in client.MACs:
-                client.known_client = self.known_clients[id]
-                self.known_clients[id].client = client
-                return
+        with self.known_clients_lock:
+            for id in self.known_clients:
+                if self.known_clients[id].MAC in client.MACs:
+                    client.known_client = self.known_clients[id]
+                    self.known_clients[id].client = client
+                    return
 
-        # client not known, add
-        kc = structs.KnownClient(client.name, client.MACs[0], client=client)
-        self.known_clients[kc.id] = kc
-        client.known_client = self.known_clients[kc.id]
+            # client not known, add
+            kc = structs.KnownClient(client.name, client.MACs[0], client=client)
+            self.known_clients[kc.id] = kc
+            client.known_client = self.known_clients[kc.id]
 
     def _remove_known_client(self, client: structs.Client):
         if client.known_client:

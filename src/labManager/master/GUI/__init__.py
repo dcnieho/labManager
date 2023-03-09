@@ -320,8 +320,9 @@ class MainGUI:
         )
         imgui.new_line()
 
-        for i in self.master.known_clients:
-            _computer(self.master.known_clients[i])
+        with self.master.known_clients_lock:
+            for i in self.master.known_clients:
+                _computer(self.master.known_clients[i])
 
 
 def _computer(client: structs.KnownClient):
