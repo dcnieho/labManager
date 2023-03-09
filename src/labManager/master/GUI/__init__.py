@@ -35,7 +35,7 @@ class MainGUI:
         self._window_list     = []
 
         self.selected_computers: dict[int, bool] = {k:False for k in self.master.known_clients}
-        self.computer_lister  = computer_list.ComputerList(self.master.known_clients, self.selected_computers)
+        self.computer_lister  = computer_list.ComputerList(self.master.known_clients, self.selected_computers, info_callback=self._open_computer_detail)
 
         # Show errors in threads
         def asyncexcepthook(future: asyncio.Future):
@@ -269,6 +269,20 @@ class MainGUI:
 
     def _imaging_GUI(self):
         pass
+
+    def _open_computer_detail(self, item: structs.KnownClient):
+        win = next((x for x in hello_imgui.get_runner_params().docking_params.dockable_windows if x.label==item.name), None)
+        if win:
+            win.focus_window_at_next_frame = True
+        else:
+            self._window_list = hello_imgui.get_runner_params().docking_params.dockable_windows
+            self._window_list.append(
+                self._make_main_space_window(item.name, lambda: self._computer_detail_GUI(item))
+            )
+
+    def _computer_detail_GUI(self, item: structs.KnownClient):
+        imgui.text(item.name)
+
 
     def _login_result(self, stage, future: asyncio.Future):
         try:

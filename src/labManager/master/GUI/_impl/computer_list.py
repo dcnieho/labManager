@@ -1,5 +1,5 @@
 from imgui_bundle import icons_fontawesome, imgui
-from typing import Tuple
+from typing import Callable, Tuple
 
 from ....utils import structs
 from . import utils
@@ -7,10 +7,12 @@ from . import utils
 class ComputerList():
     def __init__(self,
                  items: dict[int, structs.KnownClient],
-        selected_items: dict[int, bool]):
+        selected_items: dict[int, bool],
+        info_callback: Callable = None):
 
         self.items = items
         self.selected_items = selected_items
+        self.info_callback  = info_callback
 
         self.sorted_ids: list[int] = []
         self._last_clicked_id: int = None
@@ -254,7 +256,7 @@ class ComputerList():
         return clicked
 
     def _show_item_info(self, id):
-        print(f'showing info for {id}')
+        self.info_callback(self.items[id])
 
     def _sort_items(self, sort_specs_in: imgui.TableSortSpecs):
         if sort_specs_in.specs_dirty or self._require_sort:
