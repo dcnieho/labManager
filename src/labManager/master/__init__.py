@@ -98,8 +98,9 @@ class Master:
         self.admin: network.admin_conn.Client = None
         self.toems: network.toems.Client = None
 
-        # server
+        # servers
         self.address = None
+        self.server  = None
         self.ssdp_server: network.ssdp.Server = None
 
         self.clients: Dict[int, structs.Client] = {}
@@ -256,12 +257,16 @@ class Master:
                 allow_loopback=True)
             await self.ssdp_server.start()
 
+    def is_serving(self):
+        return self.server is not None
+
     async def stop_server(self):
         if self.ssdp_server is not None:
             await self.ssdp_server.stop()
 
         self.server.close()
         await self.server.wait_closed()
+        self.server = None
 
     async def _handle_client(self, reader: asyncio.streams.StreamReader, writer: asyncio.streams.StreamWriter):
         network.keepalive.set(writer.get_extra_info('socket'))
