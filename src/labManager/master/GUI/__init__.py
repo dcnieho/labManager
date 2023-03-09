@@ -199,7 +199,11 @@ class MainGUI:
         self.proj_select_state = ActionState.Done
         # update GUI
         self.project = self.master.projects[self.proj_idx]
-        self._window_list = [self.computer_list]
+        self._window_list = [
+            self.computer_list,
+            self._make_main_space_window("Tasks", self._task_GUI),
+            self._make_main_space_window("Image Management", self._imaging_GUI),
+            ]
         # start server
         if_ips,_ = network.ifs.get_ifaces(config.master['network'])
         async_thread.run(self.master.start_server((if_ips[0], 0)))
@@ -256,6 +260,12 @@ class MainGUI:
 
             if disabled:
                 utils.pop_disabled()
+
+    def _task_GUI(self):
+        pass
+
+    def _imaging_GUI(self):
+        pass
 
     def _login_result(self, stage, future: asyncio.Future):
         try:
