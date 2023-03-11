@@ -1,5 +1,4 @@
 from enum import Enum, auto
-import numpy as np
 import asyncio
 import concurrent
 import json
@@ -32,10 +31,13 @@ class MainGUI:
         self.proj_idx         = -1
         self.project          = ''
 
+        # GUI state
         self._window_list     = []
 
         self.selected_computers: dict[int, bool] = {k:False for k in self.master.known_clients}
         self.computer_lister  = computer_list.ComputerList(self.master.known_clients, self.selected_computers, info_callback=self._open_computer_detail)
+
+        self._has_setup_task_GUI = False
 
         # Show errors in threads
         def asyncexcepthook(future: asyncio.Future):
@@ -265,7 +267,42 @@ class MainGUI:
                 utils.pop_disabled()
 
     def _task_GUI(self):
-        pass
+        dock_space_id = imgui.get_id("TasksDockSpace")
+        imgui.dock_space(dock_space_id, (0.,0.), imgui.DockNodeFlags_.no_split|imgui.internal.DockNodeFlagsPrivate_.im_gui_dock_node_flags_no_tab_bar)
+        if not self._has_setup_task_GUI:
+            # first time this GUI is shown, set up
+            imgui.internal.dock_builder_remove_node(dock_space_id)
+            imgui.internal.dock_builder_add_node(dock_space_id)
+            imgui.internal.dock_builder_set_node_size(dock_space_id, (400,400))
+
+            self._task_GUI_list_dock_id = imgui.internal.dock_builder_split_node(dock_space_id, imgui.Dir_.left,0.15,1,1)
+            temp_id = self._task_GUI_list_dock_id+1
+
+            self._task_GUI_type_dock_id = imgui.internal.dock_builder_split_node(temp_id, imgui.Dir_.left,.15/(1-.15),1,1)
+            temp_id = self._task_GUI_type_dock_id+1
+
+            self._task_GUI_config_dock_id = imgui.internal.dock_builder_split_node(temp_id, imgui.Dir_.up,0.90,1,1)
+            self._task_GUI_confirm_dock_id = self._task_GUI_config_dock_id+1
+
+            imgui.internal.dock_builder_dock_window('task_list_pane',self._task_GUI_list_dock_id)
+            imgui.internal.dock_builder_dock_window('task_type_pane',self._task_GUI_type_dock_id)
+            imgui.internal.dock_builder_dock_window('task_config_pane',self._task_GUI_config_dock_id)
+            imgui.internal.dock_builder_dock_window('task_confirm_pane',self._task_GUI_confirm_dock_id)
+            imgui.internal.dock_builder_finish(dock_space_id)
+            self._has_setup_task_GUI = True
+
+        imgui.begin('task_list_pane')
+        imgui.text("list")
+        imgui.end()
+        imgui.begin('task_type_pane')
+        imgui.text("type")
+        imgui.end()
+        imgui.begin('task_config_pane')
+        imgui.text("config")
+        imgui.end()
+        imgui.begin('task_confirm_pane')
+        imgui.text("confirm")
+        imgui.end()
 
     def _imaging_GUI(self):
         pass
@@ -356,18 +393,3 @@ class MainGUI:
             imgui.begin_child("##computer_list_frame", size=(0,-imgui.get_frame_height_with_spacing()), flags=imgui.WindowFlags_.horizontal_scrollbar)
             self.computer_lister.draw()
             imgui.end_child()
-
-
-def _splitter(split_vertically, thickness, size1, size2, min_size1, min_size2, splitter_long_axis_size = -1.0):
-    g = imgui.get_current_context()
-    window = g.current_window
-    id = window.get_id("##Splitter")
-    cp = window.dc.cursor_pos
-    off= imgui.ImVec2(size1, 0.) if split_vertically else imgui.ImVec2(0., size1)
-    sz = imgui.internal.calc_item_size(imgui.ImVec2(thickness, splitter_long_axis_size) if split_vertically else imgui.ImVec2(splitter_long_axis_size, thickness), 0., 0.)
-    bb = imgui.internal.ImRect(cp[0]+off[0],cp[1]+off[1], cp[0]+off[0]+sz[0],cp[1]+off[1]+sz[1])
-    #return imgui.internal.splitter_behavior(bb, id, imgui.internal.Axis.x if split_vertically else imgui.internal.Axis.y, size1, size2, min_size1, min_size2, 4., 0.04)
-    np_size1 = np.array([size1],dtype='float32')
-    np_size2 = np.array([size2],dtype='float32')
-    retval = imgui.internal.splitter_behavior(bb, id, imgui.internal.Axis.x if split_vertically else imgui.internal.Axis.y, np_size1, np_size2, min_size1, 4., .04)#min_size2, 4., 0.04)
-    return retval, np_size1[0], np_size2[0]
