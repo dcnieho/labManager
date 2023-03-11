@@ -213,7 +213,7 @@ class ComputerList():
                 self.selected_items[id] = True
 
             right_clicked = True
-            self.draw_item_context_menu()
+            self._draw_item_context_menu(id)
             imgui.end_popup()
         return right_clicked
 
@@ -257,6 +257,9 @@ class ComputerList():
 
     def _show_item_info(self, id):
         self.info_callback(self.items[id])
+
+    def _draw_item_context_menu(self, id):
+        pass
 
     def _sort_items(self, sort_specs_in: imgui.TableSortSpecs):
         if sort_specs_in.specs_dirty or self._require_sort:
