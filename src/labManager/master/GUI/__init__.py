@@ -173,6 +173,10 @@ class MainGUI:
         if self._window_list:
             hello_imgui.get_runner_params().docking_params.dockable_windows = self._window_list
             self._window_list = []
+        else:
+            # check if any computer detail windows were closed. Those should be removed from the list
+            hello_imgui.get_runner_params().docking_params.dockable_windows = \
+                [w for w in hello_imgui.get_runner_params().docking_params.dockable_windows if not w.label.endswith('computer_view') or w.is_visible]
 
         # we also handle docking requests here
         if self._to_dock:
@@ -180,12 +184,13 @@ class MainGUI:
                 imgui.internal.dock_builder_dock_window(w, self._main_dock_node_id)
             self._to_dock = []
 
-    def _make_main_space_window(self, name, gui_func):
-        login_view = hello_imgui.DockableWindow()
-        login_view.label = name
-        login_view.dock_space_name = "MainDockSpace"
-        login_view.gui_function = gui_func
-        return login_view
+    def _make_main_space_window(self, name, gui_func, can_be_closed=False):
+        main_space_view = hello_imgui.DockableWindow()
+        main_space_view.label = name
+        main_space_view.dock_space_name = "MainDockSpace"
+        main_space_view.gui_function = gui_func
+        main_space_view.can_be_closed = can_be_closed
+        return main_space_view
 
     def _show_app_menu_items(self):
         do_close , _ = imgui.menu_item("Close project", "", False)
@@ -348,11 +353,12 @@ class MainGUI:
         if win:
             win.focus_window_at_next_frame = True
         else:
+            win_name = f'{item.name}##computer_view'
             self._window_list = hello_imgui.get_runner_params().docking_params.dockable_windows
             self._window_list.append(
-                self._make_main_space_window(item.name, lambda: self._computer_detail_GUI(item))
+                self._make_main_space_window(win_name, lambda: self._computer_detail_GUI(item), can_be_closed=True)
             )
-            self._to_dock = [item.name]
+            self._to_dock = [win_name]
 
     def _computer_detail_GUI(self, item: structs.KnownClient):
         dock_space_id = imgui.get_id(f"ComputerDockSpace_{item.id}")
