@@ -33,6 +33,8 @@ class MainGUI:
 
         # GUI state
         self._window_list     = []
+        self._to_dock         = []
+        self._main_dock_node_id = None
 
         self.selected_computers: dict[int, bool] = {k:False for k in self.master.known_clients}
         self.computer_lister  = computer_list.ComputerList(self.master.known_clients, self.selected_computers, info_callback=self._open_computer_detail)
@@ -167,9 +169,16 @@ class MainGUI:
         immapp.run(runner_params, addons_params)
 
     def _update_windows(self):
+        # update windows to be shown
         if self._window_list:
             hello_imgui.get_runner_params().docking_params.dockable_windows = self._window_list
             self._window_list = []
+
+        # we also handle docking requests here
+        if self._to_dock:
+            for w in self._to_dock:
+                imgui.internal.dock_builder_dock_window(w, self._main_dock_node_id)
+            self._to_dock = []
 
     def _make_main_space_window(self, name, gui_func):
         login_view = hello_imgui.DockableWindow()
@@ -207,6 +216,7 @@ class MainGUI:
             self._make_main_space_window("Tasks", self._task_GUI),
             self._make_main_space_window("Image Management", self._imaging_GUI),
             ]
+        self._to_dock = ["Tasks", "Image Management"]
         # start server
         if_ips,_ = network.ifs.get_ifaces(config.master['network'])
         async_thread.run(self.master.start_server((if_ips[0], 0)))
@@ -222,6 +232,10 @@ class MainGUI:
         self._window_list = [self.computer_list, self._make_main_space_window("Login", self._login_GUI)]
 
     def _login_GUI(self):
+        if not self._main_dock_node_id:
+            # this window is docked to the right dock node, query id of this dock node as we'll need it for later
+            # windows
+            self._main_dock_node_id = imgui.get_window_dock_id()
         if self.login_state != ActionState.Done:
             disabled = self.login_state==ActionState.Processing
             if disabled:
@@ -338,6 +352,7 @@ class MainGUI:
             self._window_list.append(
                 self._make_main_space_window(item.name, lambda: self._computer_detail_GUI(item))
             )
+            self._to_dock = [item.name]
 
     def _computer_detail_GUI(self, item: structs.KnownClient):
         dock_space_id = imgui.get_id(f"ComputerDockSpace_{item.id}")
