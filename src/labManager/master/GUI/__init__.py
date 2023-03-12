@@ -37,8 +37,6 @@ class MainGUI:
         self.selected_computers: dict[int, bool] = {k:False for k in self.master.known_clients}
         self.computer_lister  = computer_list.ComputerList(self.master.known_clients, self.selected_computers, info_callback=self._open_computer_detail)
 
-        self._has_setup_task_GUI = False
-
         # Show errors in threads
         def asyncexcepthook(future: asyncio.Future):
             try:
@@ -268,44 +266,68 @@ class MainGUI:
 
     def _task_GUI(self):
         dock_space_id = imgui.get_id("TasksDockSpace")
-        imgui.dock_space(dock_space_id, (0.,0.), imgui.DockNodeFlags_.no_split|imgui.internal.DockNodeFlagsPrivate_.im_gui_dock_node_flags_no_tab_bar)
-        if not self._has_setup_task_GUI:
+        if not imgui.internal.dock_builder_get_node(dock_space_id):
             # first time this GUI is shown, set up
             imgui.internal.dock_builder_remove_node(dock_space_id)
             imgui.internal.dock_builder_add_node(dock_space_id)
-            imgui.internal.dock_builder_set_node_size(dock_space_id, (400,400))
 
-            self._task_GUI_list_dock_id = imgui.internal.dock_builder_split_node(dock_space_id, imgui.Dir_.left,0.15,1,1)
-            temp_id = self._task_GUI_list_dock_id+1
+            self._imaging_GUI_list_dock_id = imgui.internal.dock_builder_split_node(dock_space_id, imgui.Dir_.left,0.15,1,1)
+            temp_id = self._imaging_GUI_list_dock_id+1
 
             self._task_GUI_type_dock_id = imgui.internal.dock_builder_split_node(temp_id, imgui.Dir_.left,.15/(1-.15),1,1)
             temp_id = self._task_GUI_type_dock_id+1
 
-            self._task_GUI_config_dock_id = imgui.internal.dock_builder_split_node(temp_id, imgui.Dir_.up,0.90,1,1)
-            self._task_GUI_confirm_dock_id = self._task_GUI_config_dock_id+1
+            self._imaging_GUI_details_dock_id = imgui.internal.dock_builder_split_node(temp_id, imgui.Dir_.up,0.90,1,1)
+            self._imaging_GUI_action_dock_id = self._imaging_GUI_details_dock_id+1
 
-            imgui.internal.dock_builder_dock_window('task_list_pane',self._task_GUI_list_dock_id)
+            imgui.internal.dock_builder_dock_window('task_list_pane',self._imaging_GUI_list_dock_id)
             imgui.internal.dock_builder_dock_window('task_type_pane',self._task_GUI_type_dock_id)
-            imgui.internal.dock_builder_dock_window('task_config_pane',self._task_GUI_config_dock_id)
-            imgui.internal.dock_builder_dock_window('task_confirm_pane',self._task_GUI_confirm_dock_id)
+            imgui.internal.dock_builder_dock_window('task_config_pane',self._imaging_GUI_details_dock_id)
+            imgui.internal.dock_builder_dock_window('task_confirm_pane',self._imaging_GUI_action_dock_id)
             imgui.internal.dock_builder_finish(dock_space_id)
-            self._has_setup_task_GUI = True
+        imgui.dock_space(dock_space_id, (0.,0.), imgui.DockNodeFlags_.no_split|imgui.internal.DockNodeFlagsPrivate_.im_gui_dock_node_flags_no_tab_bar)
 
-        imgui.begin('task_list_pane')
-        imgui.text("list")
+        if imgui.begin('task_list_pane'):
+            imgui.text("list")
         imgui.end()
-        imgui.begin('task_type_pane')
-        imgui.text("type")
+        if imgui.begin('task_type_pane'):
+            imgui.text("type")
         imgui.end()
-        imgui.begin('task_config_pane')
-        imgui.text("config")
+        if imgui.begin('task_config_pane'):
+            imgui.text("config")
         imgui.end()
-        imgui.begin('task_confirm_pane')
-        imgui.text("confirm")
+        if imgui.begin('task_confirm_pane'):
+            imgui.text("confirm")
         imgui.end()
 
     def _imaging_GUI(self):
-        pass
+        dock_space_id = imgui.get_id("ImagingDockSpace")
+        if not imgui.internal.dock_builder_get_node(dock_space_id):
+            # first time this GUI is shown, set up
+            imgui.internal.dock_builder_remove_node(dock_space_id)
+            imgui.internal.dock_builder_add_node(dock_space_id)
+
+            self._imaging_GUI_list_dock_id = imgui.internal.dock_builder_split_node(dock_space_id, imgui.Dir_.left,0.20,1,1)
+            temp_id = self._imaging_GUI_list_dock_id+1
+
+            self._imaging_GUI_details_dock_id = imgui.internal.dock_builder_split_node(temp_id, imgui.Dir_.up,0.15,1,1)
+            self._imaging_GUI_action_dock_id = self._imaging_GUI_details_dock_id+1
+
+            imgui.internal.dock_builder_dock_window('images_list_pane',self._imaging_GUI_list_dock_id)
+            imgui.internal.dock_builder_dock_window('image_details_pane',self._imaging_GUI_details_dock_id)
+            imgui.internal.dock_builder_dock_window('imaging_actions_pane',self._imaging_GUI_action_dock_id)
+            imgui.internal.dock_builder_finish(dock_space_id)
+        imgui.dock_space(dock_space_id, (0.,0.), imgui.DockNodeFlags_.no_split|imgui.internal.DockNodeFlagsPrivate_.im_gui_dock_node_flags_no_tab_bar)
+
+        if imgui.begin('images_list_pane'):
+            imgui.text("list")
+        imgui.end()
+        if imgui.begin('image_details_pane'):
+            imgui.text("details")
+        imgui.end()
+        if imgui.begin('imaging_actions_pane'):
+            imgui.text("actions")
+        imgui.end()
 
     def _open_computer_detail(self, item: structs.KnownClient):
         win = next((x for x in hello_imgui.get_runner_params().docking_params.dockable_windows if x.label==item.name), None)
@@ -318,7 +340,33 @@ class MainGUI:
             )
 
     def _computer_detail_GUI(self, item: structs.KnownClient):
-        imgui.text(item.name)
+        dock_space_id = imgui.get_id(f"ComputerDockSpace_{item.id}")
+        if not imgui.internal.dock_builder_get_node(dock_space_id):
+            # first time this GUI is shown, set up
+            imgui.internal.dock_builder_remove_node(dock_space_id)
+            imgui.internal.dock_builder_add_node(dock_space_id)
+
+            self._imaging_GUI_list_dock_id = imgui.internal.dock_builder_split_node(dock_space_id, imgui.Dir_.left,0.15,1,1)
+            temp_id = self._imaging_GUI_list_dock_id+1
+
+            self._imaging_GUI_details_dock_id = imgui.internal.dock_builder_split_node(temp_id, imgui.Dir_.up,0.15,1,1)
+            self._imaging_GUI_action_dock_id = self._imaging_GUI_details_dock_id+1
+
+            imgui.internal.dock_builder_dock_window(f'task_list_pane_{item.id}',self._imaging_GUI_list_dock_id)
+            imgui.internal.dock_builder_dock_window(f'task_result_pane_{item.id}',self._imaging_GUI_details_dock_id)
+            imgui.internal.dock_builder_dock_window(f'task_log_pane_{item.id}',self._imaging_GUI_action_dock_id)
+            imgui.internal.dock_builder_finish(dock_space_id)
+        imgui.dock_space(dock_space_id, (0.,0.), imgui.DockNodeFlags_.no_split|imgui.internal.DockNodeFlagsPrivate_.im_gui_dock_node_flags_no_tab_bar)
+
+        if imgui.begin(f'task_list_pane_{item.id}'):
+            imgui.text("list")
+        imgui.end()
+        if imgui.begin(f'task_result_pane_{item.id}'):
+            imgui.text("result")
+        imgui.end()
+        if imgui.begin(f'task_log_pane_{item.id}'):
+            imgui.text("log")
+        imgui.end()
 
 
     def _login_result(self, stage, future: asyncio.Future):
