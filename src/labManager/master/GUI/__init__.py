@@ -34,6 +34,7 @@ class MainGUI:
         # GUI state
         self._window_list     = []
         self._to_dock         = []
+        self._first_setup_done= False
         self._main_dock_node_id = None
 
         self.selected_computers: dict[int, bool] = {k:False for k in self.master.known_clients}
@@ -141,6 +142,7 @@ class MainGUI:
         split_main_left.new_dock = "LeftSpace"
         split_main_left.direction = imgui.Dir_.left
         split_main_left.ratio = 0.25
+        #split_main_left.node_flags = imgui.internal.DockNodeFlagsPrivate_.no_docking | imgui.internal.DockNodeFlagsPrivate_.no_tab_bar
 
         # Finally, transmit these splits to HelloImGui
         runner_params.docking_params.docking_splits = [split_main_left]
@@ -423,6 +425,11 @@ class MainGUI:
         utils.push_popup(self, msgbox.msgbox, "Login error", f"Something went wrong when {'logging in' if stage=='login' else 'selecting project'}...", msgbox.MsgBox.error, more=tb)
 
     def _computer_pane(self):
+        if not self._first_setup_done:
+            node = imgui.internal.dock_builder_get_node(imgui.get_window_dock_id())
+            if node:
+                node.set_local_flags(imgui.internal.DockNodeFlagsPrivate_.im_gui_dock_node_flags_no_docking | imgui.internal.DockNodeFlagsPrivate_.im_gui_dock_node_flags_no_tab_bar)
+                self._first_setup_done = True
         # this pane is always visible, so we handle popups here
         self._fix_popup_transparency()
         open_popup_count = 0
