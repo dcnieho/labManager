@@ -1,6 +1,8 @@
 import strictyaml as s
 import os
 
+from . import task
+
 _master_config_file = 'master_config.yaml'
 _master_schema = s.Map({
     'network': s.Str(),
@@ -31,6 +33,16 @@ _master_schema = s.Map({
             'name': s.Str(),
             'MAC' : s.Str(),
         })
+    ),
+    s.Optional('tasks'): s.Seq(
+        s.Map({
+            'name': s.Str(),
+            'type': s.Enum(task.types),
+            'payload': s.Str(),
+            s.Optional('cwd'): s.Str(),
+            s.Optional('env'): s.Str(),
+            s.Optional('interactive', default=False): s.Bool(),
+        }),
     ),
 })
 
