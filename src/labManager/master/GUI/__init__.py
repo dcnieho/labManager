@@ -6,7 +6,7 @@ import json
 from imgui_bundle import hello_imgui, icons_fontawesome, imgui, immapp, imspinner, imgui_md
 from imgui_bundle.demos_python import demo_utils
 
-from ...utils import async_thread, config, network, structs
+from ...utils import async_thread, config, network, structs, task
 from .. import Master
 from ._impl import computer_list, msgbox, utils
 
@@ -39,6 +39,9 @@ class MainGUI:
 
         self.selected_computers: dict[int, bool] = {k:False for k in self.master.known_clients}
         self.computer_lister  = computer_list.ComputerList(self.master.known_clients, self.selected_computers, info_callback=self._open_computer_detail)
+
+        # task GUI
+        self._task_prep: task.Task = task.Task(task.Type.Shell_command,'')  # some reasonable default
 
         # Show errors in threads
         def asyncexcepthook(future: asyncio.Future):
@@ -236,6 +239,8 @@ class MainGUI:
         self.project          = ''
         self.master.unset_project()
 
+        # reset GUI
+        self._task_prep: task.Task = task.Task(task.Type.Shell_command,'')  # some reasonable default
         self._window_list = [self.computer_list, self._make_main_space_window("Login", self._login_GUI)]
 
     def _login_GUI(self):
@@ -309,10 +314,15 @@ class MainGUI:
         imgui.dock_space(dock_space_id, (0.,0.), imgui.DockNodeFlags_.no_split|imgui.internal.DockNodeFlagsPrivate_.im_gui_dock_node_flags_no_tab_bar)
 
         if imgui.begin('task_list_pane'):
-            imgui.text("list")
+            for t in config.master['tasks']:
+                if imgui.button(t['name']):
+                    pass
         imgui.end()
         if imgui.begin('task_type_pane'):
-            imgui.text("type")
+            for t in task.Type:
+                if imgui.radio_button(t.value, self._task_prep.type==t):
+                    self._task_prep.type = t
+                utils.draw_hover_text(t.doc,text='')
         imgui.end()
         if imgui.begin('task_config_pane'):
             imgui.text("config")

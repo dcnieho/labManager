@@ -19,7 +19,16 @@ class Type(enum_helper.AutoNameSpace):
     Python_statement= auto()    # sys.executable + '-c'
     Python_module   = auto()    # sys.executable + '-m'
     Python_script   = auto()    # sys.executable, invoke python script
+    Wake_on_LAN     = auto()    # special task to broadcast WoL packets (TODO)
 types = [x.value for x in Type]
+
+Type.Shell_command   .doc = 'Run command in shell'
+Type.Process_exec    .doc = 'Run executable'
+Type.Batch_file      .doc = 'Invoke batch file'
+Type.Python_statement.doc = 'Call client''s active python.exe (sys.executable) with -c command line switch'
+Type.Python_module   .doc = 'Call client''s active python.exe (sys.executable) with -m command line switch'
+Type.Python_script   .doc = 'Execute Python script with the client''s active python.exe (sys.executable)'
+Type.Wake_on_LAN     .doc = 'Send Wake on LAN command'
 
 @enum_helper.get('task statuses')
 class Status(enum_helper.AutoNameSpace):
