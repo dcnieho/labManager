@@ -4,8 +4,9 @@ import concurrent
 import json
 from dataclasses import dataclass
 
-from imgui_bundle import hello_imgui, icons_fontawesome, imgui, immapp, imspinner, imgui_md, imgui_color_text_edit
+from imgui_bundle import hello_imgui, icons_fontawesome, imgui, immapp, imspinner, imgui_md, imgui_color_text_edit, glfw_window_hello_imgui
 from imgui_bundle.demos_python import demo_utils
+import glfw
 
 from ...utils import async_thread, config, network, structs, task
 from .. import Master
@@ -106,7 +107,7 @@ class MainGUI:
 
         # Note: by setting the window title, we also set the name of the ini files into which the settings for the user
         # layout will be stored: Docking_demo.ini (imgui settings) and Docking_demo_appWindow.ini (app window size and position)
-        runner_params.app_window_params.window_title = "labManager Master"
+        runner_params.app_window_params.window_title = self._get_window_title()
 
         runner_params.imgui_window_params.menu_app_title = "File"
         runner_params.app_window_params.window_geometry.size = (1400, 700)
@@ -223,8 +224,25 @@ class MainGUI:
         elif do_close:
             self._unload_project()
 
+    def _get_window_title(self, add_user=False, add_project=False):
+        title = "labManager Master"
+        if add_user and add_project:
+            title+= f' ({self.username}/{self.project})'
+        elif add_user:
+            title+= f' ({self.username})'
+        return title
+
+    def _set_window_title(self, add_user=False, add_project=False):
+        new_title = self._get_window_title(add_user,add_project)
+        # this is just for show, doesn't trigger an update. But lets keep them in sync
+        hello_imgui.get_runner_params().app_window_params.window_title = new_title
+        # actually update window title.
+        win = glfw_window_hello_imgui()
+        glfw.set_window_title(win, new_title)
+
     def _login_done(self):
-        self.login_state = ActionState.Not_Done
+        self.login_state = ActionState.Done
+        self._set_window_title(add_user=True)
 
     def _logout(self):
         self._unload_project()
@@ -233,6 +251,7 @@ class MainGUI:
         self.password         = ''
         self.login_state      = ActionState.Not_Done
         self.master.logout()
+        self._set_window_title()
 
     def _project_selected(self):
         self.proj_select_state = ActionState.Done
@@ -244,6 +263,7 @@ class MainGUI:
             self._make_main_space_window("Image Management", self._imaging_GUI),
             ]
         self._to_dock = ["Tasks", "Image Management"]
+        self._set_window_title(add_user=True, add_project=True)
         # start server
         if_ips,_ = network.ifs.get_ifaces(config.master['network'])
         async_thread.run(self.master.start_server((if_ips[0], 0)))
@@ -259,6 +279,7 @@ class MainGUI:
         # reset GUI
         self._task_prep = TaskDef()
         self._window_list = [self.computer_list, self._make_main_space_window("Login", self._login_GUI)]
+        self._set_window_title(add_user=True)
 
     def _login_GUI(self):
         if not self._main_dock_node_id:
@@ -570,14 +591,14 @@ class MainGUI:
         if not exc:
             # log in successful
             if stage=='login':
-                self.login_state = ActionState.Done
+                self._login_done()
             elif stage=='project':
                 self._project_selected()
             return
 
         # error occurred
         if stage=='login':
-            self._login_done()
+            self.login_state = ActionState.Not_Done
         elif stage=='project':
             self.proj_select_state = ActionState.Not_Done
         msg = str(exc)
@@ -619,14 +640,6 @@ class MainGUI:
         # now render actual pane
         if self.proj_select_state!=ActionState.Done:
             return
-
-        imgui_md.render_unindented(
-            f"""
-            ### User: {self.username}
-            ### Project: {self.project}
-            """
-        )
-        imgui.new_line()
 
         if imgui.button('On'):
             utils.set_all(self.selected_computers, False)
