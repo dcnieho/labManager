@@ -344,25 +344,25 @@ class Master:
     async def run_task(self,
                        type: task.Type,
                        payload: str,
-                       clients: List[int] | str,
-                       payload_type='cmd_or_script',
+                       known_clients: List[int] | str,
+                       payload_type='text',
                        cwd: str=None,
                        env: dict=None,
                        interactive=False):
         # clients has a special value '*' which means all clients
-        if clients=='*':
-            clients = [c for c in self.clients]
+        if known_clients=='*':
+            known_clients = [c for c in self.known_clients]
 
         # handle payload
         match payload_type:
-            case 'cmd_or_script':
+            case 'text':
                 pass
             case 'file':
                 async with aiofile.async_open(payload, 'rt') as afp:
                     payload = await afp.read()
 
         # make task group
-        task_group = task.create_group(type, payload, clients, cwd=cwd, env=env, interactive=interactive)
+        task_group = task.create_group(type, payload, known_clients, cwd=cwd, env=env, interactive=interactive)
         self.task_groups[task_group.id] = task_group
 
         # start tasks
@@ -370,9 +370,10 @@ class Master:
         for c in task_group.task_refs:
             mytask = task_group.task_refs[c]
             # add to client task list
-            self.clients[c].tasks[mytask.id] = mytask
+            if self.known_clients[c].client:
+                self.known_clients[c].client.tasks[mytask.id] = mytask
             # send
-            coros.append(task.send(mytask, self.clients[c].writer))
+            coros.append(task.send(mytask, self.known_clients[c]))
 
         await asyncio.gather(*coros)
 

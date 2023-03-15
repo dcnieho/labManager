@@ -11,6 +11,9 @@ from typing import Dict, List
 
 from . import enum_helper, message, network, structs
 
+# TODO: env is a dict and should support either adding or overriding specific variables
+# https://stackoverflow.com/questions/2231227/python-subprocess-popen-with-a-modified-environment
+
 @enum_helper.get('task types')
 class Type(enum_helper.AutoNameSpace):
     Shell_command   = auto()    # run command in shell
@@ -49,7 +52,7 @@ class Task:
     status      : Status = Status.Not_started
     interactive : bool = False  # if True, stdin is connected to a pipe and commands can be sent by master to control
 
-    client      : int = None
+    known_client: int = None
     task_group_id: int = None
 
     # when running, client starts sending these back as they become available:
@@ -135,8 +138,8 @@ class Executor:
                     stdin=asyncio.subprocess.PIPE if interactive else None,
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE,
-                    cwd=cwd,
-                    env=env,
+                    cwd=None if not cwd else cwd,
+                    env=None if not env else env,
                 )
             else:
                 self._proc = await asyncio.create_subprocess_exec(
@@ -144,8 +147,8 @@ class Executor:
                     stdin=asyncio.subprocess.PIPE if interactive else None,
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE,
-                    cwd=cwd,
-                    env=env,
+                    cwd=None if not cwd else cwd,
+                    env=None if not env else env,
                 )
         except Exception as exc:
             await self._handle_error(exc, id, writer)
@@ -267,27 +270,31 @@ class Executor:
                 {'task_id': id, 'status': Status.Errored}
             )
 
-async def send(task: Task, writer):
-    await network.comms.typed_send(
-        writer,
-        message.Message.TASK_CREATE,
-        {
-            'task_id': task.id,
-            'type': task.type,
-            'payload': task.payload,
-            'cwd': task.cwd,
-            'env': task.env,
-            'interactive': task.interactive,
-        }
-    )
+async def send(task: Task, known_client):
+    if task.type==Type.Wake_on_LAN:
+        pass
+    elif known_client.client:
+        print('sending')
+        await network.comms.typed_send(
+            known_client.client.writer,
+            message.Message.TASK_CREATE,
+            {
+                'task_id': task.id,
+                'type': task.type,
+                'payload': task.payload,
+                'cwd': task.cwd,
+                'env': task.env,
+                'interactive': task.interactive,
+            }
+        )
 
-def create_group(type: Type, payload: str, clients: List[int], cwd: str=None, env: dict=None, interactive=False) -> TaskGroup:
+def create_group(type: Type, payload: str, known_clients: List[int], cwd: str=None, env: dict=None, interactive=False) -> TaskGroup:
     task_group = TaskGroup(type, payload)
 
     # make individual tasks
-    for c in clients:
+    for c in known_clients:
         # create task
-        task = Task(type, payload, cwd=cwd, env=env, interactive=interactive, client=c, task_group_id=task_group.id)
+        task = Task(type, payload, cwd=cwd, env=env, interactive=interactive, known_client=c, task_group_id=task_group.id)
         # add to task group
         task_group.task_refs[c] = task
 
