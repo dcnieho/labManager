@@ -307,7 +307,15 @@ class MainGUI:
     def _task_GUI(self):
         dock_space_id = imgui.get_id("TasksDockSpace")
         if not imgui.internal.dock_builder_get_node(dock_space_id):
-            # first time this GUI is shown, set up
+            # first time this GUI is shown, set up as follows:
+            #    ____________________________________________
+            #    |        |        |                        |
+            #    |        |        |         Action         |
+            #    | Action | Action |         Config         |
+            #    |  List  |  Type  |                        |
+            #    |        |        |------------------------|
+            #    |        |        |         Buttons        |
+            #    --------------------------------------------
             imgui.internal.dock_builder_remove_node(dock_space_id)
             imgui.internal.dock_builder_add_node(dock_space_id)
 
@@ -444,7 +452,13 @@ class MainGUI:
     def _imaging_GUI(self):
         dock_space_id = imgui.get_id("ImagingDockSpace")
         if not imgui.internal.dock_builder_get_node(dock_space_id):
-            # first time this GUI is shown, set up
+            # first time this GUI is shown, set up as follows:
+            #    ____________________________________
+            #    |        |      Image details      |
+            #    | Image  |-------------------------|
+            #    |  List  |          Image          |
+            #    |        |         Actions         |
+            #    ------------------------------------
             imgui.internal.dock_builder_remove_node(dock_space_id)
             imgui.internal.dock_builder_add_node(dock_space_id)
 
@@ -485,7 +499,13 @@ class MainGUI:
     def _computer_detail_GUI(self, item: structs.KnownClient):
         dock_space_id = imgui.get_id(f"ComputerDockSpace_{item.id}")
         if not imgui.internal.dock_builder_get_node(dock_space_id):
-            # first time this GUI is shown, set up
+            # first time this GUI is shown, set up as follows:
+            #    ____________________________________
+            #    |        |        Task result      |
+            #    |  Task  |-------------------------|
+            #    |  List  |           Log           |
+            #    |        |          Details        |
+            #    ------------------------------------
             imgui.internal.dock_builder_remove_node(dock_space_id)
             imgui.internal.dock_builder_add_node(dock_space_id)
 
