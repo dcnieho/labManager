@@ -57,6 +57,9 @@ class MainGUI:
         self._task_GUI_editor.set_language_definition(self._task_GUI_editor.LanguageDefinition.python())  # there is no batch, have to live with this...
         self._task_GUI_editor_copy_t = None
 
+        # computer detail GUI
+        self._computer_GUI_tasks: dict[int,int|None] = {}
+
         # Show errors in threads
         def asyncexcepthook(future: asyncio.Future):
             try:
@@ -495,6 +498,7 @@ class MainGUI:
                 self._make_main_space_window(win_name, lambda: self._computer_detail_GUI(item), can_be_closed=True)
             )
             self._to_dock = [win_name]
+            self._computer_GUI_tasks[item.id] = None
 
     def _computer_detail_GUI(self, item: structs.KnownClient):
         dock_space_id = imgui.get_id(f"ComputerDockSpace_{item.id}")
@@ -522,13 +526,29 @@ class MainGUI:
         imgui.dock_space(dock_space_id, (0.,0.), imgui.DockNodeFlags_.no_split|imgui.internal.DockNodeFlagsPrivate_.im_gui_dock_node_flags_no_tab_bar)
 
         if imgui.begin(f'task_list_pane_{item.id}'):
-            imgui.text("list")
+            if item.client:
+                imgui.push_font(imgui_md.get_code_font())
+                for id in item.client.tasks:
+                    tsk = item.client.tasks[id]
+                    lbl = utils.trim_str(tsk.payload, length=12, newline_ellipsis=True)
+                    if imgui.button(f'{lbl}##{tsk.id}'):
+                        self._computer_GUI_tasks[item.id] = id
+                    utils.draw_hover_text(hover_text=tsk.payload,text='')
+                imgui.pop_font()
         imgui.end()
         if imgui.begin(f'task_result_pane_{item.id}'):
-            imgui.text("result")
+            if (tid := self._computer_GUI_tasks[item.id]) is not None:
+                tsk = item.client.tasks[tid]
+                imgui.text(tsk.type.value)
+                imgui.text(str(tsk.status))
+                if tsk.return_code:
+                    imgui.text(f'return code: {tsk.return_code}')
         imgui.end()
         if imgui.begin(f'task_log_pane_{item.id}'):
-            imgui.text("log")
+            if (tid := self._computer_GUI_tasks[item.id]) is not None:
+                tsk = item.client.tasks[tid]
+                imgui.text_wrapped(tsk.stdout)
+                imgui.text_wrapped(tsk.stderr)
         imgui.end()
 
 

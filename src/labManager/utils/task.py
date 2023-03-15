@@ -274,7 +274,6 @@ async def send(task: Task, known_client):
     if task.type==Type.Wake_on_LAN:
         pass
     elif known_client.client:
-        print('sending')
         await network.comms.typed_send(
             known_client.client.writer,
             message.Message.TASK_CREATE,

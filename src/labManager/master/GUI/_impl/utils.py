@@ -26,6 +26,19 @@ def pop_disabled(block_interaction=True):
         imgui.internal.pop_item_flag()
     imgui.pop_style_var()
 
+
+def trim_str(text: str, length=None, till_newline=True, newline_ellipsis=False):
+    if text and till_newline:
+        temp = text.splitlines()
+        if temp:
+            text = temp[0]
+        if len(temp)>1 and newline_ellipsis:
+            text += '..'
+    if length:
+        text = (text[:length-2] + '..') if len(text) > length else text
+    return text
+
+
 def set_all(input: dict[int, bool], value, subset: list[int] = None, predicate: typing.Callable = None):
     if subset is None:
         subset = (r for r in input)
