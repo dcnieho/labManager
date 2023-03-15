@@ -2,8 +2,9 @@ from enum import Enum, auto
 import asyncio
 import concurrent
 import json
+from dataclasses import dataclass
 
-from imgui_bundle import hello_imgui, icons_fontawesome, imgui, immapp, imspinner, imgui_md
+from imgui_bundle import hello_imgui, icons_fontawesome, imgui, immapp, imspinner, imgui_md, imgui_color_text_edit
 from imgui_bundle.demos_python import demo_utils
 
 from ...utils import async_thread, config, network, structs, task
@@ -15,6 +16,16 @@ class ActionState(Enum):
     Not_Done    = auto()
     Processing  = auto()
     Done        = auto()
+
+@dataclass
+class TaskDef:
+    type        : task.Type = task.Type.Batch_file    # good default
+    payload_type: str       = 'text'
+    payload_text: str       = ''
+    payload_file: str       = ''
+    cwd         : str       = None
+    env         : dict      = None
+    interactive : bool      = False
 
 class MainGUI:
     def __init__(self):
@@ -41,7 +52,10 @@ class MainGUI:
         self.computer_lister  = computer_list.ComputerList(self.master.known_clients, self.selected_computers, info_callback=self._open_computer_detail)
 
         # task GUI
-        self._task_prep: task.Task = task.Task(task.Type.Shell_command,'')  # some reasonable default
+        self._task_prep: TaskDef = TaskDef()
+        self._task_GUI_editor    = imgui_color_text_edit.TextEditor()
+        self._task_GUI_editor.set_language_definition(self._task_GUI_editor.LanguageDefinition.python())  # there is no batch, have to live with this...
+        self._task_GUI_editor_copy_t = None
 
         # Show errors in threads
         def asyncexcepthook(future: asyncio.Future):
@@ -240,7 +254,7 @@ class MainGUI:
         self.master.unset_project()
 
         # reset GUI
-        self._task_prep: task.Task = task.Task(task.Type.Shell_command,'')  # some reasonable default
+        self._task_prep = TaskDef()
         self._window_list = [self.computer_list, self._make_main_space_window("Login", self._login_GUI)]
 
     def _login_GUI(self):
@@ -316,19 +330,115 @@ class MainGUI:
         if imgui.begin('task_list_pane'):
             for t in config.master['tasks']:
                 if imgui.button(t['name']):
-                    pass
+                    self._task_prep.type        = task.Type(t['type'])
+                    self._task_prep.payload_type= t['payload_type']
+                    if t['payload_type']=='text':
+                        self._task_prep.payload_text = t['payload']
+                    else:
+                        self._task_prep.payload_file = t['payload']
+                    self._task_prep.cwd         = t['cwd']
+                    self._task_prep.env         = t['env']
+                    self._task_prep.interactive = t['interactive']
         imgui.end()
         if imgui.begin('task_type_pane'):
             for t in task.Type:
                 if imgui.radio_button(t.value, self._task_prep.type==t):
                     self._task_prep.type = t
-                utils.draw_hover_text(t.doc,text='')
+                utils.draw_hover_text(t.doc, text='')
         imgui.end()
         if imgui.begin('task_config_pane'):
-            imgui.text("config")
+            if self._task_prep.type==task.Type.Wake_on_LAN:
+                imgui.text('Wake on LAN action has no parameters')
+            else:
+                multiline = False
+                match self._task_prep.type:
+                    case task.Type.Shell_command:
+                        field_name = 'Command'
+                    case task.Type.Process_exec:
+                        field_name = 'Executable and arguments'
+                    case task.Type.Batch_file:
+                        if self._task_prep.payload_type=='text':
+                            field_name = 'Batch file contents'
+                            multiline = True
+                        else:
+                            field_name = 'Batch file'
+                    case task.Type.Python_statement:
+                        field_name = 'Statement'
+                    case task.Type.Python_module:
+                        field_name = 'Module'
+                    case task.Type.Python_script:
+                        if self._task_prep.payload_type=='text':
+                            field_name = 'Python script contents'
+                            multiline = True
+                        else:
+                            field_name = 'Python script'
+                if self._task_prep.payload_type=='text':
+                    if multiline:
+                        # based on immapp.snippets.show_code_snippet
+                        width = imgui.get_content_region_max().x - imgui.get_window_content_region_min().x - imgui.get_style().item_spacing.x
+
+                        imgui.push_font(imgui_md.get_code_font())
+                        line_height = imgui.get_font_size()
+                        imgui.pop_font()
+                        num_visible_lines = 25
+                        editor_size = imgui.ImVec2(width, line_height*(num_visible_lines+1))
+
+                        imgui.push_id(imgui.get_id('command_editor'))
+                        imgui.begin_group()
+
+                        top_left = imgui.get_cursor_pos()
+                        top_right= imgui.ImVec2(top_left.x + editor_size.x, top_left.y)
+                        text_y = top_right.y + line_height * 0.2
+                        imgui.set_cursor_pos((top_left.x, text_y))
+                        imgui.text(field_name)
+
+                        text_x = top_right.x - line_height * 6.
+                        imgui.set_cursor_pos((text_x, text_y))
+                        pos = self._task_GUI_editor.get_cursor_position()
+                        imgui.text(f"L:{pos.m_line+1:3d} C:{pos.m_column+1:3d}")
+
+                        imgui.set_cursor_pos((top_right.x - line_height * 1.5, top_right.y))
+                        if imgui.button(icons_fontawesome.ICON_FA_COPY):
+                            self._task_GUI_editor_copy_t = immapp.clock_seconds()
+                            imgui.set_clipboard_text(self._task_GUI_editor.get_text())
+
+                        if imgui.is_item_hovered():
+                            was_copied_recently = self._task_GUI_editor_copy_t is not None and (immapp.clock_seconds()-self._task_GUI_editor_copy_t) < 0.7
+                            if was_copied_recently:
+                                imgui.set_tooltip("Copied!")
+                            else:
+                                imgui.set_tooltip("Copy")
+
+                        imgui.set_cursor_pos(top_right)
+                        imgui.new_line()
+
+                        imgui.push_font(imgui_md.get_code_font())
+                        self._task_GUI_editor.set_text(self._task_prep.payload_text)
+                        self._task_GUI_editor.render("Code",editor_size)
+                        self._task_prep.payload_text = self._task_GUI_editor.get_text()
+                        imgui.pop_font()
+                        imgui.end_group()
+                        imgui.pop_id()
+                    else:
+                        imgui.text(field_name)
+                        _, self._task_prep.payload_text = imgui.input_text(f'##{field_name}', self._task_prep.payload_text)
+                else:
+                    pass
         imgui.end()
         if imgui.begin('task_confirm_pane'):
-            imgui.text("confirm")
+            if imgui.button("run"):
+                selected_clients = [id for id in self.selected_computers if self.selected_computers[id]]
+                async_thread.run(
+                    self.master.run_task(
+                        self._task_prep.type,
+                        self._task_prep.payload_text if self._task_prep.payload_type=='text' else self._task_prep.payload_file,
+                        selected_clients,
+                        self._task_prep.payload_type,
+                        self._task_prep.cwd,
+                        self._task_prep.env,
+                        self._task_prep.interactive
+                    )
+                )
         imgui.end()
 
     def _imaging_GUI(self):
