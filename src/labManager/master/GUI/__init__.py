@@ -598,6 +598,22 @@ class MainGUI:
         )
         imgui.new_line()
 
+        if imgui.button('On'):
+            utils.set_all(self.selected_computers, False)
+            utils.set_all(self.selected_computers, True, predicate=lambda id: self.master.known_clients[id].client)
+        utils.draw_hover_text('Select all running computers',text='')
+        imgui.same_line()
+        if imgui.button('Off'):
+            utils.set_all(self.selected_computers, False)
+            utils.set_all(self.selected_computers, True, predicate=lambda id: not self.master.known_clients[id].client)
+        utils.draw_hover_text('Select all computers that are shut down',text='')
+        imgui.same_line()
+        if imgui.button('Invert'):
+            new_vals = {k: not self.selected_computers[k] for k in self.selected_computers}
+            self.selected_computers.clear()
+            self.selected_computers |= new_vals
+        utils.draw_hover_text('Invert selection of computers',text='')
+
         with self.master.known_clients_lock:
             if len(self.selected_computers)!=len(self.master.known_clients):
                 # update: remove or add to selected as needed
