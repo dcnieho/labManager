@@ -354,7 +354,17 @@ class MainGUI:
         if imgui.begin('task_type_pane'):
             for t in task.Type:
                 if imgui.radio_button(t.value, self._task_prep.type==t):
+                    old_type = self._task_prep.type
                     self._task_prep.type = t
+                    # remove command if not wanted
+                    if t==task.Type.Wake_on_LAN:
+                        self._task_prep.payload_file = self._task_prep.payload_text = ''
+                    # make sure we don't have a multiline commands in a single-line
+                    # textbox
+                    if old_type in [task.Type.Batch_file, task.Type.Python_script]:
+                        if t not in [task.Type.Batch_file, task.Type.Python_script]:
+                            self._task_prep.payload_type = 'text'
+                            self._task_prep.payload_text = utils.trim_str(self._task_prep.payload_text)
                 utils.draw_hover_text(t.doc, text='')
         imgui.end()
         if imgui.begin('task_config_pane'):
