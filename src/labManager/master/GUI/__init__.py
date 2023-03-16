@@ -5,6 +5,7 @@ import json
 from dataclasses import dataclass
 
 from imgui_bundle import hello_imgui, icons_fontawesome, imgui, immapp, imspinner, imgui_md, imgui_color_text_edit, glfw_window_hello_imgui
+from imgui_bundle import portable_file_dialogs
 from imgui_bundle.demos_python import demo_utils
 import glfw
 
@@ -57,6 +58,7 @@ class MainGUI:
         self._task_GUI_editor    = imgui_color_text_edit.TextEditor()
         self._task_GUI_editor.set_language_definition(self._task_GUI_editor.LanguageDefinition.python())  # there is no batch, have to live with this...
         self._task_GUI_editor_copy_t = None
+        self._task_GUI_open_file_diag = None
 
         # computer detail GUI
         self._computer_GUI_tasks: dict[int,int|None] = {}
@@ -393,6 +395,7 @@ class MainGUI:
                 imgui.text('Wake on LAN action has no parameters')
             else:
                 multiline = False
+                can_select_payload_type = False
                 match self._task_prep.type:
                     case task.Type.Shell_command:
                         field_name = 'Command'
@@ -404,6 +407,7 @@ class MainGUI:
                             multiline = True
                         else:
                             field_name = 'Batch file'
+                        can_select_payload_type = True
                     case task.Type.Python_statement:
                         field_name = 'Statement'
                     case task.Type.Python_module:
@@ -414,6 +418,13 @@ class MainGUI:
                             multiline = True
                         else:
                             field_name = 'Python script'
+                        can_select_payload_type = True
+                if can_select_payload_type:
+                    if imgui.radio_button('text', self._task_prep.payload_type=='text'):
+                        self._task_prep.payload_type='text'
+                    imgui.same_line()
+                    if imgui.radio_button('file', self._task_prep.payload_type=='file'):
+                        self._task_prep.payload_type='file'
                 if self._task_prep.payload_type=='text':
                     if multiline:
                         # based on immapp.snippets.show_code_snippet
@@ -465,7 +476,15 @@ class MainGUI:
                         imgui.text(field_name)
                         _, self._task_prep.payload_text = imgui.input_text(f'##{field_name}', self._task_prep.payload_text)
                 else:
-                    pass
+                    imgui.input_text('##file_inputter',self._task_prep.payload_file)
+                    if imgui.button("Select file"):
+                        self._task_GUI_open_file_diag = \
+                            portable_file_dialogs.open_file(f'Select {"script" if self._task_prep.type==task.Type.Python_script else "batch file"}')
+                    if self._task_GUI_open_file_diag is not None and self._task_GUI_open_file_diag.ready():
+                        res = self._task_GUI_open_file_diag.result()
+                        if isinstance(res,list):
+                            self._task_prep.payload_file = res[0]
+                        self._task_GUI_open_file_diag = None
         imgui.end()
         if imgui.begin('task_confirm_pane'):
             if imgui.button("run"):
