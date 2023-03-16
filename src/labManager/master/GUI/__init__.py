@@ -21,7 +21,7 @@ class ActionState(Enum):
 
 @dataclass
 class TaskDef:
-    type        : task.Type = task.Type.Batch_file    # good default
+    type        : task.Type = task.Type.Shell_command   # good default
     payload_type: str       = 'text'
     payload_text: str       = ''
     payload_file: str       = ''
