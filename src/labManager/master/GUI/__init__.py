@@ -578,8 +578,12 @@ class MainGUI:
         if imgui.begin(f'task_log_pane_{item.id}'):
             if (tid := self._computer_GUI_tasks[item.id]) is not None:
                 tsk = item.client.tasks[tid]
-                imgui.text_wrapped(tsk.stdout)
-                imgui.text_wrapped(tsk.stderr)
+                imgui.set_next_item_open(True, imgui.Cond_.once)
+                if imgui.collapsing_header(f'stdout##{tid}'):
+                    imgui.text_wrapped(tsk.stdout)
+                imgui.set_next_item_open(True, imgui.Cond_.once)
+                if imgui.collapsing_header(f'stderr##{tid}'):
+                    imgui.text_wrapped(tsk.stderr)
         imgui.end()
 
 
