@@ -184,6 +184,15 @@ class Client:
                         if my_task and my_task.input:
                             await my_task.input.put(msg['payload'])
 
+                    case message.Message.TASK_CANCEL:
+                        # find if there is a running task with this id, else ignore the request
+                        my_task = None
+                        for t in self._task_list:
+                            if msg['task_id']==t.id and not t.async_task.done():
+                                my_task = t
+                        if my_task:
+                            t.async_task.cancel()
+
             except Exception as exc:
                 tb_lines = traceback.format_exception(exc)
                 print("".join(tb_lines))

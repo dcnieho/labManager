@@ -29,6 +29,7 @@ class Message(enum_helper.AutoNameDash):
     # master -> client
     TASK_CREATE         = auto()    # {task_id, type, payload, cwd, env} # payload is the executable and args of subprocess.Popen, cwd and env (optional) its cwd and env arguments
     TASK_INPUT          = auto()    # if you have an interactive task (e.g. shell, or some other process listening to stdin), you can send commands to it using this message type
+    TASK_CANCEL         = auto()    # cancel running or pending task
     # client -> master
     TASK_OUTPUT         = auto()    # {task_id, stream_type, output}, task (stdout or stderr) output
     TASK_UPDATE         = auto()    # {task_id, status, Optional[return_code]}, task status update (started running, errored, finished). Latter two include return code
@@ -51,6 +52,7 @@ type_map = {
 
     Message.TASK_CREATE         : Type.JSON,
     Message.TASK_INPUT          : Type.JSON,
+    Message.TASK_CANCEL         : Type.JSON,
     Message.TASK_OUTPUT         : Type.JSON,
     Message.TASK_UPDATE         : Type.JSON,
     }

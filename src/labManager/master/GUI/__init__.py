@@ -616,6 +616,10 @@ class MainGUI:
                 imgui.text(tsk.status.value)
                 if tsk.return_code:
                     imgui.text(f'return code: {tsk.return_code}')
+                if tsk.status in [task.Status.Not_started, task.Status.Running]:
+                    imgui.same_line()
+                    if imgui.button(f'Stop##{tid}'):
+                        async_thread.run(task.send_cancel(item,tsk))
         imgui.end()
         if imgui.begin(f'task_log_pane_{item.id}'):
             if item.client and (tid := self._computer_GUI_tasks[item.id]) is not None:
