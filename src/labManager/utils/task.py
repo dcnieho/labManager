@@ -287,6 +287,17 @@ async def send(task: Task, known_client):
             }
         )
 
+async def send_input(payload, known_client, task: Task):
+    if known_client.client:
+        await network.comms.typed_send(
+            known_client.client.writer,
+            message.Message.TASK_INPUT,
+            {
+                'task_id': task.id,
+                'payload': payload,
+            }
+        )
+
 def create_group(type: Type, payload: str, known_clients: List[int], cwd: str=None, env: dict=None, interactive=False) -> TaskGroup:
     task_group = TaskGroup(type, payload)
 

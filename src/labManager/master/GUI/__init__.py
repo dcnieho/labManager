@@ -62,6 +62,7 @@ class MainGUI:
 
         # computer detail GUI
         self._computer_GUI_tasks: dict[int,int|None] = {}
+        self._computer_GUI_interactive_tasks: dict[tuple[int,int],str] = {}
 
         # Show errors in threads
         def asyncexcepthook(future: asyncio.Future):
@@ -619,6 +620,20 @@ class MainGUI:
         if imgui.begin(f'task_log_pane_{item.id}'):
             if item.client and (tid := self._computer_GUI_tasks[item.id]) is not None:
                 tsk = item.client.tasks[tid]
+                if tsk.interactive and tsk.status==task.Status.Running:
+                    if (item.id, tid) not in self._computer_GUI_interactive_tasks:
+                        self._computer_GUI_interactive_tasks[(item.id, tid)] = ''
+                    entered, self._computer_GUI_interactive_tasks[(item.id, tid)] = \
+                        imgui.input_text(f'##interactive_input{item.id},{tid}', self._computer_GUI_interactive_tasks[(item.id, tid)], flags=imgui.InputTextFlags_.enter_returns_true)
+                    if (disabled := not self._computer_GUI_interactive_tasks[(item.id, tid)]):
+                        utils.push_disabled()
+                    imgui.same_line()
+                    if imgui.button(f'Send##{item.id},{tid}') or entered:
+                        # send
+                        async_thread.run(task.send_input(self._computer_GUI_interactive_tasks[(item.id, tid)]+'\n',item,tsk))
+                        self._computer_GUI_interactive_tasks[(item.id, tid)] = ''
+                    if disabled:
+                        utils.pop_disabled()
                 imgui.set_next_item_open(True, imgui.Cond_.once)
                 if imgui.collapsing_header(f'stdout##{tid}'):
                     imgui.text_wrapped(tsk.stdout)
