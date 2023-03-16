@@ -551,6 +551,9 @@ class MainGUI:
             self._computer_GUI_tasks[item.id] = None
 
     def _computer_detail_GUI(self, item: structs.KnownClient):
+        if not item.client:
+            # clear state about this computer
+            self._computer_GUI_tasks[item.id] = None
         dock_space_id = imgui.get_id(f"ComputerDockSpace_{item.id}")
         if not imgui.internal.dock_builder_get_node(dock_space_id):
             # first time this GUI is shown, set up as follows:
@@ -583,19 +586,19 @@ class MainGUI:
                     lbl = utils.trim_str(tsk.payload, length=12, newline_ellipsis=True)
                     if imgui.button(f'{lbl}##{tsk.id}'):
                         self._computer_GUI_tasks[item.id] = id
-                    utils.draw_hover_text(hover_text=tsk.payload,text='')
+                    utils.draw_hover_text(hover_text=tsk.type.value+':\n'+tsk.payload,text='')
                 imgui.pop_font()
         imgui.end()
         if imgui.begin(f'task_result_pane_{item.id}'):
-            if (tid := self._computer_GUI_tasks[item.id]) is not None:
+            if item.client and (tid := self._computer_GUI_tasks[item.id]) is not None:
                 tsk = item.client.tasks[tid]
                 imgui.text(tsk.type.value)
-                imgui.text(str(tsk.status))
+                imgui.text(tsk.status.value)
                 if tsk.return_code:
                     imgui.text(f'return code: {tsk.return_code}')
         imgui.end()
         if imgui.begin(f'task_log_pane_{item.id}'):
-            if (tid := self._computer_GUI_tasks[item.id]) is not None:
+            if item.client and (tid := self._computer_GUI_tasks[item.id]) is not None:
                 tsk = item.client.tasks[tid]
                 imgui.set_next_item_open(True, imgui.Cond_.once)
                 if imgui.collapsing_header(f'stdout##{tid}'):
