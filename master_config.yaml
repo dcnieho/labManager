@@ -56,3 +56,37 @@ clients:
       MAC:  0C-9D-92-C3-15-54
     - name: MASTER
       MAC:  0C-9D-92-C3-15-EE
+
+tasks:
+    - name: ping
+      type: Shell command
+      payload: ping 8.8.8.8
+    - name: Wake Computer
+      type: Wake on LAN
+    - name: Start ET Manager
+      type: Shell command
+      payload: '"C:\Users\Administrator\Desktop\Eye Tracker Manager.lnk"'
+    - name: Start Tobii Pro Lab
+      type: Shell command
+      payload: '"C:\Users\Administrator\Desktop\Tobii Pro Lab (x64).lnk"'
+    - name: Start Breakout Demo
+      type: Shell command
+      payload: '"C:\Users\Administrator\Desktop\Run breakout demo.lnk"'
+    - name: Stop ET Manager
+      type: Shell command
+      payload: taskkill /t /f /im TobiiProEyeTrackerManager.exe
+    - name: Stop Tobii Pro Lab
+      type: Shell command
+      payload: taskkill /t /f /im TobiiProLab.exe
+    - name: Stop Python
+      type: Shell command
+      payload: taskkill /t /f /im python.exe
+    - name: Stop Matlab
+      type: Shell command
+      payload: taskkill /t /f /im matlab.exe
+    - name: Restart Computers
+      type: Shell command
+      payload: shutdown -r -t 0
+    - name: Shutdown Computers
+      type: Shell command
+      payload: shutdown -s -t 0
