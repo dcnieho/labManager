@@ -507,7 +507,7 @@ class MainGUI:
                 utils.draw_hover_text('If enabled, it is possible to send input (stdin) to the running command',text='')
         imgui.end()
         if imgui.begin('task_confirm_pane'):
-            if imgui.button("run"):
+            if imgui.button("Run"):
                 selected_clients = [id for id in self.selected_computers if self.selected_computers[id]]
                 async_thread.run(
                     self.master.run_task(
@@ -520,6 +520,9 @@ class MainGUI:
                         self._task_prep.interactive
                     )
                 )
+            imgui.same_line(imgui.get_content_region_avail().x-imgui.calc_text_size('Clear').x-2*imgui.get_style().frame_padding.x)
+            if imgui.button('Clear'):
+                self._task_prep = TaskDef()
         imgui.end()
 
     def _imaging_GUI(self):
