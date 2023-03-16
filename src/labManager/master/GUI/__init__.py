@@ -2,7 +2,7 @@ from enum import Enum, auto
 import asyncio
 import concurrent
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from imgui_bundle import hello_imgui, icons_fontawesome, imgui, immapp, imspinner, imgui_md, imgui_color_text_edit, glfw_window_hello_imgui
 from imgui_bundle import portable_file_dialogs
@@ -25,8 +25,8 @@ class TaskDef:
     payload_type: str       = 'text'
     payload_text: str       = ''
     payload_file: str       = ''
-    cwd         : str       = None
-    env         : dict      = None
+    cwd         : str       = ''
+    env         : dict      = field(default_factory=dict)
     interactive : bool      = False
 
 class MainGUI:
@@ -485,6 +485,13 @@ class MainGUI:
                         if isinstance(res,list):
                             self._task_prep.payload_file = res[0]
                         self._task_GUI_open_file_diag = None
+                imgui.begin_group()
+                imgui.text('Working directory')
+                _, self._task_prep.cwd = imgui.input_text('##cwd', self._task_prep.cwd)
+                imgui.end_group()
+                utils.draw_hover_text('Working directory from which the command will be executed',text='')
+                _, self._task_prep.interactive = imgui.checkbox('Interactive', self._task_prep.interactive)
+                utils.draw_hover_text('If enabled, it is possible to send input (stdin) to the running command',text='')
         imgui.end()
         if imgui.begin('task_confirm_pane'):
             if imgui.button("run"):
