@@ -209,7 +209,7 @@ class Executor:
             case Type.Batch_file:
                 # invoke batch file
                 folder   = pathlib.Path(f'task{id}')
-                filename = folder/'script.bat'
+                filename = (folder/'script.bat').resolve()
                 cmd = [str(filename)]
             case Type.Python_statement:
                 # sys.executable + '-c'
@@ -220,7 +220,7 @@ class Executor:
             case Type.Python_script:
                 # sys.executable
                 folder   = pathlib.Path(f'task{id}')
-                filename = folder/'script.py'
+                filename = (folder/'script.py').resolve()
                 cmd = [sys.executable, str(filename)]
 
         # write payload to file if needed
