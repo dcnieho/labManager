@@ -476,15 +476,27 @@ class MainGUI:
                         imgui.text(field_name)
                         _, self._task_prep.payload_text = imgui.input_text(f'##{field_name}', self._task_prep.payload_text)
                 else:
-                    imgui.input_text('##file_inputter',self._task_prep.payload_file)
+                    _, self._task_prep.payload_file = imgui.input_text('##file_inputter',self._task_prep.payload_file)
                     if imgui.button("Select file"):
                         self._task_GUI_open_file_diag = \
                             portable_file_dialogs.open_file(f'Select {"script" if self._task_prep.type==task.Type.Python_script else "batch file"}')
                     if self._task_GUI_open_file_diag is not None and self._task_GUI_open_file_diag.ready():
                         res = self._task_GUI_open_file_diag.result()
-                        if isinstance(res,list):
+                        if res and isinstance(res,list):
                             self._task_prep.payload_file = res[0]
                         self._task_GUI_open_file_diag = None
+                    imgui.same_line()
+                    if not self._task_prep.payload_file:
+                        utils.push_disabled()
+                    if imgui.button('Load file'):
+                        try:
+                            with open(self._task_prep.payload_file, 'rt') as file:
+                                self._task_prep.payload_text = file.read()
+                                self._task_prep.payload_type = 'text'
+                        except Exception as ex:
+                            utils.push_popup(self, msgbox.msgbox, "File reading error", f"Opening the file '{self._task_prep.payload_file}' has failed:\n{type(ex).__name__}: {str(ex) or 'No further details'}", msgbox.MsgBox.error)
+                    if not self._task_prep.payload_file:
+                        utils.pop_disabled()
                 imgui.begin_group()
                 imgui.text('Working directory')
                 _, self._task_prep.cwd = imgui.input_text('##cwd', self._task_prep.cwd)
