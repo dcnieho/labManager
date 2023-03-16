@@ -38,7 +38,7 @@ _master_schema = s.Map({
         s.Map({
             'name': s.Str(),
             'type': s.Enum(task.types),
-            'payload': s.Str(),
+            s.Optional('payload', default=''): s.Str(),
             s.Optional('payload_type', default='text'): s.Enum(['text','file']),
             s.Optional('cwd', default=''): s.Str(),
             s.Optional('env', default=''): s.Str(),
