@@ -270,22 +270,29 @@ class Executor:
                 {'task_id': id, 'status': Status.Errored}
             )
 
-async def send(task: Task, known_client):
-    if task.type==Type.Wake_on_LAN:
-        pass
-    elif known_client.client:
-        await network.comms.typed_send(
-            known_client.client.writer,
-            message.Message.TASK_CREATE,
-            {
-                'task_id': task.id,
-                'type': task.type,
-                'payload': task.payload,
-                'cwd': task.cwd,
-                'env': task.env,
-                'interactive': task.interactive,
-            }
-        )
+async def send(task: Task|TaskGroup, known_client):
+    if isinstance(task, TaskGroup):
+        if task.type==Type.Wake_on_LAN:
+            MACs = [known_client[task.task_refs[i].known_client].MAC for i in task.task_refs if task.task_refs[i].known_client in known_client]
+            await network.wol.send_magic_packet(*MACs)
+        else:
+            raise RuntimeError(f'API usage error: Task type {task.Type.value} cannot be launched as a group at once. Do this only if the second return argument of task.create_group() is True')
+    else:
+        if task.type==Type.Wake_on_LAN:
+            await network.wol.send_magic_packet(known_client.MAC)
+        elif known_client.client:
+            await network.comms.typed_send(
+                known_client.client.writer,
+                message.Message.TASK_CREATE,
+                {
+                    'task_id': task.id,
+                    'type': task.type,
+                    'payload': task.payload,
+                    'cwd': task.cwd,
+                    'env': task.env,
+                    'interactive': task.interactive,
+                }
+            )
 
 async def send_input(payload, known_client, task: Task):
     if known_client.client:
@@ -318,4 +325,5 @@ def create_group(type: Type, payload: str, known_clients: List[int], cwd: str=No
         # add to task group
         task_group.task_refs[c] = task
 
-    return task_group
+    # second return: true if whole group should be launched as one, false if tasks should be launched individually
+    return task_group, type==type.Wake_on_LAN

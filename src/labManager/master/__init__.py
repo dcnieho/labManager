@@ -356,13 +356,13 @@ class Master:
         # handle payload
         match payload_type:
             case 'text':
-                pass
+                pass    # nothing to do, payload already in payload variable
             case 'file':
                 async with aiofile.async_open(payload, 'rt') as afp:
                     payload = await afp.read()
 
         # make task group
-        task_group = task.create_group(type, payload, known_clients, cwd=cwd, env=env, interactive=interactive)
+        task_group, launch_group = task.create_group(type, payload, known_clients, cwd=cwd, env=env, interactive=interactive)
         self.task_groups[task_group.id] = task_group
 
         # start tasks
@@ -372,8 +372,11 @@ class Master:
             # add to client task list
             if self.known_clients[c].client:
                 self.known_clients[c].client.tasks[mytask.id] = mytask
-            # send
-            coros.append(task.send(mytask, self.known_clients[c]))
+            if not launch_group:
+                # send
+                coros.append(task.send(mytask, self.known_clients[c]))
+        if launch_group:
+            coros.append(task.send(task_group, self.known_clients))
 
         await asyncio.gather(*coros)
 
