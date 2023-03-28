@@ -621,7 +621,7 @@ class MainGUI:
                     imgui.text(f'return code: {tsk.return_code}')
                 if tsk.status in [task.Status.Not_started, task.Status.Running]:
                     imgui.same_line()
-                    if imgui.button(f'Stop##{tid}'):
+                    if imgui.button(f'Cancel##{tid}' if tsk.status==task.Status.Not_started else f'Stop##{tid}'):
                         async_thread.run(task.send_cancel(item,tsk))
         imgui.end()
         if imgui.begin(f'task_log_pane_{item.id}'):
