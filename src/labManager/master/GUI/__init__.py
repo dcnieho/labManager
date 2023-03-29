@@ -677,6 +677,9 @@ class MainGUI:
                 return
             except:
                 pass
+        if '404' in msg and 'User not found' in msg:
+            # lost session on server side, update GUI to reflect that
+            self._logout()
 
         # not handled by above, display more generic error
         tb = utils.get_traceback(type(exc), exc, exc.__traceback__)
