@@ -60,7 +60,11 @@ class MainGUI:
         self._task_GUI_editor_copy_t = None
         self._task_GUI_open_file_diag = None
 
-        # computer detail GUI
+        # image management GUI
+        self._images_list = []
+        self._selected_image_id = None
+
+        # computer detail GUIs
         self._computer_GUI_tasks: dict[int,int|None] = {}
         self._computer_GUI_interactive_tasks: dict[tuple[int,int],str] = {}
 
@@ -267,16 +271,23 @@ class MainGUI:
             ]
         self._to_dock = ["Tasks", "Image Management"]
         self._set_window_title(add_user=True, add_project=True)
+        # prep for image management
+        async_thread.run(self._get_project_images())
         # start server
         if_ips,_ = network.ifs.get_ifaces(config.master['network'])
         async_thread.run(self.master.start_server((if_ips[0], 0)))
 
+    async def _get_project_images(self):
+        self._images_list = await self.master.get_images()
+
     def _unload_project(self):
         if self.master.is_serving():
             async_thread.wait(self.master.stop_server())
-        self.proj_select_state= ActionState.Not_Done
-        self.proj_idx         = -1
-        self.project          = ''
+        self._selected_image_id = None
+        self._images_list       = []
+        self.proj_select_state  = ActionState.Not_Done
+        self.proj_idx           = -1
+        self.project            = ''
         self.master.unset_project()
 
         # reset GUI
@@ -587,10 +598,22 @@ class MainGUI:
         imgui.dock_space(dock_space_id, (0.,0.), imgui.DockNodeFlags_.no_split|imgui.internal.DockNodeFlagsPrivate_.im_gui_dock_node_flags_no_tab_bar)
 
         if imgui.begin('images_list_pane'):
-            imgui.text("list")
+            for im in self._images_list:
+                if imgui.button(im['UserFacingName']):
+                    self._selected_image_id = im['Id']
         imgui.end()
         if imgui.begin('image_details_pane'):
-            imgui.text("details")
+            if self._selected_image_id:
+                im = None
+                for i in self._images_list:
+                    if i['Id']==self._selected_image_id:
+                        im=i
+                        break
+                if not im:
+                    self._selected_image_id = None
+                else:
+                    imgui.text(im['UserFacingName'])
+                    imgui.text(im['Description'])
         imgui.end()
         if imgui.begin('imaging_actions_pane'):
             imgui.text("actions")
