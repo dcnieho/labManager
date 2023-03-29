@@ -331,6 +331,42 @@ class MainGUI:
             if disabled:
                 utils.pop_disabled()
 
+    def _login_result(self, stage, future: asyncio.Future):
+        try:
+            exc = future.exception()
+        except concurrent.futures.CancelledError:
+            return
+        if not exc:
+            # log in successful
+            if stage=='login':
+                self._login_done()
+            elif stage=='project':
+                self._project_selected()
+            return
+
+        # error occurred
+        if stage=='login':
+            self.login_state = ActionState.Not_Done
+        elif stage=='project':
+            self.proj_select_state = ActionState.Not_Done
+        msg = str(exc)
+        if '401' in msg:
+            msg = msg.splitlines()
+            try:
+                msg = json.loads(msg[-1])['detail']
+                utils.push_popup(self, msgbox.msgbox, f"{'Login' if stage=='login' else 'Project selection'} error", msg, msgbox.MsgBox.error)
+                return
+            except:
+                pass
+        if '404' in msg and 'User not found' in msg:
+            # lost session on server side, update GUI to reflect that
+            self._logout()
+
+        # not handled by above, display more generic error
+        tb = utils.get_traceback(type(exc), exc, exc.__traceback__)
+        utils.push_popup(self, msgbox.msgbox, "Login error", f"Something went wrong when {'logging in' if stage=='login' else 'selecting project'}...", msgbox.MsgBox.error, more=tb)
+
+
     def _task_GUI(self):
         dock_space_id = imgui.get_id("TasksDockSpace")
         if not imgui.internal.dock_builder_get_node(dock_space_id):
@@ -649,41 +685,6 @@ class MainGUI:
                     imgui.text_wrapped(tsk.stderr)
         imgui.end()
 
-
-    def _login_result(self, stage, future: asyncio.Future):
-        try:
-            exc = future.exception()
-        except concurrent.futures.CancelledError:
-            return
-        if not exc:
-            # log in successful
-            if stage=='login':
-                self._login_done()
-            elif stage=='project':
-                self._project_selected()
-            return
-
-        # error occurred
-        if stage=='login':
-            self.login_state = ActionState.Not_Done
-        elif stage=='project':
-            self.proj_select_state = ActionState.Not_Done
-        msg = str(exc)
-        if '401' in msg:
-            msg = msg.splitlines()
-            try:
-                msg = json.loads(msg[-1])['detail']
-                utils.push_popup(self, msgbox.msgbox, f"{'Login' if stage=='login' else 'Project selection'} error", msg, msgbox.MsgBox.error)
-                return
-            except:
-                pass
-        if '404' in msg and 'User not found' in msg:
-            # lost session on server side, update GUI to reflect that
-            self._logout()
-
-        # not handled by above, display more generic error
-        tb = utils.get_traceback(type(exc), exc, exc.__traceback__)
-        utils.push_popup(self, msgbox.msgbox, "Login error", f"Something went wrong when {'logging in' if stage=='login' else 'selecting project'}...", msgbox.MsgBox.error, more=tb)
 
     def _computer_pane(self):
         if not self._first_setup_done:
