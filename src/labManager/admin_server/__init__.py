@@ -21,7 +21,6 @@ class Project(BaseModel):
     name: str
     full_name: str
     distinguished_name: str
-    smb_access: int = -1    # -1: unknown, 0: no access, 1: access
 
 def _next_id():
     if not users:
