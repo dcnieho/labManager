@@ -138,16 +138,16 @@ class Master:
             self.toems = None
 
         # set new project
-        self.project = project
-        self.admin.set_project(self.project)
+        self.admin.set_project(project)
 
         # check SMB access
-        self.has_share_access = _SMB_get_shares(self.admin.user, self.password, self.project)
+        self.has_share_access = _SMB_get_shares(self.admin.user, self.password, project)
 
         # log into toems server
         await self.admin.prep_toems()
         self.toems = network.toems.Client(config.master['toems']['server'], config.master['toems']['port'], protocol='http')
         await self.toems.connect(self.username, self.password)
+        self.project = project
 
     def unset_project(self):
         if self.toems is not None:
