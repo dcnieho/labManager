@@ -283,6 +283,12 @@ class MainGUI:
         # also get image size on disk
         for im in self._images_list:
             im['DiskSize'] = await self.master.get_image_size(im['Id'])
+        # flag if the images belong to the selected project
+        # simple trick: if image belongs to the project, then its user-facing name doesn't
+        # match its name (since the project prefix is removed)
+        for im in self._images_list:
+            im['PartOfProject'] = im['UserFacingName'] != im['Name']
+
 
     def _unload_project(self):
         if self.master.is_serving():
@@ -688,24 +694,25 @@ class MainGUI:
                 if disabled:
                     utils.pop_disabled()
 
-                if (disabled := len(selected_clients)!=1):
-                    utils.push_disabled()
-                if imgui.button('Upload'):
-                    async_thread.run(self.master.upload_computer_to_image(next((self.master.known_clients[i].name for i in selected_clients)), im['Name']),
-                                     lambda fut: self._image_action_result('upload',fut))
-                if not disabled and imgui.is_item_hovered():
-                    station_txt = next((self.master.known_clients[i].name for i in selected_clients))
-                    utils.draw_tooltip(f"Upload station {station_txt} to image '{im['Name']}'")
-                if disabled:
-                    utils.pop_disabled()
+                if im['PartOfProject']:
+                    if (disabled := len(selected_clients)!=1):
+                        utils.push_disabled()
+                    if imgui.button('Upload'):
+                        async_thread.run(self.master.upload_computer_to_image(next((self.master.known_clients[i].name for i in selected_clients)), im['Name']),
+                                        lambda fut: self._image_action_result('upload',fut))
+                    if not disabled and imgui.is_item_hovered():
+                        station_txt = next((self.master.known_clients[i].name for i in selected_clients))
+                        utils.draw_tooltip(f"Upload station {station_txt} to image '{im['Name']}'")
+                    if disabled:
+                        utils.pop_disabled()
 
-                imgui.push_style_color(imgui.Col_.button, imgui.ImVec4(*imgui.ImColor.hsv(0.9667,.88,.43)))
-                imgui.push_style_color(imgui.Col_.button_hovered, imgui.ImVec4(*imgui.ImColor.hsv(0.9667,.88,.64)))
-                imgui.push_style_color(imgui.Col_.button_active, imgui.ImVec4(*imgui.ImColor.hsv(0.9667,.88,.93)))
-                if imgui.button('Delete'):
-                    async_thread.run(self.master.delete_image(im['Name']),
-                                     lambda fut: self._image_action_result('delete',fut))
-                imgui.pop_style_color(3)
+                    imgui.push_style_color(imgui.Col_.button, imgui.ImVec4(*imgui.ImColor.hsv(0.9667,.88,.43)))
+                    imgui.push_style_color(imgui.Col_.button_hovered, imgui.ImVec4(*imgui.ImColor.hsv(0.9667,.88,.64)))
+                    imgui.push_style_color(imgui.Col_.button_active, imgui.ImVec4(*imgui.ImColor.hsv(0.9667,.88,.93)))
+                    if imgui.button('Delete'):
+                        async_thread.run(self.master.delete_image(im['Name']),
+                                        lambda fut: self._image_action_result('delete',fut))
+                    imgui.pop_style_color(3)
         imgui.end()
 
     def _image_action_result(self, action, future: asyncio.Future):
