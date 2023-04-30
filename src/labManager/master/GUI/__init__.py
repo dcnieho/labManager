@@ -592,7 +592,7 @@ class MainGUI:
             self._imaging_GUI_list_dock_id = imgui.internal.dock_builder_split_node(dock_space_id, imgui.Dir_.left,0.20,1,1)
             temp_id = self._imaging_GUI_list_dock_id+1
 
-            self._imaging_GUI_details_dock_id = imgui.internal.dock_builder_split_node(temp_id, imgui.Dir_.up,0.3,1,1)
+            self._imaging_GUI_details_dock_id = imgui.internal.dock_builder_split_node(temp_id, imgui.Dir_.up,0.7,1,1)
             self._imaging_GUI_action_dock_id = self._imaging_GUI_details_dock_id+1
 
             imgui.internal.dock_builder_dock_window('images_list_pane',self._imaging_GUI_list_dock_id)
@@ -602,17 +602,41 @@ class MainGUI:
         imgui.dock_space(dock_space_id, (0.,0.), imgui.DockNodeFlags_.no_split|imgui.internal.DockNodeFlagsPrivate_.im_gui_dock_node_flags_no_tab_bar)
 
         if imgui.begin('images_list_pane'):
+            if imgui.button('+'):
+                new_image_name = ''
+                def _add_image_popup():
+                    nonlocal new_image_name
+                    imgui.dummy((30*imgui.calc_text_size('x').x,0))
+                    if imgui.begin_table("##new_image_info",2):
+                        imgui.table_setup_column("##new_image_infos_left", imgui.TableColumnFlags_.width_fixed)
+                        imgui.table_setup_column("##new_image_infos_right", imgui.TableColumnFlags_.width_stretch)
+                        imgui.table_next_row()
+                        imgui.table_next_column()
+                        imgui.align_text_to_frame_padding()
+                        imgui.text("Image name")
+                        imgui.table_next_column()
+                        imgui.set_next_item_width(-1)
+                        _,new_image_name = imgui.input_text("##new_image_name",new_image_name)
+                        imgui.end_table()
+
+                buttons = {
+                    icons_fontawesome.ICON_FA_CHECK+" Add image": lambda: async_thread.run(self.master.create_image(new_image_name),
+                                                                                           lambda fut: self._image_action_result('create',fut)),
+                    icons_fontawesome.ICON_FA_BAN+" Cancel": None
+                }
+                utils.push_popup(self, lambda: utils.popup("Add image", _add_image_popup, buttons = buttons, closable=True))
+
             for im in self._images_list:
                 if imgui.button(im['UserFacingName']):
                     self._selected_image_id = im['Id']
         imgui.end()
+        im = None
+        for i in self._images_list:
+            if i['Id']==self._selected_image_id:
+                im=i
+                break
         if imgui.begin('image_details_pane'):
             if self._selected_image_id:
-                im = None
-                for i in self._images_list:
-                    if i['Id']==self._selected_image_id:
-                        im=i
-                        break
                 if not im:
                     self._selected_image_id = None
                 else:
@@ -637,7 +661,7 @@ class MainGUI:
                             do_update = imgui.button('Save')
                         if changed | do_update:
                             async_thread.run(self.master.update_image(im['Name'],{'Description':self._image_description_cache[im['Id']]}),
-                                             lambda fut: self._image_update_result(fut))
+                                             lambda fut: self._image_action_result('update',fut))
                         imgui.table_next_row()
                         imgui.table_next_column()
                         imgui.text("Size on disk")
@@ -647,26 +671,72 @@ class MainGUI:
                         imgui.end_table()
         imgui.end()
         if imgui.begin('imaging_actions_pane'):
-            imgui.text("actions")
+            if im:
+                selected_clients = [id for id in self.selected_computers if self.selected_computers[id]]
+                if (disabled := not selected_clients):
+                    utils.push_disabled()
+                if imgui.button('Deploy'):
+                    async_thread.run(self.master.deploy_image(im['Name'], [self.master.known_clients[i].name for i in selected_clients]),
+                                     lambda fut: self._image_action_result('deploy',fut))
+                if not disabled and imgui.is_item_hovered():
+                    stations_txt = '\n  '.join((self.master.known_clients[i].name for i in selected_clients))
+                    utils.draw_tooltip(f"Deploy image '{im['Name']}' to selected stations:\n  "+stations_txt)
+                if disabled:
+                    utils.pop_disabled()
+
+                if (disabled := len(selected_clients)!=1):
+                    utils.push_disabled()
+                if imgui.button('Upload'):
+                    async_thread.run(self.master.upload_computer_to_image(next((self.master.known_clients[i].name for i in selected_clients)), im['Name']),
+                                     lambda fut: self._image_action_result('upload',fut))
+                if not disabled and imgui.is_item_hovered():
+                    station_txt = next((self.master.known_clients[i].name for i in selected_clients))
+                    utils.draw_tooltip(f"Upload station {station_txt} to image '{im['Name']}'")
+                if disabled:
+                    utils.pop_disabled()
+
+                imgui.push_style_color(imgui.Col_.button, imgui.ImVec4(*imgui.ImColor.hsv(0.9667,.88,.43)))
+                imgui.push_style_color(imgui.Col_.button_hovered, imgui.ImVec4(*imgui.ImColor.hsv(0.9667,.88,.64)))
+                imgui.push_style_color(imgui.Col_.button_active, imgui.ImVec4(*imgui.ImColor.hsv(0.9667,.88,.93)))
+                if imgui.button('Delete'):
+                    async_thread.run(self.master.delete_image(im['Name']),
+                                     lambda fut: self._image_action_result('delete',fut))
+                imgui.pop_style_color(3)
         imgui.end()
 
-    def _image_update_result(self, future: asyncio.Future):
+    def _image_action_result(self, action, future: asyncio.Future):
         try:
             exc = future.exception()
         except concurrent.futures.CancelledError:
             return
         if not exc:
-            # update successful, refresh image cache
+            # action successful, refresh image cache
             async_thread.run(self._get_project_images())
             return
 
         # error occurred
         msg = str(exc)
+        if '401' in msg:
+            msg = msg.splitlines()
+            try:
+                msg = json.loads(msg[-1])['detail']
+                utils.push_popup(self, msgbox.msgbox, f"Image {action} error: Not authorized", msg, msgbox.MsgBox.error)
+                return
+            except:
+                pass
         if '403' in msg:
             msg = msg.splitlines()
             try:
                 msg = json.loads(msg[-1])['detail']
-                utils.push_popup(self, msgbox.msgbox, "Image update error: No permission", msg, msgbox.MsgBox.error)
+                utils.push_popup(self, msgbox.msgbox, f"Image {action} error: No permission", msg, msgbox.MsgBox.error)
+                return
+            except:
+                pass
+        if '409' in msg:
+            msg = msg.splitlines()
+            try:
+                msg = json.loads(msg[-1])['detail']
+                utils.push_popup(self, msgbox.msgbox, f"Image {action} error: Already exists", msg, msgbox.MsgBox.error)
                 return
             except:
                 pass
@@ -676,7 +746,7 @@ class MainGUI:
 
         # not handled by above, display more generic error
         tb = utils.get_traceback(type(exc), exc, exc.__traceback__)
-        utils.push_popup(self, msgbox.msgbox, "Image update", "Something went wrong when updating the image...", msgbox.MsgBox.error, more=tb)
+        utils.push_popup(self, msgbox.msgbox, f"Image {action}", f"Something went wrong with the image {action} action...", msgbox.MsgBox.error, more=tb)
 
 
     def _open_computer_detail(self, item: structs.KnownClient):
