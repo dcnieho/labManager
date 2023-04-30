@@ -660,7 +660,11 @@ class MainGUI:
                         imgui.table_next_column()
                         imgui.text("Description")
                         imgui.table_next_column()
+                        if (disabled := not im['PartOfProject']):
+                            utils.push_disabled()
                         changed,self._image_description_cache[im['Id']] = imgui.input_text_multiline(f"##image{im['Id']}_description",self._image_description_cache[im['Id']],flags=imgui.InputTextFlags_.allow_tab_input|imgui.InputTextFlags_.enter_returns_true)
+                        if disabled:
+                            utils.pop_disabled()
                         do_update = False
                         if self._image_description_cache[im['Id']]!=im['Description']:
                             imgui.same_line()
