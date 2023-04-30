@@ -658,7 +658,11 @@ class MainGUI:
                         do_update = False
                         if self._image_description_cache[im['Id']]!=im['Description']:
                             imgui.same_line()
+                            imgui.begin_group()
                             do_update = imgui.button('Save')
+                            if imgui.button('Discard changes'):
+                                self._image_description_cache[im['Id']] = im['Description']
+                            imgui.end_group()
                         if changed | do_update:
                             async_thread.run(self.master.update_image(im['Name'],{'Description':self._image_description_cache[im['Id']]}),
                                              lambda fut: self._image_action_result('update',fut))
