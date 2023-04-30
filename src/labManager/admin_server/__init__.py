@@ -234,7 +234,6 @@ async def user_toems_image_apply(user_id: int, proj_id: int, image_id: int, comp
 
     # check image profile for this image
     profiles = await toems[user_id].conn.image_get_profiles(image_id)
-    print(profiles)
     if len(profiles)==1:
         profile_id = profiles[0]['Id']
     else:
