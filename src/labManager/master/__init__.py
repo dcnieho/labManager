@@ -190,7 +190,7 @@ class Master:
                 raise RuntimeError(f"can't deploy: failed to apply image to computer ({resp['ErrorMessage']})")
 
         resp = await self.toems.computer_deploy(image_id, comp_ids)
-        if not 'Success' in resp['Value']:
+        if not resp['Success']:
             raise RuntimeError(f"can't deploy: failed to start task ({resp['ErrorMessage']})")
 
     async def upload_computer_to_image(self, computer: str, image: str):

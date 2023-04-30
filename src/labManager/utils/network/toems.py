@@ -158,7 +158,7 @@ class Client:
         # 3. check image has a size (if no image it can't be deployed)
         size = await self.image_get_server_size(image_id)
         if size=='N/A':
-            return {'Success': False}
+            return {'Success': False, 'ErrorMessage': f'The image is empty.'}
 
         # 4. check that the selected computers have the correct image assigned
         for c in computer_ids:
@@ -172,7 +172,7 @@ class Client:
             if not 'Success' in resp['Value']:
                 return {'Success': False, 'ErrorMessage': resp['Value']}
 
-        return resp
+        return {'Success': True}
 
     async def computer_upload(self, computer_name_or_id, image_name_or_id):
         # 1. get image id
