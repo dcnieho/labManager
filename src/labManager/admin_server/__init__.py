@@ -191,7 +191,7 @@ async def user_toems_image_update(user_id: int, proj_id: int, image_id: int, upd
     # 1. first check this image belongs to the user's project (by means of name)
     image = await _toems_get_image(toems[user_id].conn, image_id)
     if not image['Name'].startswith(users[user_id].projects[proj_id].name+'_'):
-        raise HTTPException(status_code=403, detail=f'You are not allowed to delete the image "{image["Name"]}" because it is not a part of your project.')
+        raise HTTPException(status_code=403, detail=f'You are not allowed to update the image "{image["Name"]}" because it is not a part of your project.')
 
     # 2. then, apply updates
     resp = await toems[user_id].conn.image_update(image_id, updates)

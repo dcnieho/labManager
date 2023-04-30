@@ -63,6 +63,7 @@ class MainGUI:
         # image management GUI
         self._images_list = []
         self._selected_image_id = None
+        self._image_description_cache = {}
 
         # computer detail GUIs
         self._computer_GUI_tasks: dict[int,int|None] = {}
@@ -279,6 +280,9 @@ class MainGUI:
 
     async def _get_project_images(self):
         self._images_list = await self.master.get_images()
+        # also get image size on disk
+        for im in self._images_list:
+            im['DiskSize'] = await self.master.get_image_size(im['Id'])
 
     def _unload_project(self):
         if self.master.is_serving():
@@ -588,7 +592,7 @@ class MainGUI:
             self._imaging_GUI_list_dock_id = imgui.internal.dock_builder_split_node(dock_space_id, imgui.Dir_.left,0.20,1,1)
             temp_id = self._imaging_GUI_list_dock_id+1
 
-            self._imaging_GUI_details_dock_id = imgui.internal.dock_builder_split_node(temp_id, imgui.Dir_.up,0.15,1,1)
+            self._imaging_GUI_details_dock_id = imgui.internal.dock_builder_split_node(temp_id, imgui.Dir_.up,0.3,1,1)
             self._imaging_GUI_action_dock_id = self._imaging_GUI_details_dock_id+1
 
             imgui.internal.dock_builder_dock_window('images_list_pane',self._imaging_GUI_list_dock_id)
@@ -612,12 +616,68 @@ class MainGUI:
                 if not im:
                     self._selected_image_id = None
                 else:
-                    imgui.text(im['UserFacingName'])
-                    imgui.text(im['Description'])
+                    if im['Id'] not in self._image_description_cache:
+                        self._image_description_cache[im['Id']] = im['Description']
+                    if imgui.begin_table("##image_infos",2):
+                        imgui.table_setup_column("##image_infos_left", imgui.TableColumnFlags_.width_fixed)
+                        imgui.table_setup_column("##image_infos_right", imgui.TableColumnFlags_.width_stretch)
+                        imgui.table_next_row()
+                        imgui.table_next_column()
+                        imgui.text("Image name")
+                        imgui.table_next_column()
+                        imgui.text(im['UserFacingName'])
+                        imgui.table_next_row()
+                        imgui.table_next_column()
+                        imgui.text("Description")
+                        imgui.table_next_column()
+                        changed,self._image_description_cache[im['Id']] = imgui.input_text_multiline(f"##image{im['Id']}_description",self._image_description_cache[im['Id']],flags=imgui.InputTextFlags_.allow_tab_input|imgui.InputTextFlags_.enter_returns_true)
+                        do_update = False
+                        if self._image_description_cache[im['Id']]!=im['Description']:
+                            imgui.same_line()
+                            do_update = imgui.button('Save')
+                        if changed | do_update:
+                            async_thread.run(self.master.update_image(im['Name'],{'Description':self._image_description_cache[im['Id']]}),
+                                             lambda fut: self._image_update_result(fut))
+                        imgui.table_next_row()
+                        imgui.table_next_column()
+                        imgui.text("Size on disk")
+                        imgui.table_next_column()
+                        if 'DiskSize' in im:
+                            imgui.text(im['DiskSize'])
+                        imgui.end_table()
         imgui.end()
         if imgui.begin('imaging_actions_pane'):
             imgui.text("actions")
         imgui.end()
+
+    def _image_update_result(self, future: asyncio.Future):
+        try:
+            exc = future.exception()
+        except concurrent.futures.CancelledError:
+            return
+        if not exc:
+            # update successful, refresh image cache
+            async_thread.run(self._get_project_images())
+            return
+
+        # error occurred
+        msg = str(exc)
+        if '403' in msg:
+            msg = msg.splitlines()
+            try:
+                msg = json.loads(msg[-1])['detail']
+                utils.push_popup(self, msgbox.msgbox, "Image update error: No permission", msg, msgbox.MsgBox.error)
+                return
+            except:
+                pass
+        if '404' in msg and 'User not found' in msg:
+            # lost session on server side, update GUI to reflect that
+            self._logout()
+
+        # not handled by above, display more generic error
+        tb = utils.get_traceback(type(exc), exc, exc.__traceback__)
+        utils.push_popup(self, msgbox.msgbox, "Image update", "Something went wrong when updating the image...", msgbox.MsgBox.error, more=tb)
+
 
     def _open_computer_detail(self, item: structs.KnownClient):
         win = next((x for x in hello_imgui.get_runner_params().docking_params.dockable_windows if x.label==item.name), None)

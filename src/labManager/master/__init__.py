@@ -164,8 +164,15 @@ class Master:
     async def get_images(self):
         return await self.toems.image_get(project=self.project, project_format=config.master['toems']['images']['format'])
 
+    async def get_image_size(self, name_or_id: int|str):
+        return await self.toems.image_get_server_size(name_or_id)
+
     async def create_image(self, name: str, description: str|None = None):
         return await self.admin.create_image(name, description)
+
+    async def update_image(self, name: str, updates):
+        image_id = (await self.toems.image_get(name))['Id']
+        return await self.admin.update_image(image_id, updates)
 
     async def delete_image(self, name: str):
         image_id = (await self.toems.image_get(name))['Id']
