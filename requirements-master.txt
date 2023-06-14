@@ -6,3 +6,4 @@ pyOpenSSL>=21.0.0
 ldap3>=2.5,!=2.5.2,!=2.5.0,!=2.6
 httpx
 Authlib
+imgui_bundle>=0.8.7
