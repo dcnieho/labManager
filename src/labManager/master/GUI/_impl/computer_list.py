@@ -235,7 +235,7 @@ class ComputerList():
         imgui.text_colored(clrs[0], prepend[0]+' ')
         if client.client and client.client.eye_tracker:
             et = client.client.eye_tracker
-            info += f'\n{et.model}@{et.frequency}Hz ({et.firmware_version}, {et.serial})'
+            info = f'{et.model} @ {et.frequency}Hz\n({et.firmware_version}, {et.serial})'
             utils.draw_hover_text(info,text='')
         imgui.same_line()
         # computer
