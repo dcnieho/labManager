@@ -365,8 +365,11 @@ class Client:
         return await self.request(f'Image/Delete/{image_id}', req_type='delete')
 
 
-    async def imaging_task_get(self):
+    async def imaging_tasks_get_active(self):
         return await self.request('ActiveImagingTask/GetActiveTasks')
+
+    async def imaging_tasks_delete_active(self, task_id: int):
+        return await self.request(f'ActiveImagingTask/Delete/{task_id}', req_type='delete')
 
 
     async def file_copy_actions_get(self, id=None):

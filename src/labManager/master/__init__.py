@@ -214,6 +214,49 @@ class Master:
         if not 'Success' in resp['Value']:
             raise RuntimeError(f"can't upload: failed to start task ({resp['ErrorMessage']})")
 
+    async def get_active_imaging_tasks(self, image_id: int|None = None):
+        resp = await self.toems.imaging_tasks_get_active()
+        # info about what image the task concerns is contained in the Computer dict under ImageId
+
+        out = []
+        for r in resp:
+            item = {}
+            item['TaskId'] = r['Id']    # needed for cancelling
+            item['ImageId'] = r['Computer']['ImageId']
+            if image_id is not None and item['ImageId']!=image_id:
+                continue
+            item['ComputerName'] = r['Computer']['Name']
+            item['ComputerId'] = r['ComputerId']
+            item['Type'] = r['Type']
+
+            # legend: status TaskCreated = 0, WaitingForLogin = 1, CheckedIn = 2, InImagingQueue = 3, Imaging = 4
+            # https://github.com/jdolny/Toems/blob/master/Toems-Common/Enum/EnumTaskStatus.cs
+            match r['Status']:
+                case 0:
+                    item['Status'] = 'TaskCreated'
+                case 1:
+                    item['Status'] = 'WaitingForLogin'
+                case 2:
+                    item['Status'] = 'CheckedIn'
+                case 3:
+                    item['Status'] = f'InQueue (Position {r["QueuePosition"]})'
+                case 4:
+                    item['Status'] = 'Imaging'
+            item['Partition'] = r['Partition'] if r['Partition'] is not None else ''
+            item['Elapsed'] = r['Elapsed'] if r['Elapsed'] is not None else ''
+            item['Remaining'] = r['Remaining'] if r['Remaining'] is not None else ''
+            item['Completed'] = r['Completed'] if r['Completed'] is not None else ''
+            item['Rate'] = r['Rate'] if r['Rate'] is not None else ''
+
+            out.append(item)
+
+        return out
+
+    async def delete_active_imaging_task(self, task_id: int):
+        resp = await self.toems.imaging_tasks_delete_active(task_id)
+        if not 'Success' in resp or not resp['Success']:
+            raise RuntimeError(f"can't delete active image task: failed because: {resp['ErrorMessage']}")
+
 
     def _add_client(self, client: structs.Client):
         self.clients[client.id] = client

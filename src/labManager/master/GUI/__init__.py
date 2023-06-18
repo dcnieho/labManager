@@ -2,6 +2,8 @@ from enum import Enum, auto
 import asyncio
 import concurrent
 import json
+import time
+import math
 from dataclasses import dataclass, field
 
 from imgui_bundle import hello_imgui, icons_fontawesome, imgui, immapp, imspinner, imgui_md, imgui_color_text_edit, glfw_utils
@@ -63,6 +65,9 @@ class MainGUI:
         self._images_list = []
         self._selected_image_id = None
         self._image_description_cache = {}
+        self._active_imaging_tasks = []
+        self._active_imaging_tasks_updater = None
+        self._active_imaging_tasks_updater_should_stop = False
 
         # computer detail GUIs
         self._computer_GUI_tasks: dict[int,int|None] = {}
@@ -278,15 +283,17 @@ class MainGUI:
         async_thread.run(self.master.start_server((if_ips[0], 0)))
 
     async def _get_project_images(self):
-        self._images_list = await self.master.get_images()
+        temp_list = await self.master.get_images()
         # also get image size on disk
-        for im in self._images_list:
+        for im in temp_list:
             im['DiskSize'] = await self.master.get_image_size(im['Id'])
         # flag if the images belong to the selected project
         # simple trick: if image belongs to the project, then its user-facing name doesn't
         # match its name (since the project prefix is removed)
-        for im in self._images_list:
+        for im in temp_list:
             im['PartOfProject'] = im['UserFacingName'] != im['Name']
+        # atomic update so we can't read incomplete state elsewhere
+        self._images_list = temp_list
 
 
     def _unload_project(self):
@@ -591,8 +598,7 @@ class MainGUI:
             imgui.internal.dock_builder_add_node(dock_space_id)
 
             self._imaging_GUI_list_dock_id,_,temp_id = imgui.internal.dock_builder_split_node_py(dock_space_id, imgui.Dir_.left,0.20)
-
-            self._imaging_GUI_details_dock_id,_,self._imaging_GUI_action_dock_id = imgui.internal.dock_builder_split_node_py(temp_id, imgui.Dir_.up,0.7)
+            self._imaging_GUI_details_dock_id,_,self._imaging_GUI_action_dock_id = imgui.internal.dock_builder_split_node_py(temp_id, imgui.Dir_.up,0.8)
 
             imgui.internal.dock_builder_dock_window('images_list_pane',self._imaging_GUI_list_dock_id)
             imgui.internal.dock_builder_dock_window('image_details_pane',self._imaging_GUI_details_dock_id)
@@ -638,7 +644,11 @@ class MainGUI:
             if self._selected_image_id:
                 if not im:
                     self._selected_image_id = None
+                    if self._active_imaging_tasks_updater:
+                        self._active_imaging_tasks_updater_should_stop = True
                 else:
+                    if not self._active_imaging_tasks_updater:
+                        self._active_imaging_tasks_updater = async_thread.run(self.update_running_image_tasks())
                     if im['Id'] not in self._image_description_cache:
                         self._image_description_cache[im['Id']] = im['Description']
                     if imgui.begin_table("##image_infos",2):
@@ -676,6 +686,54 @@ class MainGUI:
                         if 'DiskSize' in im:
                             imgui.text(im['DiskSize'])
                         imgui.end_table()
+                    active_imaging_tasks = self.get_running_imaging_tasks(self._selected_image_id)
+                    imgui.text(f"{len(active_imaging_tasks)} running tasks for this image")
+                    if active_imaging_tasks:
+                        if imgui.begin_table("##image_tasks_list",9):
+                            imgui.table_setup_column("Computer name", imgui.TableColumnFlags_.width_fixed)
+                            imgui.table_setup_column("Status", imgui.TableColumnFlags_.width_fixed)
+                            imgui.table_setup_column("Type", imgui.TableColumnFlags_.width_fixed)
+                            imgui.table_setup_column("Partition", imgui.TableColumnFlags_.width_fixed)
+                            imgui.table_setup_column("Elapsed", imgui.TableColumnFlags_.width_fixed)
+                            imgui.table_setup_column("Remaining", imgui.TableColumnFlags_.width_fixed)
+                            imgui.table_setup_column("Completed", imgui.TableColumnFlags_.width_stretch)
+                            imgui.table_setup_column("Rate", imgui.TableColumnFlags_.width_fixed)
+                            imgui.table_setup_column("##cancel_button", imgui.TableColumnFlags_.width_fixed)
+                            imgui.table_next_row(imgui.TableRowFlags_.headers)
+                            for i in range(9):
+                                imgui.table_set_column_index(i)
+                                imgui.table_header(imgui.table_get_column_name(i))
+                            for t in active_imaging_tasks:
+                                imgui.table_next_row()
+                                imgui.table_next_column()
+                                imgui.text(t['ComputerName'])
+                                imgui.table_next_column()
+                                imgui.text(t['Status'])
+                                imgui.table_next_column()
+                                imgui.text(t['Type'])
+                                imgui.table_next_column()
+                                imgui.text(t['Partition'])
+                                imgui.table_next_column()
+                                imgui.text(t['Elapsed'])
+                                imgui.table_next_column()
+                                imgui.text(t['Remaining'])
+                                imgui.table_next_column()
+                                if t['Completed']:
+                                    imgui.progress_bar(float(t['Completed'].strip('%'))/100)
+                                imgui.table_next_column()
+                                imgui.text(t['Rate'])
+                                imgui.table_next_column()
+                                if imgui.button(f'Cancel##{t["ComputerName"]}'):
+                                    async_thread.run(self.master.delete_active_imaging_task(t['TaskId']),
+                                                     lambda fut: self._image_action_result('cancel active task',fut))
+                            imgui.end_table()
+                        if imgui.button('Cancel all'):
+                            # NB: cannot use the /ActiveImagingTask/CancelAllImagingTasks toems action, thats only for admins
+                            # so issue cancels one by one
+                            for t in active_imaging_tasks:
+                                async_thread.run(self.master.delete_active_imaging_task(t['TaskId']),
+                                                 lambda fut: self._image_action_result('cancel active task',fut))
+
         imgui.end()
         if imgui.begin('imaging_actions_pane'):
             if im:
@@ -712,14 +770,30 @@ class MainGUI:
                     imgui.pop_style_color(3)
         imgui.end()
 
+    async def update_running_image_tasks(self):
+        self._active_imaging_tasks_updater_should_stop = False
+        while True:
+            # NB: this is and must remain an atomic update, so its not possible to read incomplete state elsewhere
+            self._active_imaging_tasks = await self.master.get_active_imaging_tasks()
+
+            # sleep until the next whole second
+            now = time.time()
+            await asyncio.sleep(math.ceil(now) - now)
+    def get_running_imaging_tasks(self, id: int|None):
+        if id is None:
+            return self._active_imaging_tasks
+        else:
+            return [t for t in self._active_imaging_tasks if t['ImageId']==id]
+
     def _image_action_result(self, action, future: asyncio.Future):
         try:
             exc = future.exception()
         except concurrent.futures.CancelledError:
             return
         if not exc:
-            # action successful, refresh image cache
-            async_thread.run(self._get_project_images())
+            # action successful, refresh image cache if needed
+            if action in ['create','update','deploy','update','delete']:
+                async_thread.run(self._get_project_images())
             return
 
         # error occurred
@@ -787,7 +861,6 @@ class MainGUI:
             imgui.internal.dock_builder_add_node(dock_space_id)
 
             self._imaging_GUI_list_dock_id,_,temp_id = imgui.internal.dock_builder_split_node_py(dock_space_id, imgui.Dir_.left,0.15)
-
             self._imaging_GUI_details_dock_id,_,self._imaging_GUI_action_dock_id = imgui.internal.dock_builder_split_node_py(temp_id, imgui.Dir_.up,0.15)
 
             imgui.internal.dock_builder_dock_window(f'task_list_pane_{item.id}',self._imaging_GUI_list_dock_id)
