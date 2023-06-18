@@ -55,6 +55,8 @@ def get():
     # if any, return first
     if eye_trackers:
         return eye_trackers[0]
+    else:
+        return None
 
 def _get_notifications():
     return (
