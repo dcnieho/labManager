@@ -33,8 +33,8 @@ class Client:
         self._if_ips  = None
         self._if_macs = None
 
+        self._poll_for_eyetrackers_task: asyncio.Task = None
         self._connected_eye_tracker: eye_tracker.ET_class = None
-
         self._handler_tasks    : List[asyncio.Task] = []
         self._connected_masters: List[Tuple[str,int]] = []
         self._local_addrs      : List[Tuple[str,int]] = []
@@ -49,7 +49,10 @@ class Client:
         # 1. get interfaces we can work with
         self._if_ips, self._if_macs = network.ifs.get_ifaces(self.network)
 
-        # 2. discover master, if needed
+        # 2. start eye tracker poller
+        self._poll_for_eyetrackers_task = asyncio.create_task(self._poll_for_eyetrackers())
+
+        # 3. discover master, if needed
         if not server_addr:
             # start SSDP client
             self._ssdp_client = network.ssdp.Client(
@@ -85,7 +88,7 @@ class Client:
             if server_addr==m:
                 return
 
-        # connect to master at specified server_address, connect to it
+        # connect to master at specified server_address
         reader, writer = await asyncio.open_connection(
             *server_addr, local_addr=(self._if_ips[0],0))
         network.keepalive.set(writer.get_extra_info('socket'))
@@ -106,6 +109,7 @@ class Client:
         running_tasks = [x.async_task for x in self._task_list]
         await asyncio.wait(
             running_tasks +
+            self._poll_for_eyetrackers_task +
             ([asyncio.create_task(self._ssdp_client.stop())] if self._ssdp_client else []) +
             writer_close_waiters +
             self._handler_tasks,
@@ -113,6 +117,8 @@ class Client:
         )
 
         # clear out state
+        self._poll_for_eyetrackers_task = None
+        self._connected_eye_tracker = None
         self._handler_tasks = []
         self._connected_masters = []
         self._local_addrs = []
@@ -130,6 +136,10 @@ class Client:
 
     def get_waiters(self):
         return self._handler_tasks
+    
+    async def broadcast(self, type: message.Message, message: str=''):
+        for w in self._writers:
+            await network.comms.typed_send(w, type, message)
 
     def _remove_finished_task(self, my_task: asyncio.Task):
         for i,t in enumerate(self._task_list):
@@ -139,6 +149,14 @@ class Client:
 
     async def _handle_master(self, reader: asyncio.streams.StreamReader, writer: asyncio.streams.StreamWriter):
         type = None
+        # if we have an eye tracker already, send info about it and subscribe to updates
+        if self._connected_eye_tracker:
+            eye_tracker.subscribe_to_notifications(self._connected_eye_tracker, writer)
+            await network.comms.typed_send(writer,
+                                            message.Message.ET_ATTR_UPDATE,
+                                            eye_tracker.get_attribute(self._connected_eye_tracker, '*')
+                                            )
+        
         while type != message.Message.QUIT:
             try:
                 type, msg = await network.comms.typed_receive(reader)
@@ -208,3 +226,16 @@ class Client:
                 del self._local_addrs[i]
                 del self._writers[i]
                 break
+
+    async def _poll_for_eyetrackers(self):
+        while True:
+            # check if we have an eye tracker
+            et = eye_tracker.get()
+            if not self._connected_eye_tracker:
+                self._connected_eye_tracker = et
+                await self.broadcast(message.Message.ET_ATTR_UPDATE,eye_tracker.get_attribute(self._connected_eye_tracker, '*'))
+            elif not et and self._connected_eye_tracker:
+                self._connected_eye_tracker = None
+
+            # sleep until the next whole second
+            await asyncio.sleep(5)
