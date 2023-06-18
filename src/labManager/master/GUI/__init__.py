@@ -402,21 +402,17 @@ class MainGUI:
             imgui.internal.dock_builder_remove_node(dock_space_id)
             imgui.internal.dock_builder_add_node(dock_space_id)
 
-            self._imaging_GUI_list_dock_id = imgui.internal.dock_builder_split_node(dock_space_id, imgui.Dir_.left,0.15,1,1)
-            temp_id = self._imaging_GUI_list_dock_id+1
-
-            self._task_GUI_type_dock_id = imgui.internal.dock_builder_split_node(temp_id, imgui.Dir_.left,.15/(1-.15),1,1)
-            temp_id = self._task_GUI_type_dock_id+1
-
-            self._imaging_GUI_details_dock_id = imgui.internal.dock_builder_split_node(temp_id, imgui.Dir_.up,0.90,1,1)
-            self._imaging_GUI_action_dock_id = self._imaging_GUI_details_dock_id+1
+            self._imaging_GUI_list_dock_id,_,temp_id = imgui.internal.dock_builder_split_node_py(dock_space_id, imgui.Dir_.left,0.15)
+            self._task_GUI_type_dock_id,_,temp_id = imgui.internal.dock_builder_split_node_py(temp_id, imgui.Dir_.left,.15/(1-.15))
+            self._imaging_GUI_details_dock_id,_,self._imaging_GUI_action_dock_id = \
+                imgui.internal.dock_builder_split_node_py(temp_id, imgui.Dir_.up,0.90)
 
             imgui.internal.dock_builder_dock_window('task_list_pane',self._imaging_GUI_list_dock_id)
             imgui.internal.dock_builder_dock_window('task_type_pane',self._task_GUI_type_dock_id)
             imgui.internal.dock_builder_dock_window('task_config_pane',self._imaging_GUI_details_dock_id)
             imgui.internal.dock_builder_dock_window('task_confirm_pane',self._imaging_GUI_action_dock_id)
             imgui.internal.dock_builder_finish(dock_space_id)
-        imgui.dock_space(dock_space_id, (0.,0.), imgui.DockNodeFlags_.no_split|imgui.internal.DockNodeFlagsPrivate_.im_gui_dock_node_flags_no_tab_bar)
+        imgui.dock_space(dock_space_id, (0.,0.), imgui.DockNodeFlags_.no_split|imgui.internal.DockNodeFlagsPrivate_.no_tab_bar)
 
         if imgui.begin('task_list_pane'):
             for t in config.master['tasks']:
@@ -594,17 +590,15 @@ class MainGUI:
             imgui.internal.dock_builder_remove_node(dock_space_id)
             imgui.internal.dock_builder_add_node(dock_space_id)
 
-            self._imaging_GUI_list_dock_id = imgui.internal.dock_builder_split_node(dock_space_id, imgui.Dir_.left,0.20,1,1)
-            temp_id = self._imaging_GUI_list_dock_id+1
+            self._imaging_GUI_list_dock_id,_,temp_id = imgui.internal.dock_builder_split_node_py(dock_space_id, imgui.Dir_.left,0.20)
 
-            self._imaging_GUI_details_dock_id = imgui.internal.dock_builder_split_node(temp_id, imgui.Dir_.up,0.7,1,1)
-            self._imaging_GUI_action_dock_id = self._imaging_GUI_details_dock_id+1
+            self._imaging_GUI_details_dock_id,_,self._imaging_GUI_action_dock_id = imgui.internal.dock_builder_split_node_py(temp_id, imgui.Dir_.up,0.7)
 
             imgui.internal.dock_builder_dock_window('images_list_pane',self._imaging_GUI_list_dock_id)
             imgui.internal.dock_builder_dock_window('image_details_pane',self._imaging_GUI_details_dock_id)
             imgui.internal.dock_builder_dock_window('imaging_actions_pane',self._imaging_GUI_action_dock_id)
             imgui.internal.dock_builder_finish(dock_space_id)
-        imgui.dock_space(dock_space_id, (0.,0.), imgui.DockNodeFlags_.no_split|imgui.internal.DockNodeFlagsPrivate_.im_gui_dock_node_flags_no_tab_bar)
+        imgui.dock_space(dock_space_id, (0.,0.), imgui.DockNodeFlags_.no_split|imgui.internal.DockNodeFlagsPrivate_.no_tab_bar)
 
         if imgui.begin('images_list_pane'):
             if imgui.button('+'):
@@ -792,17 +786,15 @@ class MainGUI:
             imgui.internal.dock_builder_remove_node(dock_space_id)
             imgui.internal.dock_builder_add_node(dock_space_id)
 
-            self._imaging_GUI_list_dock_id = imgui.internal.dock_builder_split_node(dock_space_id, imgui.Dir_.left,0.15,1,1)
-            temp_id = self._imaging_GUI_list_dock_id+1
+            self._imaging_GUI_list_dock_id,_,temp_id = imgui.internal.dock_builder_split_node_py(dock_space_id, imgui.Dir_.left,0.15)
 
-            self._imaging_GUI_details_dock_id = imgui.internal.dock_builder_split_node(temp_id, imgui.Dir_.up,0.15,1,1)
-            self._imaging_GUI_action_dock_id = self._imaging_GUI_details_dock_id+1
+            self._imaging_GUI_details_dock_id,_,self._imaging_GUI_action_dock_id = imgui.internal.dock_builder_split_node_py(temp_id, imgui.Dir_.up,0.15)
 
             imgui.internal.dock_builder_dock_window(f'task_list_pane_{item.id}',self._imaging_GUI_list_dock_id)
             imgui.internal.dock_builder_dock_window(f'task_result_pane_{item.id}',self._imaging_GUI_details_dock_id)
             imgui.internal.dock_builder_dock_window(f'task_log_pane_{item.id}',self._imaging_GUI_action_dock_id)
             imgui.internal.dock_builder_finish(dock_space_id)
-        imgui.dock_space(dock_space_id, (0.,0.), imgui.DockNodeFlags_.no_split|imgui.internal.DockNodeFlagsPrivate_.im_gui_dock_node_flags_no_tab_bar)
+        imgui.dock_space(dock_space_id, (0.,0.), imgui.DockNodeFlags_.no_split|imgui.internal.DockNodeFlagsPrivate_.no_tab_bar)
 
         if imgui.begin(f'task_list_pane_{item.id}'):
             if item.client:
