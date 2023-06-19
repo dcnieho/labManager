@@ -11,7 +11,7 @@ from imgui_bundle import portable_file_dialogs
 from imgui_bundle.demos_python import demo_utils
 import glfw
 
-from ...utils import async_thread, config, network, structs, task
+from ...utils import async_thread, config, structs, task
 from .. import Master
 from ._impl import computer_list, msgbox, utils
 
@@ -279,8 +279,7 @@ class MainGUI:
         # prep for image management
         async_thread.run(self._get_project_images())
         # start server
-        if_ips,_ = network.ifs.get_ifaces(config.master['network'])
-        async_thread.run(self.master.start_server((if_ips[0], 0)))
+        async_thread.run(self.master.start_server())
 
     async def _get_project_images(self):
         temp_list = await self.master.get_images()

@@ -57,10 +57,8 @@ async def do_run(duration: float = None):
     # image_tasks = await toems.imaging_task_get()
 
     # 4. start servers for listening to clients
-    # get interfaces we can work with
-    if_ips,_ = network.ifs.get_ifaces(config.master['network'])
     # start server to connect with stations
-    await server.start_server((if_ips[0], 0))
+    await server.start_server()
 
     # run
     if not duration:
@@ -289,7 +287,12 @@ class Master:
             client.known_client.client = None
         client.known_client = None
 
-    async def start_server(self, local_addr: Tuple[str,int], start_ssdp_advertise=True):
+    async def start_server(self, local_addr: Tuple[str,int]=None, start_ssdp_advertise=True):
+        if local_addr is None:
+            if_ips,_ = network.ifs.get_ifaces(config.master['network'])
+            if not if_ips:
+                raise RuntimeError(f'No interfaces found that are connected to the configured network {config.master["network"]}')
+            local_addr = (if_ips[0], 0)
         self.server = await asyncio.start_server(self._handle_client, *local_addr)
 
         addr = [sock.getsockname() for sock in self.server.sockets]
