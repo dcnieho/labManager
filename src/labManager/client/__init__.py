@@ -60,7 +60,7 @@ class Client:
             self._ssdp_client = network.ssdp.Client(
                 address=self._if_ips[0],
                 device_type=config.client['SSDP']['device_type'],
-                response_notify_handler=self._handle_ssdp_response_notify if keep_ssdp_running else None
+                response_handler=self._handle_ssdp_response if keep_ssdp_running else None
             )
             await self._ssdp_client.start()
             # start discovery
@@ -73,11 +73,11 @@ class Client:
                 responses,_ = await self._ssdp_client.do_discovery()
                 # stop SSDP client
                 await self._ssdp_client.stop()
-                await self._handle_ssdp_response_notify(responses[0])
+                await self._handle_ssdp_response(responses[0])
         else:
             await self._start_new_master(server_addr)
 
-    async def _handle_ssdp_response_notify(self, response):
+    async def _handle_ssdp_response(self, response):
         # get ip and port for master from advertisement
         ip, _, port = response.headers['HOST'].rpartition(':')
         port = int(port) # convert to integer

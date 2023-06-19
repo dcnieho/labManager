@@ -312,7 +312,8 @@ class Master:
                 usn="humlab-b055-master::"+config.master['SSDP']['device_type'],
                 device_type=config.master['SSDP']['device_type'],
                 allow_loopback=True)
-            await self.ssdp_server.start()
+            await self.ssdp_server.start()  # start listening to requests and respond with info about where we are
+            await self.ssdp_server.send_notification()  # send one notification upon startup
 
     def is_serving(self):
         return self.server is not None

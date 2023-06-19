@@ -9,10 +9,11 @@
 #
 # But this does not matter. The server only replies to M-SEARCH
 # requests with ST urn:schemas-upnp-org:device:labManager, not
-# ssdp:all, and we do not send out periodic NOTIFYs. Therefore,
-# our non-conformant announcements will not be seen by any
-# other networking equipment than our clients performing the
-# discovery, so no other equipment can be confused by them.
+# ssdp:all, and we do not send out periodic NOTIFYs, only one
+# on startup of a new master. Therefore, our non-conformant
+# announcements will not be seen often by any other networking
+# equipment than our clients performing the discovery, so no
+# other equipment can be confused by them.
 #
 # This hijacking of the SSDP protocol is just a nice and
 # convenient way for clients to be able to find the server on
@@ -24,6 +25,8 @@ import socket
 import struct
 import time
 import inspect
+
+from ...utils import async_thread
 
 MULTICAST_ADDRESS_IPV4 = "239.255.255.250"
 PORT = 1900
@@ -384,16 +387,30 @@ class Server(Base):
         sock.bind(("0.0.0.0", PORT))
         return sock
 
+    async def send_notification(self):
+        ssdp_response = SSDPNotify(
+            headers={
+                "Cache-Control": "max-age=30",
+                "HOST": "{}:{}".format(MULTICAST_ADDRESS_IPV4, PORT),
+                "Location": "",
+                "NT": self.device_type,
+                "NTS": "ssdp:alive",
+                "Server": "Python UPnP/1.0 SSDP",
+                "USN": self.usn,
+            },
+        )
+        await ssdp_response.sendto(self.transport, (MULTICAST_ADDRESS_IPV4, PORT))
+
     async def _stop(self):
         pass
 
 class Client(Base):
-    def __init__(self, address='0.0.0.0', device_type=None, response_notify_handler = None, verbose=False):
+    def __init__(self, address='0.0.0.0', device_type=None, response_handler = None, verbose=False):
         super().__init__(False, address, device_type, verbose)
         self._responses      = []
         self._response_times = []
         self._response_fut   = None
-        self._response_handler = response_notify_handler
+        self._response_handler = response_handler
         self._response_handler_tasks = set()
         self._discovery_task = None
 
@@ -401,7 +418,7 @@ class Client(Base):
         return lambda: SimpleServiceDiscoveryProtocol(
             is_server=self._is_server,
             device_type=self.device_type,
-            response_notify_callback=self._store_response_notify,
+            response_notify_callback=self._process_response_notify,
             verbose=self.verbose
         )
 
@@ -410,6 +427,15 @@ class Client(Base):
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         sock.bind((self.address, 0))
         return sock
+
+    def _process_response_notify(self, message):
+        if isinstance(message,SSDPNotify):
+            # got a notification, immediate issue request to get more info
+            # about the service, if its relevant
+            if message.headers['NT']==self.device_type:
+                async_thread.run(self._send_request())
+        else:
+            self._store_response_notify(message)
 
     def _store_response_notify(self, response):
         t = time.perf_counter()
