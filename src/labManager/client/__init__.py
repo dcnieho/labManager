@@ -67,7 +67,7 @@ class Client:
             if keep_ssdp_running:
                 # start discovery and keep running, connecting to anything
                 # new thats found
-                self._ssdp_discovery_task = await self._ssdp_client.discover_forever(interval=1)
+                self._ssdp_discovery_task = await self._ssdp_client.discover_forever()
             else:
                 # send search request and wait for reply
                 responses,_ = await self._ssdp_client.do_discovery()
