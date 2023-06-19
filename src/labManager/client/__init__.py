@@ -106,6 +106,7 @@ class Client:
         self._stop_sync()
         await asyncio.sleep(0)  # give cancellation a chance to be sent and processed
         writer_close_waiters = [asyncio.create_task(w.wait_closed()) for w in self._writers]
+        self._poll_for_eyetrackers_task.cancel()
 
         # wait till everything is stopped and cancelled
         running_tasks = [x.async_task for x in self._task_list]
@@ -230,14 +231,17 @@ class Client:
                 break
 
     async def _poll_for_eyetrackers(self):
-        while True:
-            # check if we have an eye tracker
-            et = eye_tracker.get()
-            if not self._connected_eye_tracker:
-                self._connected_eye_tracker = et
-                await self.broadcast(message.Message.ET_ATTR_UPDATE,eye_tracker.get_attribute(self._connected_eye_tracker, '*'))
-            elif not et and self._connected_eye_tracker:
-                self._connected_eye_tracker = None
+        try:
+            while True:
+                # check if we have an eye tracker
+                et = eye_tracker.get()
+                if not self._connected_eye_tracker:
+                    self._connected_eye_tracker = et
+                    await self.broadcast(message.Message.ET_ATTR_UPDATE,eye_tracker.get_attribute(self._connected_eye_tracker, '*'))
+                elif not et and self._connected_eye_tracker:
+                    self._connected_eye_tracker = None
 
-            # sleep until the next whole second
-            await asyncio.sleep(5)
+                # sleep until the next whole second
+                await asyncio.sleep(5)
+        except asyncio.CancelledError:
+            pass    # we broke out of the loop: cancellation processed
