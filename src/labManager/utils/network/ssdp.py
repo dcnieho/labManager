@@ -185,7 +185,7 @@ class SimpleServiceDiscoveryProtocol(asyncio.DatagramProtocol):
                  usn=None,
                  advertised_host_ip_port=None,
                  respond_to_all=False,
-                 response_callback=None,
+                 response_notify_callback=None,
                  verbose=False):
         # if server, only respond to SSDP Requests
         # if not server (so client), only listen to responses
@@ -196,7 +196,7 @@ class SimpleServiceDiscoveryProtocol(asyncio.DatagramProtocol):
         self.advertised_host_ip_port = advertised_host_ip_port
         self.respond_to_all = respond_to_all
         # for client mode
-        self.response_callback = response_callback
+        self.response_notify_callback = response_notify_callback
 
         # if verbose, print each message received, also those not acted upon
         self.verbose = verbose
@@ -228,6 +228,9 @@ class SimpleServiceDiscoveryProtocol(asyncio.DatagramProtocol):
                 "received notification from {}: {}\n".format(addr, notification.headers['USN'])
             )
 
+        if not self.is_server and self.response_notify_callback:
+            self.response_notify_callback(notification)
+
     def response_received(self, response: SSDPResponse, addr: tuple):
         """Handle an incoming response."""
         if self.verbose:
@@ -238,8 +241,8 @@ class SimpleServiceDiscoveryProtocol(asyncio.DatagramProtocol):
             )
             print("header:\n{}\n".format("\n".join(response.format_headers())))
 
-        if not self.is_server and self.response_callback:
-            self.response_callback(response)
+        if not self.is_server and self.response_notify_callback:
+            self.response_notify_callback(response)
 
     def request_received(self, request: SSDPRequest, addr: tuple):
         """Handle an incoming request and respond to it."""
@@ -385,12 +388,12 @@ class Server(Base):
         pass
 
 class Client(Base):
-    def __init__(self, address='0.0.0.0', device_type=None, response_handler = None, verbose=False):
+    def __init__(self, address='0.0.0.0', device_type=None, response_notify_handler = None, verbose=False):
         super().__init__(False, address, device_type, verbose)
         self._responses      = []
         self._response_times = []
         self._response_fut   = None
-        self._response_handler = response_handler
+        self._response_handler = response_notify_handler
         self._response_handler_tasks = set()
         self._discovery_task = None
 
@@ -398,7 +401,7 @@ class Client(Base):
         return lambda: SimpleServiceDiscoveryProtocol(
             is_server=self._is_server,
             device_type=self.device_type,
-            response_callback=self._store_response,
+            response_notify_callback=self._store_response_notify,
             verbose=self.verbose
         )
 
@@ -408,7 +411,7 @@ class Client(Base):
         sock.bind((self.address, 0))
         return sock
 
-    def _store_response(self, response):
+    def _store_response_notify(self, response):
         t = time.perf_counter()
         # check if we've seen this host already
         is_duplicate = False
