@@ -388,7 +388,7 @@ class Server(Base):
         return sock
 
     async def send_notification(self):
-        ssdp_response = SSDPNotify(
+        ssdp_notification = SSDPNotify(
             headers={
                 "Cache-Control": "max-age=30",
                 "HOST": "{}:{}".format(MULTICAST_ADDRESS_IPV4, PORT),
@@ -399,7 +399,7 @@ class Server(Base):
                 "USN": self.usn,
             },
         )
-        await ssdp_response.sendto(self.transport, (MULTICAST_ADDRESS_IPV4, PORT))
+        await ssdp_notification.sendto(self.transport, (MULTICAST_ADDRESS_IPV4, PORT))
 
     async def _stop(self):
         pass
