@@ -230,6 +230,7 @@ class SimpleServiceDiscoveryProtocol(asyncio.DatagramProtocol):
             print(
                 "received notification from {}: {}\n".format(addr, notification.headers['USN'])
             )
+            print("header:\n{}\n".format("\n".join(notification.format_headers())))
 
         if not self.is_server and self.response_notify_callback:
             self.response_notify_callback(notification)
