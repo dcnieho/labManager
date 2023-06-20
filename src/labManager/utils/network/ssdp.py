@@ -299,11 +299,14 @@ class Base:
                  is_server,
                  address,
                  device_type=None,
+                 want_second=False,
                  verbose=False):
         self._is_server = is_server
 
         # set device type. If server, its the device type server will send
-        # if client, its the device type set in the M-SEARCH message
+        # if client, its the device type set in the M-SEARCH message, and
+        #            optionally also listen to notification messages on
+        #            second socket
         if not device_type:
             if self._is_server:
                 device_type = "ssdp:rootdevice"
@@ -311,6 +314,7 @@ class Base:
                 device_type = "ssdp:all"
         self.device_type = device_type
         self.address = address
+        self._want_second = want_second
         self.verbose = verbose
 
         # for server mode
@@ -319,23 +323,32 @@ class Base:
         self.respond_to_all = None
 
         self.loop = None
+        self.transport_multicast = None # client optionally also has a multicast socket
+        self.protocol_multicast = None
         self._is_started = False
 
     def _get_factory(self):
         raise NotImplementedError
 
-    def _get_socket(self):
+    def _get_socket(self, which):
         raise NotImplementedError
+
+    
 
     async def start(self):
         if self._is_started:
             return
 
-        sock = self._get_socket()
-        ssdp_factory = self._get_factory()
         self.loop = asyncio.get_running_loop()
+        sock = self._get_socket(1)
+        ssdp_factory = self._get_factory()
         self.transport, self.protocol = \
             await self.loop.create_datagram_endpoint(ssdp_factory, sock=sock)
+        if self._want_second:
+            sock = self._get_socket(2)
+            ssdp_factory = self._get_factory()
+            self.transport_multicast, self.protocol_multicast = \
+                await self.loop.create_datagram_endpoint(ssdp_factory, sock=sock)
 
         self._is_started = True
 
@@ -350,8 +363,13 @@ class Base:
             return
         await self._stop()
         self.transport.close()
+        if self._want_second:
+            self.transport_multicast.close()
         if self.protocol:
-            await self.protocol.done
+            waiters = [self.protocol.done]
+            if self._want_second:
+                waiters.append(self.protocol_multicast.done)
+            await asyncio.wait(waiters)
         self._is_started = False
 
     async def _stop(self):
@@ -359,7 +377,7 @@ class Base:
 
 class Server(Base):
     def __init__(self, host_ip_port, usn, address='0.0.0.0', device_type=None, respond_to_all=False, allow_loopback=False, verbose=False):
-        super().__init__(True, address, device_type, verbose)
+        super().__init__(True, address, device_type, False, verbose)
         self.advertised_host_ip_port = host_ip_port
         self.usn = usn
         self.respond_to_all = respond_to_all
@@ -375,18 +393,8 @@ class Server(Base):
             verbose=self.verbose
         )
 
-    def _get_socket(self):
-        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
-        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        mreq = socket.inet_aton(MULTICAST_ADDRESS_IPV4)
-        if self.address is not None:
-            mreq += socket.inet_aton(self.address)
-        else:
-            mreq += struct.pack(b"@I", socket.INADDR_ANY)
-        sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
-        sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_LOOP, 1 if self.allow_loopback else 0)
-        sock.bind(("0.0.0.0", PORT))
-        return sock
+    def _get_socket(self, which):
+        return _get_multicast_socket(self.address, self.allow_loopback)
 
     async def send_notification(self):
         ssdp_notification = SSDPNotify(
@@ -406,8 +414,8 @@ class Server(Base):
         pass
 
 class Client(Base):
-    def __init__(self, address='0.0.0.0', device_type=None, response_handler = None, verbose=False):
-        super().__init__(False, address, device_type, verbose)
+    def __init__(self, address='0.0.0.0', device_type=None, response_handler = None, listen_to_notifications = False, verbose=False):
+        super().__init__(False, address, device_type, listen_to_notifications, verbose)
         self._responses      = []
         self._response_times = []
         self._response_fut   = None
@@ -423,10 +431,13 @@ class Client(Base):
             verbose=self.verbose
         )
 
-    def _get_socket(self):
-        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        sock.bind((self.address, 0))
+    def _get_socket(self, which):
+        if which==1:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            sock.bind((self.address, 0))
+        else:
+            sock = _get_multicast_socket(self.address, False)
         return sock
 
     def _process_response_notify(self, message):
@@ -436,9 +447,9 @@ class Client(Base):
             if message.headers['NT']==self.device_type:
                 async_thread.run(self._send_request())
         else:
-            self._store_response_notify(message)
+            self._store_response(message)
 
-    def _store_response_notify(self, response):
+    def _store_response(self, response):
         t = time.perf_counter()
         # check if we've seen this host already
         is_duplicate = False
@@ -513,3 +524,16 @@ class Client(Base):
         # we have a response, stop discovery and return it
         discovery_task.cancel()
         return self.get_responses()
+    
+def _get_multicast_socket(address, allow_loopback):
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    mreq = socket.inet_aton(MULTICAST_ADDRESS_IPV4)
+    if address is not None:
+        mreq += socket.inet_aton(address)
+    else:
+        mreq += struct.pack(b"@I", socket.INADDR_ANY)
+    sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
+    sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_LOOP, 1 if allow_loopback else 0)
+    sock.bind(("0.0.0.0", PORT))
+    return sock

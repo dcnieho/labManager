@@ -60,7 +60,8 @@ class Client:
             self._ssdp_client = network.ssdp.Client(
                 address=self._if_ips[0],
                 device_type=config.client['SSDP']['device_type'],
-                response_handler=self._handle_ssdp_response if keep_ssdp_running else None
+                response_handler=self._handle_ssdp_response if keep_ssdp_running else None,
+                listen_to_notifications=True
             )
             await self._ssdp_client.start()
             # start discovery
