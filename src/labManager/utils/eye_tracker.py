@@ -39,6 +39,7 @@ class Event(enum_helper.AutoNameSpace):
 
 @dataclass
 class EyeTracker:
+    online          : bool= False
     serial          : str = None
     name            : str = None
     model           : str = None
@@ -128,7 +129,7 @@ def get_attribute(eye_tracker: ET_class, attributes: List[Attribute]|str):
     try:
         eye_tracker.get_gaze_output_frequency()
     except:
-        return {}
+        return None
 
     out = {}
     try:
@@ -149,9 +150,9 @@ def get_attribute(eye_tracker: ET_class, attributes: List[Attribute]|str):
                 case Attribute.Tracking_mode:
                     out[Attribute.Tracking_mode] = eye_tracker.get_eye_tracking_mode()
     except:
-        return {}
+        return None
 
-    return out
+    return out if out else None
 
 def update_attributes(eye_tracker: EyeTracker, attributes: Dict[Attribute,bool|str|int]):
     for attr in attributes:

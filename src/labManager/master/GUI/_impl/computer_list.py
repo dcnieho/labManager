@@ -219,7 +219,7 @@ class ComputerList():
 
     def _draw_computer_info(self, client: structs.KnownClient):
         is_online = client.client is not None
-        et_is_on  = is_online and client.client.eye_tracker is not None
+        et_is_on  = is_online and client.client.eye_tracker is not None and client.client.eye_tracker.online
         prepend = icons_fontawesome.ICON_FA_EYE
         clrs = []
         if is_online:
@@ -233,10 +233,10 @@ class ComputerList():
 
         # eye tracker
         imgui.text_colored(clrs[0], prepend[0]+' ')
-        if client.client and client.client.eye_tracker:
+        if et_is_on and imgui.is_item_hovered():
             et = client.client.eye_tracker
             info = f'{et.model} @ {et.frequency}Hz\n({et.firmware_version}, {et.serial})'
-            utils.draw_hover_text(info,text='')
+            utils.draw_tooltip(info)
         imgui.same_line()
         # computer
         imgui.begin_group()
@@ -245,9 +245,9 @@ class ComputerList():
         # name
         imgui.text(client.name)
         imgui.end_group()
-        if client.client:
+        if client.client and imgui.is_item_hovered():
             info = f'{client.client.host}:{client.client.port}'
-            utils.draw_hover_text(info,text='')
+            utils.draw_tooltip(info)
 
     def _draw_item_info_button(self, id: int, label):
         clicked = imgui.button(f"{label}##{id}_info")

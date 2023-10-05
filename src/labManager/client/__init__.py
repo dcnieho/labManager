@@ -242,9 +242,10 @@ class Client:
                 et = eye_tracker.get()
                 if not self._connected_eye_tracker:
                     self._connected_eye_tracker = et
-                    await self.broadcast(message.Message.ET_ATTR_UPDATE,eye_tracker.get_attribute(self._connected_eye_tracker, '*'))
+                    await self.broadcast(message.Message.ET_ATTR_UPDATE, eye_tracker.get_attribute(self._connected_eye_tracker, '*'))
                 elif not et and self._connected_eye_tracker:
                     self._connected_eye_tracker = None
+                    await self.broadcast(message.Message.ET_ATTR_UPDATE, None)
 
                 # sleep until the next whole second
                 await asyncio.sleep(5)

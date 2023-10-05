@@ -355,14 +355,17 @@ class Master:
                     case message.Message.ET_ATTR_UPDATE:
                         if not me.eye_tracker:
                             me.eye_tracker = eye_tracker.EyeTracker()
-                        if 'attributes' in msg:
-                            # this is a timestamped update message
-                            # add to eye-tracker events for this client
-                            # TODO
-                            # update attributes
-                            eye_tracker.update_attributes(me.eye_tracker, msg['attributes'])
+                        if msg:
+                            me.eye_tracker.online = True
+                            if 'attributes' in msg:
+                                # this is a timestamped update message
+                                # add to eye-tracker events for this client
+                                # TODO
+                                # update attributes
+                                eye_tracker.update_attributes(me.eye_tracker, msg['attributes'])
                         else:
-                            eye_tracker.update_attributes(me.eye_tracker, msg)
+                            me.eye_tracker.online = False
+
 
                     case message.Message.TASK_OUTPUT:
                         mytask = me.tasks[msg['task_id']]
