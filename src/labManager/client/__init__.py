@@ -213,7 +213,11 @@ class Client:
                             if msg['task_id']==t.id and not t.async_task.done():
                                 my_task = t
                         if my_task:
-                            t.async_task.cancel()
+                            if my_task.input and not my_task.tried_stdin_close:
+                                my_task.tried_stdin_close = True
+                                await my_task.input.put(None)
+                            else:
+                                t.async_task.cancel()
 
             except Exception as exc:
                 tb_lines = traceback.format_exception(exc)

@@ -72,6 +72,7 @@ class MainGUI:
         # computer detail GUIs
         self._computer_GUI_tasks: dict[int,int|None] = {}
         self._computer_GUI_interactive_tasks: dict[tuple[int,int],str] = {}
+        self._computer_GUI_interactive_sent_finish: dict[tuple[int,int],bool] = {}
 
         # Show errors in threads
         def asyncexcepthook(future: asyncio.Future):
@@ -889,13 +890,22 @@ class MainGUI:
                     imgui.text(f'return code: {tsk.return_code}')
                 if tsk.status in [task.Status.Not_started, task.Status.Running]:
                     imgui.same_line()
-                    if imgui.button(f'Cancel##{tid}' if tsk.status==task.Status.Not_started else f'Stop##{tid}'):
+                    if tsk.status==task.Status.Not_started:
+                        button_txt = 'Cancel'
+                    else:
+                        if tsk.interactive and (item.id, tid) not in self._computer_GUI_interactive_sent_finish:
+                            button_txt = 'Finish'
+                        else:
+                            button_txt = 'Stop'
+                    if imgui.button(f'{button_txt}##{tid}'):
                         async_thread.run(task.send_cancel(item,tsk))
+                        if tsk.interactive:
+                            self._computer_GUI_interactive_sent_finish[(item.id, tid)] = True
         imgui.end()
         if imgui.begin(f'task_log_pane_{item.id}'):
             if item.client and (tid := self._computer_GUI_tasks[item.id]) is not None:
                 tsk = item.client.tasks[tid]
-                if tsk.interactive and tsk.status==task.Status.Running:
+                if tsk.interactive and tsk.status==task.Status.Running and ((item.id, tid) not in self._computer_GUI_interactive_sent_finish or not self._computer_GUI_interactive_sent_finish[(item.id, tid)]):
                     if (item.id, tid) not in self._computer_GUI_interactive_tasks:
                         self._computer_GUI_interactive_tasks[(item.id, tid)] = ''
                     entered, self._computer_GUI_interactive_tasks[(item.id, tid)] = \

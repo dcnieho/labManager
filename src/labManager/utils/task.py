@@ -70,9 +70,10 @@ class Task:
 
 @dataclass
 class RunningTask:
-    id        : int
-    async_task: asyncio.Task = None
-    input     : asyncio.Queue= None
+    id                  : int
+    async_task          : asyncio.Task = None
+    input               : asyncio.Queue= None
+    tried_stdin_close   : bool = False
 
 
 _task_group_id_provider = structs.CounterContext()
