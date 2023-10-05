@@ -21,6 +21,9 @@ toems:
     images:
         format: ^\d{4}-\d{2}    # regex to match project image files
 
+login:
+    hint: lucat id, without @lu.se
+
 clients:
     - name: STATION01
       MAC:  0C-9D-92-1F-E6-04

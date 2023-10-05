@@ -320,8 +320,11 @@ class MainGUI:
             disabled = self.login_state==ActionState.Processing
             if disabled:
                 utils.push_disabled()
-            i1,self.username = imgui.input_text('User name',self.username, flags=imgui.InputTextFlags_.enter_returns_true)
-            i2,self.password = imgui.input_text('Password' ,self.password, flags=imgui.InputTextFlags_.enter_returns_true|imgui.InputTextFlags_.password)
+            if 'login' in config.master:
+                i1,self.username = imgui.input_text_with_hint('User name',config.master['login']['hint'], self.username, flags=imgui.InputTextFlags_.enter_returns_true)
+            else:
+                i1,self.username = imgui.input_text          ('User name',                                self.username, flags=imgui.InputTextFlags_.enter_returns_true)
+            i2,self.password = imgui.input_text('Password', self.password, flags=imgui.InputTextFlags_.enter_returns_true|imgui.InputTextFlags_.password)
 
             if self.login_state==ActionState.Processing:
                 symbol_size = imgui.calc_text_size("x").y*2

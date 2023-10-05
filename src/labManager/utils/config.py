@@ -28,6 +28,9 @@ _master_schema = s.Map({
             'format': s.Str(),
         }),
     }),
+    s.Optional('login'): s.Map({
+        'hint': s.Str(),
+    }),
     s.Optional('clients'): s.Seq(
         s.Map({
             'name': s.Str(),
