@@ -310,8 +310,7 @@ class Master:
                 address=local_addr[0],
                 host_ip_port=self.address[0],
                 usn="humlab-b055-master::"+config.master['SSDP']['device_type'],
-                device_type=config.master['SSDP']['device_type'],
-                allow_loopback=True)
+                device_type=config.master['SSDP']['device_type'])
             await self.ssdp_server.start()  # start listening to requests and respond with info about where we are
             await self.ssdp_server.send_notification()  # send one notification upon startup
 
