@@ -46,6 +46,6 @@ setuptools.setup(
     extras_require={
         "master": required_master,
         "admin_server": required_master+required_server,
-        "GUI": ['imgui_bundle>=0.8.7']
+        "GUI": ['imgui_bundle==0.9.0']
     },
 )

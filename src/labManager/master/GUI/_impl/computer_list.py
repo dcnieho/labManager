@@ -130,7 +130,7 @@ class ComputerList():
                         imgui.push_style_var(imgui.StyleVar_.frame_border_size, 0.)
                         imgui.push_style_var(imgui.StyleVar_.frame_padding    , (0.,0.))
                         imgui.push_style_var(imgui.StyleVar_.item_spacing     , (0.,cell_padding_y))
-                        selectable_clicked, selectable_out = imgui.selectable(f"##{id}_hitbox", self.selected_items[id], flags=imgui.SelectableFlags_.span_all_columns|imgui.SelectableFlags_.allow_item_overlap|imgui.internal.SelectableFlagsPrivate_.select_on_click, size=(0,frame_height+cell_padding_y))
+                        selectable_clicked, selectable_out = imgui.selectable(f"##{id}_hitbox", self.selected_items[id], flags=imgui.SelectableFlags_.span_all_columns|imgui.SelectableFlags_.allow_overlap|imgui.internal.SelectableFlagsPrivate_.select_on_click, size=(0,frame_height+cell_padding_y))
                         # instead override table row background color
                         if selectable_out:
                             pass#imgui.table_set_bg_color(imgui.TableBgTarget_.row_bg0, imgui.color_convert_float4_to_u32(color_selected_row))
