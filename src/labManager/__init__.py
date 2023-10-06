@@ -1,7 +1,8 @@
-from . import _config
-from . import client
-from . import common
-from .version import __version__, __url__, __author__, __email__, __description__
+import pkg_resources
 
-if _config.HAS_MASTER:
+from . import common
+from . import client
+if 'authlib' in {pkg.key for pkg in pkg_resources.working_set}:
     from . import master
+
+from .version import __version__, __url__, __author__, __email__, __description__

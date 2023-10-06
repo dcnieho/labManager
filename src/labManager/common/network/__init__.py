@@ -1,3 +1,4 @@
+import pkg_resources
 from . import comms
 from . import ifs
 from . import keepalive
@@ -5,11 +6,10 @@ from . import ssdp
 from . import wol
 
 
-from ... import _config
-if _config.HAS_MASTER:
+if 'authlib' in {pkg.key for pkg in pkg_resources.working_set}:
     from . import admin_conn
     from . import smb
     from . import toems
 
-if _config.HAS_ADMIN:
+if 'dotenv' in {pkg.key for pkg in pkg_resources.working_set}:
     from . import ldap

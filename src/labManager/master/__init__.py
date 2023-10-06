@@ -1,3 +1,4 @@
+import pkg_resources
 import asyncio
 import aiofile
 import traceback
@@ -7,6 +8,10 @@ from typing import Dict, List, Tuple
 
 from ..common import async_thread, config, eye_tracker, message, network, structs, task
 
+def _check_has_GUI():
+    if 'imgui-bundle' not in {pkg.key for pkg in pkg_resources.working_set}:
+        raise RuntimeError('You must install labManager with the [GUI] extra if you wish to use the GUI. Required dependencies for the GUI not available...')
+
 
 # main function for independently running master
 # does not return until master has closed down
@@ -14,9 +19,7 @@ from ..common import async_thread, config, eye_tracker, message, network, struct
 def run(use_GUI: bool = True, duration: float = None):
     # if we want a GUI, first check we have that functionality installed
     if use_GUI:
-        from .. import _config
-        if not _config.HAS_GUI:
-            raise RuntimeError('You must install labManager with the [GUI] extra if you wish to use the GUI. Required dependencies for the GUI not available...')
+        _check_has_GUI()
 
     # set up thread for running asyncs
     async_thread.setup()
@@ -72,6 +75,7 @@ async def do_run(duration: float = None):
 
 # run GUI master
 def do_run_GUI():
+    _check_has_GUI()
     from . import GUI
     if getattr(sys, "frozen", False) and "nohide" not in sys.argv:
         import ctypes
@@ -310,7 +314,8 @@ class Master:
                 address=local_addr[0],
                 host_ip_port=self.address[0],
                 usn="humlab-b055-master::"+config.master['SSDP']['device_type'],
-                device_type=config.master['SSDP']['device_type'])
+                device_type=config.master['SSDP']['device_type'],
+                allow_loopback=True)
             await self.ssdp_server.start()  # start listening to requests and respond with info about where we are
             await self.ssdp_server.send_notification()  # send one notification upon startup
 
