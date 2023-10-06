@@ -5,7 +5,7 @@ import sys
 import threading
 from typing import Dict, List, Tuple
 
-from ..utils import async_thread, config, eye_tracker, message, network, structs, task
+from ..common import async_thread, config, eye_tracker, message, network, structs, task
 
 
 # main function for independently running master

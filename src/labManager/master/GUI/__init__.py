@@ -11,7 +11,7 @@ from imgui_bundle import portable_file_dialogs
 from imgui_bundle.demos_python import demo_utils
 import glfw
 
-from ...utils import async_thread, config, structs, task
+from ...common import async_thread, config, structs, task
 from .. import Master
 from ._impl import computer_list, msgbox, utils
 

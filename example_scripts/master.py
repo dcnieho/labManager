@@ -1,6 +1,6 @@
 import pathlib
 
-import labManager.utils
+import labManager.common
 import labManager.master
 
 if __name__ == "__main__":
@@ -8,5 +8,5 @@ if __name__ == "__main__":
     if path.name=='example_scripts':
         path = path.parent
 
-    labManager.utils.config.load('master', path/'example_configs'/'master.yaml')
+    labManager.common.config.load('master', path/'example_configs'/'master.yaml')
     labManager.master.run()

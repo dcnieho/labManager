@@ -1,7 +1,7 @@
 from ..impacket import smbconnection  as smbconnection
 from ..impacket.dcerpc.v5 import srvs as dcerpc_v5_srvs
 from ..impacket import smb3structs    as smb3structs
-# provide labManager.utils.network.smb.SessionError:
+# provide labManager.common.network.smb.SessionError:
 from ..impacket.smbconnection import SessionError as SessionError
 
 

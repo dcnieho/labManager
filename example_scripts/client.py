@@ -2,15 +2,15 @@ import asyncio
 import pathlib
 
 import labManager.client
-import labManager.utils
+import labManager.common
 
 if __name__ == "__main__":
     path = pathlib.Path('.').resolve()
     if path.name=='example_scripts':
         path = path.parent
 
-    labManager.utils.config.load('client', path/'example_configs'/'client.yaml')
+    labManager.common.config.load('client', path/'example_configs'/'client.yaml')
 
-    labManager.utils.async_thread.setup()
+    labManager.common.async_thread.setup()
     asyncio.run(labManager.client.run())
-    labManager.utils.async_thread.cleanup()
+    labManager.common.async_thread.cleanup()

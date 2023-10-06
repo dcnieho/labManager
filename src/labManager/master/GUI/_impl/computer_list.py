@@ -1,7 +1,7 @@
 from imgui_bundle import icons_fontawesome, imgui
 from typing import Callable, Tuple
 
-from ....utils import structs
+from ....common import structs
 from . import utils
 
 class ComputerList():

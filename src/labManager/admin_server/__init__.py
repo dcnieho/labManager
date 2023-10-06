@@ -3,9 +3,9 @@ from pydantic import BaseModel
 import time
 import copy
 
-from ..utils.network import ldap
-from ..utils.network import toems as toems_conn
-from ..utils import config, secrets
+from ..common.network import ldap
+from ..common.network import toems as toems_conn
+from ..common import config, secrets
 
 # server with REST API for dealing with stuff that needs secret we don't want users to have access to:
 # 1. LDAP querying for verifying user credentials and getting which projects they're members of

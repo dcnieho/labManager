@@ -27,11 +27,11 @@ class Client:
     port    : int = None
     MACs    : List[str] = None
     name    : str = None
-    eye_tracker : 'labManager.utils.eye_tracker.EyeTracker' = None
+    eye_tracker : 'labManager.common.eye_tracker.EyeTracker' = None
 
     known_client: 'KnownClient' = None
 
-    tasks   : Dict[int, 'labManager.utils.task.Task'] = field(default_factory=lambda: {})
+    tasks   : Dict[int, 'labManager.common.task.Task'] = field(default_factory=lambda: {})
 
     def __post_init__(self):
         global _client_id_provider

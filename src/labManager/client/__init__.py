@@ -3,11 +3,11 @@ import traceback
 import platform
 from typing import List, Tuple
 
-from ..utils import config, eye_tracker, message, network, task
+from ..common import config, eye_tracker, message, network, task
 
 
 # main function for independently running client
-# NB: requires that utils.async_thread has been set up
+# NB: requires that common.async_thread has been set up
 async def run(duration: float = None):
     client = Client(config.client['network'])
     await client.start(keep_ssdp_running=True)
