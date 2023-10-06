@@ -5,7 +5,11 @@ import labManager.client
 import labManager.utils
 
 if __name__ == "__main__":
-    labManager.utils.config.load('client',pathlib.Path('.')/'example_configs'/'client.yaml')
+    path = pathlib.Path('.').resolve()
+    if path.name=='example_scripts':
+        path = path.parent
+
+    labManager.utils.config.load('client', path/'example_configs'/'client.yaml')
 
     labManager.utils.async_thread.setup()
     asyncio.run(labManager.client.run())
