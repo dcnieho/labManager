@@ -2,11 +2,10 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 import time
 import copy
-from dotenv import dotenv_values
 
 from ..utils.network import ldap
 from ..utils.network import toems as toems_conn
-from ..utils import config
+from ..utils import config, secrets
 
 # server with REST API for dealing with stuff that needs secret we don't want users to have access to:
 # 1. LDAP querying for verifying user credentials and getting which projects they're members of
@@ -149,9 +148,8 @@ async def user_toems_group_create(user_id: int, proj_id: int):
 async def toems_check(user_id):
     # create toems connection if needed
     if user_id not in toems:
-        secrets = dotenv_values(".env")
         toems[user_id] = ToemsEntry(conn=toems_conn.Client(config.admin_server['toems']['server'], config.admin_server['toems']['port'], protocol='http'))
-        await toems[user_id].conn.connect(username=secrets['TOEMS_ACCOUNT'], password=secrets['TOEMS_PASSWORD'])
+        await toems[user_id].conn.connect(username=secrets.val['TOEMS_ACCOUNT'], password=secrets.val['TOEMS_PASSWORD'])
 
 # 4. project image management in TOEMS
 @app.post('/users/{user_id}/projects/{proj_id}/images', status_code=201)

@@ -1,13 +1,11 @@
 import ldap3
 import re
-from dotenv import dotenv_values
+from .. import secrets
 
 
 def check_credentials(server:str, username:str, password:str, project_format:str = None):
-    secrets = dotenv_values(".env")
-
     serv = ldap3.Server(server, use_ssl=True, get_info=ldap3.ALL)
-    conn = ldap3.Connection(serv, user=secrets['LDAP_ACCOUNT'], password=secrets['LDAP_PASSWORD'], auto_bind=True)
+    conn = ldap3.Connection(serv, user=secrets.val['LDAP_ACCOUNT'], password=secrets.val['LDAP_PASSWORD'], auto_bind=True)
 
     conn.search('OU=People,DC=uw,DC=lu,DC=se', f'(samaccountname={username})', attributes=['displayName','memberOf'])
     results = conn.entries
