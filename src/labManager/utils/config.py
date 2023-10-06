@@ -1,9 +1,8 @@
 import strictyaml as s
-import os
+import pathlib
 
 from . import task
 
-_master_config_file = 'master_config.yaml'
 _master_schema = s.Map({
     'network': s.Str(),
     'SSDP': s.Map({
@@ -49,31 +48,19 @@ _master_schema = s.Map({
         }),
     ),
 })
+_default_master_config_file = 'master.yaml'
+master = None
 
-if os.path.isfile(_master_config_file):
-    with open(_master_config_file,'rt') as f:
-        master = s.load(f.read(),_master_schema).data
-else:
-    master = None
-
-
-_client_config_file = 'client_config.yaml'
 _client_schema = s.Map({
     'network': s.Str(),
     'SSDP': s.Map({
         'device_type': s.Str(),
     }),
 })
+_default_client_config_file = 'client.yaml'
+client = None
 
-if os.path.isfile(_client_config_file):
-    with open(_client_config_file,'rt') as f:
-        client = s.load(f.read(),_client_schema).data
-else:
-    client = None
-
-
-_server_config_file = 'admin_server_config.yaml'
-_server_schema = s.Map({
+_admin_server_schema = s.Map({
     'LDAP': s.Map({
         'server': s.Str(),
         'projects': s.Map({
@@ -97,9 +84,35 @@ _server_schema = s.Map({
         }),
     }),
 })
+_default_admin_server_config_file = 'admin_server.yaml'
+admin_server = None
 
-if os.path.isfile(_server_config_file):
-    with open(_server_config_file,'rt') as f:
-        admin_server = s.load(f.read(),_server_schema).data
-else:
-    admin_server = None
+def load(which: str, file: str|pathlib.Path = None):
+    global master, client, admin_server
+
+    match which:
+        case 'master':
+            schema = _master_schema
+            default_file = _default_master_config_file
+        case 'client':
+            schema = _client_schema
+            default_file = _default_client_config_file
+        case 'admin_server':
+            schema = _admin_server_schema
+            default_file = _default_admin_server_config_file
+        case _:
+            raise ValueError(f"which input argument '{which}' not recognized, should be one of 'master', 'client', 'admin_server'")
+
+    if file is None:
+        file = default_file
+
+    with open(file,'rt') as f:
+        config = s.load(f.read(), schema).data
+
+    match which:
+        case 'master':
+            master = config
+        case 'client':
+            client = config
+        case 'admin_server':
+            admin_server = config
