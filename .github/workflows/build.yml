@@ -1,0 +1,79 @@
+name: Publish 🐍 packages 📦 to PyPI
+
+on:
+  workflow_dispatch:
+  release:
+    types:
+      - "published"
+
+jobs:
+  wheel:
+    name: Package 📦 wheels and upload to PyPI
+    runs-on: ubuntu-latest
+    steps:
+
+    - name: Clone repo
+      uses: actions/checkout@v4
+
+    - name: Setup python
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.10.x"
+
+    - name: Get the latest versions of packaging tools
+      run: >-
+        python3 -m
+        pip install --upgrade
+        pip build setuptools wheel
+        --user
+
+    - name: Build wheels and source tarballs
+      run: >-
+        for d in labManager-common/ labManager-admin-server/ labManager-client/ labManager-master/; do
+          (
+            echo "building $d"
+            cd "$d"
+            # Verify the directory should be packaged by looking for a pyproject.toml.
+            if [ -f pyproject.toml ]; then
+              python3 -m build --sdist --wheel --outdir "../dist/"
+            fi
+          )
+        done
+
+    - name: "Upload wheels as workflow artifacts"
+      uses: actions/upload-artifact@v3
+      with:
+        path: "./dist/*.whl"
+
+    - name: Build wheels and source tarballs
+      run: >-
+        ls -la ./dist/
+
+        tree ./
+    
+
+    - name: Upload wheels as release artifact
+      uses: softprops/action-gh-release@v1
+      env:
+        GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+      with:
+        files: "./dist/*.whl"
+
+    # The step below publishes to testpypi in order to catch any issues
+    # with the package configuration that would cause a failure to upload
+    # to pypi. One example of such a failure is if a classifier is
+    # rejected by pypi (e.g "3 - Beta"). This would cause a failure during the
+    # middle of the package upload causing the action to fail, and certain packages
+    # might have already been updated, this would be bad.
+    - name: Publish packages 📦 to TestPyPI
+      if: github.event_name == 'release' && github.event.action == 'published'
+      uses: pypa/gh-action-pypi-publish@v1.8.10
+      with:
+        password: ${{ secrets.TEST_PYPI_API_TOKEN }}
+        repository-url: https://test.pypi.org/legacy/
+
+    - name: Publish packages 📦 to PyPI
+      if: github.event_name == 'release' && github.event.action == 'published'
+      uses: pypa/gh-action-pypi-publish@v1.8.10
+      with:
+        password: ${{ secrets.PYPI_API_TOKEN }}
