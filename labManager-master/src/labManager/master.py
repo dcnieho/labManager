@@ -6,11 +6,12 @@ import sys
 import threading
 from typing import Dict, List, Tuple
 
-from ..common import async_thread, config, eye_tracker, message, network, structs, task
+from labManager.common import async_thread, config, eye_tracker, message, structs, task
+from labManager.common.network import admin_conn, comms, ifs, keepalive, smb, ssdp, toems
 
 def _check_has_GUI():
     if 'imgui-bundle' not in {pkg.key for pkg in pkg_resources.working_set}:
-        raise RuntimeError('You must install labManager with the [GUI] extra if you wish to use the GUI. Required dependencies for the GUI not available...')
+        raise RuntimeError('You must install labManager-master with the [GUI] extra if you wish to use the GUI. Required dependencies for the GUI not available...')
 
 
 # main function for independently running master
@@ -76,12 +77,12 @@ async def do_run(duration: float = None):
 # run GUI master
 def do_run_GUI():
     _check_has_GUI()
-    from . import GUI
+    from labManager.GUI import master as master_GUI
     if getattr(sys, "frozen", False) and "nohide" not in sys.argv:
         import ctypes
         ctypes.windll.user32.ShowWindow(ctypes.windll.kernel32.GetConsoleWindow(), 0)
 
-    gui = GUI.MainGUI()
+    gui = master_GUI.MainGUI()
     # returns when GUI closed
     gui.run()
 
@@ -98,13 +99,13 @@ class Master:
         self.has_share_access = False
 
         # connections to servers
-        self.admin: network.admin_conn.Client = None
-        self.toems: network.toems.Client = None
+        self.admin: admin_conn.Client = None
+        self.toems: toems.Client = None
 
         # servers
         self.address = None
         self.server  = None
-        self.ssdp_server: network.ssdp.Server = None
+        self.ssdp_server: ssdp.Server = None
 
         self.clients: Dict[int, structs.Client] = {}
         self.known_clients: Dict[int, structs.KnownClient] = {}
@@ -117,7 +118,7 @@ class Master:
         self.logout()
 
         # check user credentials, and list projects they have access to
-        self.admin = network.admin_conn.Client(config.master['admin']['server'], config.master['admin']['port'])
+        self.admin = admin_conn.Client(config.master['admin']['server'], config.master['admin']['port'])
         self.projects = await self.admin.login(username, password)
         self.username, self.password = username, password
 
@@ -147,7 +148,7 @@ class Master:
 
         # log into toems server
         await self.admin.prep_toems()
-        self.toems = network.toems.Client(config.master['toems']['server'], config.master['toems']['port'], protocol='http')
+        self.toems = toems.Client(config.master['toems']['server'], config.master['toems']['port'], protocol='http')
         await self.toems.connect(self.username, self.password)
         self.project = project
 
@@ -293,7 +294,7 @@ class Master:
 
     async def start_server(self, local_addr: Tuple[str,int]=None, start_ssdp_advertise=True):
         if local_addr is None:
-            if_ips,_ = network.ifs.get_ifaces(config.master['network'])
+            if_ips,_ = ifs.get_ifaces(config.master['network'])
             if not if_ips:
                 raise RuntimeError(f'No interfaces found that are connected to the configured network {config.master["network"]}')
             local_addr = (if_ips[0], 0)
@@ -310,12 +311,11 @@ class Master:
         # start SSDP server if wanted
         if start_ssdp_advertise:
             # start SSDP server to advertise this server
-            self.ssdp_server = network.ssdp.Server(
+            self.ssdp_server = ssdp.Server(
                 address=local_addr[0],
                 host_ip_port=self.address[0],
                 usn="humlab-b055-master::"+config.master['SSDP']['device_type'],
-                device_type=config.master['SSDP']['device_type'],
-                allow_loopback=True)
+                device_type=config.master['SSDP']['device_type'])
             await self.ssdp_server.start()  # start listening to requests and respond with info about where we are
             await self.ssdp_server.send_notification()  # send one notification upon startup
 
@@ -332,19 +332,19 @@ class Master:
         self.server = None
 
     async def _handle_client(self, reader: asyncio.streams.StreamReader, writer: asyncio.streams.StreamWriter):
-        network.keepalive.set(writer.get_extra_info('socket'))
+        keepalive.set(writer.get_extra_info('socket'))
 
         me = structs.Client(writer)
         self._add_client(me)
 
         # request info about client
-        await network.comms.typed_send(writer, message.Message.IDENTIFY)
+        await comms.typed_send(writer, message.Message.IDENTIFY)
 
         # process incoming messages
         type = None
         while type != message.Message.QUIT:
             try:
-                type, msg = await network.comms.typed_receive(reader)
+                type, msg = await comms.typed_receive(reader)
                 if not type:
                     # connection broken, close
                     break
@@ -400,7 +400,7 @@ class Master:
 
     async def broadcast(self, type: message.Message, message: str=''):
         for c in self.clients:
-            await network.comms.typed_send(self.clients[c].writer, type, message)
+            await comms.typed_send(self.clients[c].writer, type, message)
 
     async def run_task(self,
                        type: task.Type,
@@ -451,8 +451,8 @@ def _SMB_get_shares(user, password, project=None):
         if dom:
             domain = dom
     try:
-        smb_hndl = network.smb.SMBHandler(config.master["SMB"]["server"], user['name'], domain, password)
-    except (OSError, network.smb.SessionError) as exc:
+        smb_hndl = smb.SMBHandler(config.master["SMB"]["server"], user['name'], domain, password)
+    except (OSError, smb.SessionError) as exc:
         print(f'Error connecting as {domain}\{user["name"]} to {config.master["SMB"]["server"]}: {exc}')
         shares = []
     else:

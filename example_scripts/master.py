@@ -1,7 +1,7 @@
 import pathlib
 
-import labManager.common
 import labManager.master
+import labManager.common
 
 if __name__ == "__main__":
     path = pathlib.Path('.').resolve()

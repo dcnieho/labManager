@@ -3,11 +3,12 @@ import traceback
 import platform
 from typing import List, Tuple
 
-from ..common import config, eye_tracker, message, network, task
+from labManager.common import config, eye_tracker, message, task
+from labManager.common.network import comms, ifs, keepalive, ssdp
 
 
 # main function for independently running client
-# NB: requires that common.async_thread has been set up
+# NB: requires that labManager.common.async_thread has been set up
 async def run(duration: float = None):
     client = Client(config.client['network'])
     await client.start(keep_ssdp_running=True)
@@ -47,7 +48,7 @@ class Client:
 
     async def start(self, server_addr: Tuple[str,int] = None, *, keep_ssdp_running = False):
         # 1. get interfaces we can work with
-        self._if_ips, self._if_macs = network.ifs.get_ifaces(self.network)
+        self._if_ips, self._if_macs = ifs.get_ifaces(self.network)
         if not self._if_ips:
             raise RuntimeError(f'No interfaces found that are connected to the configured network {self.network}')
 
@@ -57,7 +58,7 @@ class Client:
         # 3. discover master, if needed
         if not server_addr:
             # start SSDP client
-            self._ssdp_client = network.ssdp.Client(
+            self._ssdp_client = ssdp.Client(
                 address=self._if_ips[0],
                 device_type=config.client['SSDP']['device_type'],
                 response_handler=self._handle_ssdp_response if keep_ssdp_running else None,
@@ -94,7 +95,7 @@ class Client:
         # connect to master at specified server_address
         reader, writer = await asyncio.open_connection(
             *server_addr, local_addr=(self._if_ips[0],0))
-        network.keepalive.set(writer.get_extra_info('socket'))
+        keepalive.set(writer.get_extra_info('socket'))
         self._connected_masters.append(server_addr)
         self._local_addrs.append(writer.get_extra_info('sockname'))
         self._writers.append(writer)
@@ -140,10 +141,10 @@ class Client:
 
     def get_waiters(self):
         return self._handler_tasks
-    
+
     async def broadcast(self, type: message.Message, message: str=''):
         for w in self._writers:
-            await network.comms.typed_send(w, type, message)
+            await comms.typed_send(w, type, message)
 
     def _remove_finished_task(self, my_task: asyncio.Task):
         for i,t in enumerate(self._task_list):
@@ -156,21 +157,21 @@ class Client:
         # if we have an eye tracker already, send info about it and subscribe to updates
         if self._connected_eye_tracker:
             eye_tracker.subscribe_to_notifications(self._connected_eye_tracker, writer)
-            await network.comms.typed_send(writer,
+            await comms.typed_send(writer,
                                             message.Message.ET_ATTR_UPDATE,
                                             eye_tracker.get_attribute(self._connected_eye_tracker, '*')
                                             )
         
         while type != message.Message.QUIT:
             try:
-                type, msg = await network.comms.typed_receive(reader)
+                type, msg = await comms.typed_receive(reader)
                 if not type:
                     # connection broken, close
                     break
 
                 match type:
                     case message.Message.IDENTIFY:
-                        await network.comms.typed_send(writer, message.Message.IDENTIFY, {'name': self.name, 'MACs': self._if_macs})
+                        await comms.typed_send(writer, message.Message.IDENTIFY, {'name': self.name, 'MACs': self._if_macs})
                     case message.Message.INFO:
                         print(f'client {self.name} received: {msg}')
 
@@ -181,7 +182,7 @@ class Client:
                                 eye_tracker.subscribe_to_notifications(self._connected_eye_tracker, writer)
                                 msg = '*'   # override requested: send all attributes
 
-                        await network.comms.typed_send(writer,
+                        await comms.typed_send(writer,
                                                message.Message.ET_ATTR_UPDATE,
                                                eye_tracker.get_attribute(self._connected_eye_tracker, msg)
                                               )

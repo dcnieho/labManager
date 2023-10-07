@@ -1,11 +1,12 @@
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+from typing import Optional
+from pydantic import ConfigDict, BaseModel
 import time
 import copy
 
-from ..common.network import ldap
-from ..common.network import toems as toems_conn
-from ..common import config, secrets
+from labManager.common.network import ldap
+from labManager.common.network import toems as toems_conn
+from labManager.common import config, secrets
 
 # server with REST API for dealing with stuff that needs secret we don't want users to have access to:
 # 1. LDAP querying for verifying user credentials and getting which projects they're members of
@@ -31,7 +32,7 @@ class UserSession(BaseModel):
     full_name: str
     distinguished_name: str
     timestamp: float
-    projects: list[Project] | None = None
+    projects: Optional[list[Project]] = None
 
 class UserLogin(BaseModel):
     username: str
@@ -39,16 +40,14 @@ class UserLogin(BaseModel):
 
 class Image(BaseModel):
     name: str
-    description: str | None
+    description: Optional[str] = None
 
 users = {}
 
 class ToemsEntry(BaseModel):
     conn: toems_conn.Client
-    group_id: int | None
-
-    class Config:
-        arbitrary_types_allowed = True
+    group_id: Optional[int] = None
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
 toems: dict[int, ToemsEntry] = {}
 

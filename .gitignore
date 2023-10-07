@@ -21,8 +21,7 @@ __pycache__/
 
 # virtual environment
 .venv/
-.venv_build/
-.venv_server/
+.venv_*/
 
 # secrets
 .env

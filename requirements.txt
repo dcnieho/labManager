@@ -1,5 +1,0 @@
-aiofile
-jsonpickle
-psutil ; sys_platform != "win32"
-strictyaml
-tobii_research
