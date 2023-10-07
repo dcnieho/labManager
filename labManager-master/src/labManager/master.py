@@ -186,7 +186,10 @@ class Master:
 
         if isinstance(computers,str):
             computers = [computers]
-        comp_ids = [(await self.toems.computer_get(c))['Id'] for c in computers]
+        comps = [(await self.toems.computer_get(c)) for c in computers]
+        comp_ids = [c['Id'] for c in comps if c is not None]
+        if not comp_ids:
+            raise RuntimeError(f"can't deploy: the selected computers are not found or not known to Toems")
         for c in comp_ids:
             resp = await self.admin.apply_image(image_id, c)
             if not resp['Success']:
@@ -207,7 +210,7 @@ class Master:
 
         comp = await self.toems.computer_get(computer)
         if comp is None:
-            raise RuntimeError(f"can't upload: computer with name '{computer}' not found")
+            raise RuntimeError(f"can't upload: computer with name '{computer}' not found or not known to Toems")
         comp_id  = comp['Id']
         resp = await self.admin.apply_image(image_id, comp_id)
         if not resp['Success']:
