@@ -45,13 +45,6 @@ jobs:
       with:
         path: "./dist/*.whl"
 
-    - name: Build wheels and source tarballs
-      run: >-
-        ls -la ./dist/
-
-        tree ./
-    
-
     - name: Upload wheels as release artifact
       uses: softprops/action-gh-release@v1
       env:
