@@ -39,33 +39,20 @@ async def do_run(duration: float = None):
     from getpass import getpass
     username = input(f'Username: ')
     password = getpass(f'Password: ')
-    server = Master()
-    server.load_known_clients(config.master['clients'])
-    await server.login(username, password)
+    master = Master()
+    master.load_known_clients(config.master['clients'])
+    await master.login(username, password)
     print('You have access to the following projects, which would you like to use?')
-    for p,pn in server.projects.items():
+    for p,pn in master.projects.items():
         if pn==p:
             print(f'  {p}')
         else:
             print(f'  {p} ({pn})')
     project = input(f'Project: ')
-    await server.set_project(project)
+    await master.set_project(project)
 
-    # 2. check we also have share access
-    access = server.has_share_access()
-
-    # 3. log into toems server
-    image_list = await server.get_images()
-    comp_list = await server.get_computers()
-
-    #image_start = await server.deploy_image('station_base', ['STATION01'])
-    #new = await server.create_image('test')
-    image_start = await server.upload_computer_to_image('STATION01','test')
-    # image_tasks = await toems.imaging_task_get()
-
-    # 4. start servers for listening to clients
     # start server to connect with stations
-    await server.start_server()
+    await master.start_server()
 
     # run
     if not duration:
@@ -75,7 +62,7 @@ async def do_run(duration: float = None):
         await asyncio.sleep(duration)
 
     # stop servers
-    await server.stop_server()
+    await master.stop_server()
 
 # run GUI master
 def do_run_GUI():
