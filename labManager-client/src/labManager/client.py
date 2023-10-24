@@ -248,7 +248,7 @@ class Client:
                     self._connected_eye_tracker = None
                     await self.broadcast(message.Message.ET_ATTR_UPDATE, None)
 
-                # sleep until the next whole second
+                # rate-limit to every x seconds
                 await asyncio.sleep(5)
         except asyncio.CancelledError:
             pass    # we broke out of the loop: cancellation processed
