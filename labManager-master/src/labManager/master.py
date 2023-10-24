@@ -43,8 +43,11 @@ async def do_run(duration: float = None):
     server.load_known_clients(config.master['clients'])
     await server.login(username, password)
     print('You have access to the following projects, which would you like to use?')
-    for p in server.projects:
-        print(f'  {p}')
+    for p,pn in server.projects.items():
+        if p==pn:
+            print(f'  {p}')
+        else:
+            print(f'  {p} ({pn})')
     project = input(f'Project: ')
     await server.set_project(project)
 
@@ -94,7 +97,7 @@ class Master:
         self.username = None
         self.password = None
         # all projects user has access to and selected project
-        self.projects = []
+        self.projects = Dict[str, str]
         self.project  = None
         self.has_share_access = False
 
@@ -119,19 +122,41 @@ class Master:
 
         # check user credentials, and list projects they have access to
         self.admin = admin_conn.Client(config.master['admin']['server'], config.master['admin']['port'])
-        self.projects = await self.admin.login(username, password)
+        await self.admin.login(username, password)
         self.username, self.password = username, password
+
+        # prep user's projects
+        self.load_projects()
 
     def logout(self):
         self.unset_project()
         self.username, self.password = None, None
-        self.projects = []
+        self.projects = {}
         if self.admin is not None:
             self.admin = None
 
+    def load_projects(self):
+        projects = self.admin.get_projects()
+        names_to_override = []
+        if 'projects' in config.master:
+            names_to_override = [k for k in config.master['projects']['name_table']]
+        for p in projects:
+            project_display_name = p
+            if p in names_to_override:
+                project_display_name = config.master['projects']['name_table'][p]
+            self.projects[p] = project_display_name
+
     async def set_project(self, project: str):
         if project not in self.projects:
-            raise ValueError(f'project "{project}" not recognized, choose one of the projects you have access to: {self.projects}')
+            # make nice error message
+            projects = []
+            for k,v in self.projects.items():
+                if k==v:
+                    projects.append(k)
+                else:
+                    projects.append(f'{k} ({v})')
+            projects = "\n  ".join(projects)
+            raise ValueError(f'project "{project}" not recognized, choose one of the projects you have access to: \n  {projects}')
 
         if project == self.project:
             return

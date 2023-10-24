@@ -8,6 +8,9 @@ _master_schema = s.Map({
     'SSDP': s.Map({
         'device_type': s.Str(),
     }),
+    s.Optional('projects'): s.Map({
+        'name_table': s.MapPattern(s.Str(), s.Str()),
+    }),
     'SMB': s.Map({
         'server': s.Str(),
         'domain': s.Str(),

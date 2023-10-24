@@ -43,6 +43,8 @@ class Client:
         self.user_id = resp['id']
         self.user = resp['user']
 
+    def get_projects(self):
+        self._check_user()
         return [p['name'] for p in self.user['projects']]
 
     def set_project(self, project):

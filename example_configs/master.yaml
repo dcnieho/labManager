@@ -8,6 +8,12 @@ admin:
     server: localhost
     port: 8000
 
+projects:
+    name_table:
+        0000-01: Demo environment
+        0000-02: Eye tracking long course
+        0000-03: PITET
+
 SMB:
     server: srv2.humlab.lu.se
     domain: UW  # domain for users (may be overridden by LDAP reply)

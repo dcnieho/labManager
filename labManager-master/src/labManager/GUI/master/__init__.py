@@ -44,7 +44,7 @@ class MainGUI:
         self.login_state      = ActionState.Not_Done
         self.proj_select_state= ActionState.Not_Done
         self.proj_idx         = -1
-        self.project          = ''
+        self.project          = ''  # NB: display name
 
         # GUI state
         self._window_list     = []
@@ -269,7 +269,10 @@ class MainGUI:
     def _project_selected(self):
         self.proj_select_state = ActionState.Done
         # update GUI
-        self.project = self.master.projects[self.proj_idx]
+        project = list(self.master.projects.keys())[self.proj_idx]
+        self.project = self.master.projects[project]
+        if self.project!=project:
+            self.project = f'{project} ({self.project})'
         self._window_list = [
             self.computer_list,
             self._make_main_space_window("Tasks", self._task_GUI),
@@ -337,7 +340,7 @@ class MainGUI:
                         utils.push_popup(self, msgbox.msgbox, "Login error", 'Fill in a username', msgbox.MsgBox.error)
                     else:
                         self.login_state = ActionState.Processing
-                        async_thread.run(self.master.login(self.username,self.password), lambda fut: self._login_result('login',fut))
+                        async_thread.run(self.master.login(self.username,self.password), lambda fut: self._login_projectsel_result('login',fut))
 
             if disabled:
                 utils.pop_disabled()
@@ -346,7 +349,7 @@ class MainGUI:
             if disabled:
                 utils.push_disabled()
             imgui.text('Select project:')
-            _,self.proj_idx = imgui.list_box('##Project', 0 if self.proj_idx==-1 else self.proj_idx, self.master.projects)
+            _,self.proj_idx = imgui.list_box('##Project', 0 if self.proj_idx==-1 else self.proj_idx, list(self.master.projects.values()))
 
             if self.proj_select_state==ActionState.Processing:
                 symbol_size = imgui.calc_text_size("x").y*2
@@ -356,12 +359,12 @@ class MainGUI:
             else:
                 if imgui.button("Select"):
                     self.proj_select_state = ActionState.Processing
-                    async_thread.run(self.master.set_project(self.master.projects[self.proj_idx]), lambda fut: self._login_result('project',fut))
+                    async_thread.run(self.master.set_project(list(self.master.projects.keys())[self.proj_idx]), lambda fut: self._login_projectsel_result('project',fut))
 
             if disabled:
                 utils.pop_disabled()
 
-    def _login_result(self, stage, future: asyncio.Future):
+    def _login_projectsel_result(self, stage, future: asyncio.Future):
         try:
             exc = future.exception()
         except concurrent.futures.CancelledError:
