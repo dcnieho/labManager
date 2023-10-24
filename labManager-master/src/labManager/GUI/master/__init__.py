@@ -349,7 +349,13 @@ class MainGUI:
             if disabled:
                 utils.push_disabled()
             imgui.text('Select project:')
-            _,self.proj_idx = imgui.list_box('##Project', 0 if self.proj_idx==-1 else self.proj_idx, list(self.master.projects.values()))
+            projects = []
+            for p,pn in self.master.projects.items():
+                if pn==p:
+                    projects.append(p)
+                else:
+                    projects.append(f'{p} ({pn})')
+            _,self.proj_idx = imgui.list_box('##Project', 0 if self.proj_idx==-1 else self.proj_idx, projects)
 
             if self.proj_select_state==ActionState.Processing:
                 symbol_size = imgui.calc_text_size("x").y*2

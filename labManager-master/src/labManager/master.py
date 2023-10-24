@@ -44,7 +44,7 @@ async def do_run(duration: float = None):
     await server.login(username, password)
     print('You have access to the following projects, which would you like to use?')
     for p,pn in server.projects.items():
-        if p==pn:
+        if pn==p:
             print(f'  {p}')
         else:
             print(f'  {p} ({pn})')
@@ -150,11 +150,11 @@ class Master:
         if project not in self.projects:
             # make nice error message
             projects = []
-            for k,v in self.projects.items():
-                if k==v:
-                    projects.append(k)
+            for p,pn in self.projects.items():
+                if pn==p:
+                    projects.append(p)
                 else:
-                    projects.append(f'{k} ({v})')
+                    projects.append(f'{p} ({pn})')
             projects = "\n  ".join(projects)
             raise ValueError(f'project "{project}" not recognized, choose one of the projects you have access to: \n  {projects}')
 
