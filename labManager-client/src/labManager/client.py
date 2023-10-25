@@ -156,12 +156,11 @@ class Client:
         type = None
         # if we have an eye tracker already, send info about it and subscribe to updates
         if self._connected_eye_tracker:
-            eye_tracker.subscribe_to_notifications(self._connected_eye_tracker, writer)
             await comms.typed_send(writer,
-                                            message.Message.ET_ATTR_UPDATE,
-                                            eye_tracker.get_attribute(self._connected_eye_tracker, '*')
-                                            )
-        
+                                    message.Message.ET_ATTR_UPDATE,
+                                    eye_tracker.get_announcement_message(self._connected_eye_tracker)
+                                    )
+
         while type != message.Message.QUIT:
             try:
                 type, msg = await comms.typed_receive(reader)
@@ -177,7 +176,7 @@ class Client:
 
                     case message.Message.ET_ATTR_REQUEST:
                         if not self._connected_eye_tracker:
-                            msg = None
+                            msg = None  # none means eye tracker not connected
                         else:
                             msg = eye_tracker.get_attribute(self._connected_eye_tracker, msg)
                         await comms.typed_send(writer,
