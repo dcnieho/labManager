@@ -377,11 +377,12 @@ class Master:
                             me.eye_tracker = eye_tracker.EyeTracker()
                         if msg:
                             me.eye_tracker.online = True
+                            # if message is timestamped, add it to a
+                            # list of eye-tracker events for this client
+                            # TODO
+
+                            # update attributes if any attached to message
                             if 'attributes' in msg:
-                                # this is a timestamped update message
-                                # add to eye-tracker events for this client
-                                # TODO
-                                # update attributes
                                 eye_tracker.update_attributes(me.eye_tracker, msg['attributes'])
                         else:
                             # empty means eye tracker lost

@@ -176,12 +176,12 @@ class Client:
 
                     case message.Message.ET_ATTR_REQUEST:
                         if not self._connected_eye_tracker:
-                            msg = None  # none means eye tracker not connected
+                            out = None  # none means eye tracker not connected
                         else:
-                            msg = eye_tracker.get_attribute(self._connected_eye_tracker, msg)
+                            out = eye_tracker.get_attribute_message(self._connected_eye_tracker, msg)
                         await comms.typed_send(writer,
                                                message.Message.ET_ATTR_UPDATE,
-                                               msg
+                                               out
                                               )
 
                     case message.Message.TASK_CREATE:

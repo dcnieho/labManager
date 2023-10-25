@@ -177,3 +177,8 @@ def get_announcement_message(eye_tracker: EyeTracker):
     msg['status'] = Status.Connected
     msg['attributes'] = get_attribute(eye_tracker, '*')
     return msg
+
+def get_attribute_message(eye_tracker: EyeTracker, attributes: List[Attribute]|str):
+    msg = {'serial': eye_tracker.serial_number}
+    msg['attributes'] = get_attribute(eye_tracker, attributes)
+    return msg
