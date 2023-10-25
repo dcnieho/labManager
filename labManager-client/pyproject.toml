@@ -24,9 +24,11 @@ classifiers = [
     "Topic :: Utilities",
 ]
 dependencies = [
-    "labManager-common",
-    "tobii-research"
+    "labManager-common"
 ]
+
+[project.optional-dependencies]
+eye-tracker  = ["tobii-research"]
 
 [project.urls]
 "Source Code" = "https://github.com/dcnieho/labManager/tree/main/labManager-client"
