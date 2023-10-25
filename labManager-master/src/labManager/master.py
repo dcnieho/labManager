@@ -385,8 +385,8 @@ class Master:
                             if 'attributes' in msg:
                                 eye_tracker.update_attributes(me.eye_tracker, msg['attributes'])
                         else:
-                            # empty means eye tracker lost
-                            me.eye_tracker.online = False
+                            # empty means eye tracker lost, clear properties
+                            me.eye_tracker = eye_tracker.EyeTracker()
 
 
                     case message.Message.TASK_OUTPUT:
