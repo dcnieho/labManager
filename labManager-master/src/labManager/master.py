@@ -384,6 +384,7 @@ class Master:
                                 # update attributes
                                 eye_tracker.update_attributes(me.eye_tracker, msg['attributes'])
                         else:
+                            # empty means eye tracker lost
                             me.eye_tracker.online = False
 
 
