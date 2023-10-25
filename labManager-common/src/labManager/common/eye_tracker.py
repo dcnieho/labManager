@@ -155,22 +155,22 @@ def get_attribute(eye_tracker: ET_class, attributes: List[Attribute]|str):
     return out if out else None
 
 def update_attributes(eye_tracker: EyeTracker, attributes: Dict[Attribute,bool|str|int]):
-    for attr in attributes:
+    for attr, value in attributes.items():
         match attr:
             case Attribute.Serial:
-                eye_tracker.serial = attributes[attr]
+                eye_tracker.serial = value
             case Attribute.Name:
-                eye_tracker.name = attributes[attr]
+                eye_tracker.name = value
             case Attribute.Model:
-                eye_tracker.model = attributes[attr]
+                eye_tracker.model = value
             case Attribute.Firmware_version:
-                eye_tracker.firmware_version = attributes[attr]
+                eye_tracker.firmware_version = value
             case Attribute.Address:
-                eye_tracker.address = attributes[attr]
+                eye_tracker.address = value
             case Attribute.Frequency:
-                eye_tracker.frequency = attributes[attr]
+                eye_tracker.frequency = value
             case Attribute.Tracking_mode:
-                eye_tracker.tracking_mode = attributes[attr]
+                eye_tracker.tracking_mode = value
 
 def get_announcement_message(eye_tracker: EyeTracker):
     msg = {'serial': eye_tracker.serial_number, 'timestamp': tobii_research.get_system_time_stamp()}
