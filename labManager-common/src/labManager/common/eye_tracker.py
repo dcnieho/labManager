@@ -71,7 +71,7 @@ def _get_notifications():
         tobii_research.EYETRACKER_NOTIFICATION_DEVICE_FAULTS,
         tobii_research.EYETRACKER_NOTIFICATION_DEVICE_WARNINGS)
 
-def notification_callback(notification, data, eye_tracker, writer):
+def notification_callback(notification, data, eye_tracker, callback):
     msg   = {'serial': eye_tracker.serial_number, 'timestamp': data.system_time_stamp}
     mtype = None
     match notification:
@@ -108,12 +108,12 @@ def notification_callback(notification, data, eye_tracker, writer):
 
     # if handled notification type, send to master
     if mtype:
-        async_thread.run(comms.send_typed_message(writer, mtype, message))
+        async_thread.run(callback(mtype, msg))
 
-def subscribe_to_notifications(eye_tracker: ET_class, writer):
+def subscribe_to_notifications(eye_tracker: ET_class, callback):
     for notification in _get_notifications():
         eye_tracker.subscribe_to(notification,
-            lambda x, note: notification_callback(note, x, writer))
+            lambda x, note: notification_callback(note, x, callback))
 
 def unsubscribe_from_notifications(eye_tracker: ET_class):
     for notification in _get_notifications():
@@ -153,6 +153,12 @@ def get_attribute(eye_tracker: ET_class, attributes: List[Attribute]|str):
         return None
 
     return out if out else None
+
+def get_announcement_message(eye_tracker: EyeTracker):
+    msg = {'serial': eye_tracker.serial_number, 'timestamp': tobii_research.get_system_time_stamp()}
+    msg['status'] = Status.Connected
+    msg['attributes'] = get_attribute(eye_tracker, '*')
+    return msg
 
 def update_attributes(eye_tracker: EyeTracker, attributes: Dict[Attribute,bool|str|int]):
     for attr in attributes:
