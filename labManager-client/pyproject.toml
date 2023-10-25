@@ -24,7 +24,8 @@ classifiers = [
     "Topic :: Utilities",
 ]
 dependencies = [
-    "labManager-common"
+    "labManager-common",
+    "tobii-research"
 ]
 
 [project.urls]
