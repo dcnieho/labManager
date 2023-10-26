@@ -238,7 +238,7 @@ class Client:
             while True:
                 # check if we have an eye tracker
                 et = eye_tracker.get()
-                if not self._connected_eye_tracker:
+                if not self._connected_eye_tracker and et:
                     self._connected_eye_tracker = et
                     eye_tracker.subscribe_to_notifications(self._connected_eye_tracker, self.broadcast)
                     await self.broadcast(message.Message.ET_ATTR_UPDATE, eye_tracker.get_announcement_message(self._connected_eye_tracker))
