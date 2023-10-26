@@ -175,7 +175,7 @@ class Client:
                             out = eye_tracker.Status.Connected
                         await comms.typed_send(writer,
                                                message.Message.ET_STATUS_INFORM,
-                                               {'msg': out}
+                                               {'status': out}
                                               )
                     case message.Message.ET_ATTR_REQUEST:
                         if not self._connected_eye_tracker:
@@ -244,10 +244,10 @@ class Client:
                 if not self._connected_eye_tracker and et:
                     self._connected_eye_tracker = et
                     eye_tracker.subscribe_to_notifications(self._connected_eye_tracker, self.broadcast)
-                    await self.broadcast(message.Message.ET_STATUS_INFORM, {'msg': eye_tracker.Status.Connected})
+                    await self.broadcast(message.Message.ET_STATUS_INFORM, {'status': eye_tracker.Status.Connected})
                 elif not et and self._connected_eye_tracker:
                     self._connected_eye_tracker = None
-                    await self.broadcast(message.Message.ET_STATUS_INFORM, {'msg': eye_tracker.Status.Not_connected})
+                    await self.broadcast(message.Message.ET_STATUS_INFORM, {'status': eye_tracker.Status.Not_connected})
 
                 # rate-limit to every x seconds
                 await asyncio.sleep(5)
