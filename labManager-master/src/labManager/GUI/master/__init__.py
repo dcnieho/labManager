@@ -540,6 +540,8 @@ class MainGUI:
                         imgui.push_font(imgui_md.get_code_font())
                         if self._task_GUI_editor.get_text() != self._task_prep.payload_text:
                             self._task_GUI_editor.set_text(self._task_prep.payload_text)
+                        if self._task_GUI_editor.is_read_only():
+                            self._task_GUI_editor.set_read_only(False)
                         self._task_GUI_editor.render("Code", False, editor_size)
                         self._task_prep.payload_text = self._task_GUI_editor.get_text()
                         imgui.pop_font()
@@ -935,6 +937,8 @@ class MainGUI:
                         if tsk.type in [task.Type.Batch_file, task.Type.Python_script]:
                             if self._task_GUI_editor.get_text() != tsk.payload.replace('\r\n','\n').replace('\r','\n'):
                                 self._task_GUI_editor.set_text(tsk.payload)
+                            if not self._task_GUI_editor.is_read_only():
+                                self._task_GUI_editor.set_read_only(True)
                             width = imgui.get_content_region_max().x - imgui.get_window_content_region_min().x - imgui.get_style().item_spacing.x
                             line_height = imgui.get_font_size()
                             num_visible_lines = 10
