@@ -100,6 +100,7 @@ class Master:
         self.clients: Dict[int, structs.Client] = {}
         self.known_clients: Dict[int, structs.KnownClient] = {}
         self.known_clients_lock = threading.Lock()
+        self.client_et_events: Dict[int, List[Dict]] = {}
 
         self.task_groups: Dict[int, task.TaskGroup] = {}
 
@@ -278,10 +279,12 @@ class Master:
 
     def _add_client(self, client: structs.Client):
         self.clients[client.id] = client
+        self.client_et_events[client.id] = []
 
     def _remove_client(self, client: structs.Client):
         self._remove_known_client(client)
         del self.clients[client.id]
+        del self.client_et_events[client.id]
 
     def load_known_clients(self, known_clients: List[Tuple[str,str]]):
         with self.known_clients_lock:
@@ -384,24 +387,24 @@ class Master:
                             me.eye_tracker.online = True
                             # ask for info about eye tracker
                             await comms.typed_send(writer, message.Message.ET_ATTR_REQUEST, '*')
-                        print(msg)
-
+                        # if timestamped, store as event
+                        if 'timestamp' in msg:
+                            self.client_et_events[me.id].append(msg)
                     case message.Message.ET_EVENT:
                         if not me.eye_tracker:
                             continue
-                        print(msg)
-
+                        # if timestamped, store as event
+                        if 'timestamp' in msg:
+                            self.client_et_events[me.id].append(msg)
                     case message.Message.ET_ATTR_UPDATE:
                         if not me.eye_tracker:
                             continue
-                        if msg:
-                            # if message is timestamped, add it to a
-                            # list of eye-tracker events for this client
-                            # TODO
-
-                            # update attributes if any attached to message
-                            if 'attributes' in msg:
-                                eye_tracker.update_attributes(me.eye_tracker, msg['attributes'])
+                        # update attributes if any attached to message
+                        if 'attributes' in msg:
+                            eye_tracker.update_attributes(me.eye_tracker, msg['attributes'])
+                        # if timestamped, store as event
+                        if 'timestamp' in msg:
+                            self.client_et_events[me.id].append(msg)
 
 
                     case message.Message.TASK_OUTPUT:
