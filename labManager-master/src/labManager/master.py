@@ -372,11 +372,27 @@ class Master:
                     case message.Message.INFO:
                         print(f'{me.host}:{me.port}: {msg}')
 
-                    case message.Message.ET_ATTR_UPDATE:
+                    case message.Message.ET_STATUS_INFORM:
                         if not me.eye_tracker:
                             me.eye_tracker = eye_tracker.EyeTracker()
-                        if msg:
+                        if msg['status']==eye_tracker.Status.Not_connected:
+                            # eye tracker lost, clear properties
+                            me.eye_tracker = eye_tracker.EyeTracker()   # NB: sets online to False
+                        elif msg['status']==eye_tracker.Status.Connected:
                             me.eye_tracker.online = True
+                            # ask for info about eye tracker
+                            await comms.typed_send(writer, message.Message.ET_ATTR_REQUEST, '*')
+                        print(msg)
+
+                    case message.Message.ET_EVENT:
+                        if not me.eye_tracker:
+                            continue
+                        print(msg)
+
+                    case message.Message.ET_ATTR_UPDATE:
+                        if not me.eye_tracker:
+                            continue
+                        if msg:
                             # if message is timestamped, add it to a
                             # list of eye-tracker events for this client
                             # TODO
@@ -384,9 +400,6 @@ class Master:
                             # update attributes if any attached to message
                             if 'attributes' in msg:
                                 eye_tracker.update_attributes(me.eye_tracker, msg['attributes'])
-                        else:
-                            # empty means eye tracker lost, clear properties
-                            me.eye_tracker = eye_tracker.EyeTracker()
 
 
                     case message.Message.TASK_OUTPUT:

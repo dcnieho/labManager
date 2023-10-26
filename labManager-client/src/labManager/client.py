@@ -241,10 +241,10 @@ class Client:
                 if not self._connected_eye_tracker and et:
                     self._connected_eye_tracker = et
                     eye_tracker.subscribe_to_notifications(self._connected_eye_tracker, self.broadcast)
-                    await self.broadcast(message.Message.ET_ATTR_UPDATE, eye_tracker.get_announcement_message(self._connected_eye_tracker))
+                    await self.broadcast(message.Message.ET_STATUS_INFORM, {'msg': eye_tracker.Status.Connected})
                 elif not et and self._connected_eye_tracker:
                     self._connected_eye_tracker = None
-                    await self.broadcast(message.Message.ET_ATTR_UPDATE, None)
+                    await self.broadcast(message.Message.ET_STATUS_INFORM, {'msg': eye_tracker.Status.Not_connected})
 
                 # rate-limit to every x seconds
                 await asyncio.sleep(5)
