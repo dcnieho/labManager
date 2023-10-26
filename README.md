@@ -5,7 +5,7 @@
 
 [![image](https://img.shields.io/pypi/pyversions/labManager-master.svg)](https://pypi.org/project/labManager-master/)
 
-# labManager v0.5.0
+# labManager v0.6.0
 Master/client software for managing multi-station multi-tenant lab setups.
 
 ## Standalone deployment
