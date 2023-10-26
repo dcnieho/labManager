@@ -9,7 +9,8 @@ from enum import auto
 from dataclasses import dataclass, field
 from typing import Dict, List
 
-from . import enum_helper, message, network, structs
+from . import enum_helper, message, structs
+from .network import comms, wol
 
 # TODO: env is a dict and should support either adding or overriding specific variables
 # https://stackoverflow.com/questions/2231227/python-subprocess-popen-with-a-modified-environment
@@ -113,7 +114,7 @@ class Executor:
         while True:
             line = await stream.read(20)
             if line:
-                await network.comms.typed_send(
+                await comms.typed_send(
                     writer,
                     message.Message.TASK_OUTPUT,
                     {'task_id': id, 'stream_type': stream_type, 'output': line.decode('utf8')}
@@ -157,7 +158,7 @@ class Executor:
             return None
 
         # send that we're running
-        await network.comms.typed_send(
+        await comms.typed_send(
             writer,
             message.Message.TASK_UPDATE,
             {'task_id': id, 'status': Status.Running}
@@ -174,7 +175,7 @@ class Executor:
 
         # wait for return code to become available and forward to master
         return_code = await self._proc.wait()
-        await network.comms.typed_send(
+        await comms.typed_send(
             writer,
             message.Message.TASK_UPDATE,
             {
@@ -259,13 +260,13 @@ class Executor:
     async def _handle_error(self, exc, id, writer):
             tb_lines = traceback.format_exception(exc)
             # send error text
-            await network.comms.typed_send(
+            await comms.typed_send(
                 writer,
                 message.Message.TASK_OUTPUT,
                 {'task_id': id, 'stream_type': StreamType.STDERR, 'output': "".join(tb_lines)}
             )
             # send error status
-            await network.comms.typed_send(
+            await comms.typed_send(
                 writer,
                 message.Message.TASK_UPDATE,
                 {'task_id': id, 'status': Status.Errored}
@@ -275,14 +276,17 @@ async def send(task: Task|TaskGroup, known_client):
     if isinstance(task, TaskGroup):
         if task.type==Type.Wake_on_LAN:
             MACs = [known_client[task.task_refs[i].known_client].MAC for i in task.task_refs if task.task_refs[i].known_client in known_client]
-            await network.wol.send_magic_packet(*MACs)
+            await wol.send_magic_packet(*MACs)
+            for _,t in task.task_refs.items():
+                t.status = Status.Finished  # This task is finished once its sent
         else:
             raise RuntimeError(f'API usage error: Task type {task.Type.value} cannot be launched as a group at once. Do this only if the second return argument of task.create_group() is True')
     else:
         if task.type==Type.Wake_on_LAN:
-            await network.wol.send_magic_packet(known_client.MAC)
+            await wol.send_magic_packet(known_client.MAC)
+            task.status = Status.Finished   # This task is finished once its sent
         elif known_client.client:
-            await network.comms.typed_send(
+            await comms.typed_send(
                 known_client.client.writer,
                 message.Message.TASK_CREATE,
                 {
@@ -297,7 +301,7 @@ async def send(task: Task|TaskGroup, known_client):
 
 async def send_input(payload, known_client, task: Task):
     if known_client.client:
-        await network.comms.typed_send(
+        await comms.typed_send(
             known_client.client.writer,
             message.Message.TASK_INPUT,
             {
@@ -308,7 +312,7 @@ async def send_input(payload, known_client, task: Task):
 
 async def send_cancel(known_client, task: Task):
     if known_client.client:
-        await network.comms.typed_send(
+        await comms.typed_send(
             known_client.client.writer,
             message.Message.TASK_CANCEL,
             {
