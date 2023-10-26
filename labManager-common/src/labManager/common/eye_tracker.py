@@ -172,12 +172,6 @@ def update_attributes(eye_tracker: EyeTracker, attributes: Dict[Attribute,bool|s
             case Attribute.Tracking_mode:
                 eye_tracker.tracking_mode = value
 
-def get_announcement_message(eye_tracker: ET_class):
-    msg = {'serial': eye_tracker.serial_number, 'timestamp': tobii_research.get_system_time_stamp()}
-    msg['status'] = Status.Connected
-    msg['attributes'] = get_attribute(eye_tracker, '*')
-    return msg
-
 def get_attribute_message(eye_tracker: ET_class, attributes: List[Attribute]|str):
     msg = {'serial': eye_tracker.serial_number}
     msg['attributes'] = get_attribute(eye_tracker, attributes)
