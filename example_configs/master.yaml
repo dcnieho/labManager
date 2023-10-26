@@ -72,6 +72,10 @@ tasks:
       payload: ping 8.8.8.8
     - name: Wake Computer
       type: Wake on LAN
+    - name: Remote Shell
+      type: Process exec
+      payload: cmd
+      interactive: true
     - name: Start ET Manager
       type: Shell command
       payload: '"C:\Users\Administrator\Desktop\Eye Tracker Manager.lnk"'
