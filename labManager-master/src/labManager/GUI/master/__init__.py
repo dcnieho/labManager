@@ -539,7 +539,7 @@ class MainGUI:
 
                         imgui.push_font(imgui_md.get_code_font())
                         self._task_GUI_editor.set_text(self._task_prep.payload_text)
-                        self._task_GUI_editor.render("Code",editor_size)
+                        self._task_GUI_editor.render("Code", False, editor_size)
                         self._task_prep.payload_text = self._task_GUI_editor.get_text()
                         imgui.pop_font()
                         imgui.end_group()
