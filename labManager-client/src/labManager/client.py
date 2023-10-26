@@ -154,13 +154,6 @@ class Client:
 
     async def _handle_master(self, reader: asyncio.streams.StreamReader, writer: asyncio.streams.StreamWriter):
         type = None
-        # if we have an eye tracker already, send info about it and subscribe to updates
-        if self._connected_eye_tracker:
-            await comms.typed_send(writer,
-                                    message.Message.ET_ATTR_UPDATE,
-                                    eye_tracker.get_announcement_message(self._connected_eye_tracker)
-                                    )
-
         while type != message.Message.QUIT:
             try:
                 type, msg = await comms.typed_receive(reader)
@@ -174,6 +167,16 @@ class Client:
                     case message.Message.INFO:
                         print(f'client {self.name} received: {msg}')
 
+
+                    case message.Message.ET_STATUS_REQUEST:
+                        if not self._connected_eye_tracker:
+                            out = eye_tracker.Status.Not_connected
+                        else:
+                            out = eye_tracker.Status.Connected
+                        await comms.typed_send(writer,
+                                               message.Message.ET_STATUS_INFORM,
+                                               {'msg': out}
+                                              )
                     case message.Message.ET_ATTR_REQUEST:
                         if not self._connected_eye_tracker:
                             out = None  # none means eye tracker not connected

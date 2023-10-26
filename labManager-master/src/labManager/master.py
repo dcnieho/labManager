@@ -354,6 +354,8 @@ class Master:
 
         # request info about client
         await comms.typed_send(writer, message.Message.IDENTIFY)
+        # and check if an eye tracker is connected
+        await comms.typed_send(writer, message.Message.ET_STATUS_REQUEST)
 
         # process incoming messages
         type = None
