@@ -176,3 +176,26 @@ def get_attribute_message(eye_tracker: ET_class, attributes: List[Attribute]|str
     msg = {'serial': eye_tracker.serial_number}
     msg['attributes'] = get_attribute(eye_tracker, attributes)
     return msg
+
+def format_event(evt_msg):
+    str = 'unknown'
+    extra = ''
+    if 'status' in evt_msg:
+        str = evt_msg['status'].value
+    elif 'event' in evt_msg:
+        str = evt_msg['event']
+        if str=='calibration_changed':
+            str = 'Calibration changed'
+    elif 'attributes' in evt_msg:
+        if Attribute.Frequency in evt_msg['attributes']:
+            str = 'Tracking frequency changed'
+            extra = f'new tracking frequency: {evt_msg["attributes"][Attribute.Frequency]} Hz'
+        if Attribute.Tracking_mode in evt_msg['attributes']:
+            str = 'Tracking mode changed'
+            extra = f'new tracking mode: {evt_msg["attributes"][Attribute.Tracking_mode]}'
+    full_info = f'@{evt_msg["timestamp"]}: {str}'
+    parts = [evt_msg["timestamp"], str]
+    if extra:
+        full_info += '\n'+extra
+        parts.append(extra)
+    return str, full_info, parts

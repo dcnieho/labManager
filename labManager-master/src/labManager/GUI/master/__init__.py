@@ -11,7 +11,7 @@ from imgui_bundle import portable_file_dialogs
 from imgui_bundle.demos_python import demo_utils
 import glfw
 
-from labManager.common import async_thread, config, structs, task
+from labManager.common import async_thread, config, eye_tracker, structs, task
 from labManager.master import Master
 from ._impl import computer_list, msgbox, utils
 
@@ -70,7 +70,7 @@ class MainGUI:
         self._active_imaging_tasks_updater_should_stop = False
 
         # computer detail GUIs
-        self._computer_GUI_tasks: dict[int,int|None] = {}
+        self._computer_GUI_tasks: dict[int,tuple[str,int]|None] = {}
         self._computer_GUI_interactive_tasks: dict[tuple[int,int],str] = {}
         self._computer_GUI_interactive_sent_finish: dict[tuple[int,int],bool] = {}
 
@@ -546,9 +546,13 @@ class MainGUI:
                         imgui.pop_id()
                     else:
                         imgui.text(field_name)
+                        imgui.push_font(imgui_md.get_code_font())
                         _, self._task_prep.payload_text = imgui.input_text(f'##{field_name}', self._task_prep.payload_text)
+                        imgui.pop_font()
                 else:
+                    imgui.push_font(imgui_md.get_code_font())
                     _, self._task_prep.payload_file = imgui.input_text('##file_inputter',self._task_prep.payload_file)
+                    imgui.pop_font()
                     if imgui.button("Select file"):
                         self._task_GUI_open_file_diag = \
                             portable_file_dialogs.open_file(f'Select {"script" if self._task_prep.type==task.Type.Python_script else "batch file"}')
@@ -571,7 +575,9 @@ class MainGUI:
                         utils.pop_disabled()
                 imgui.begin_group()
                 imgui.text('Working directory')
+                imgui.push_font(imgui_md.get_code_font())
                 _, self._task_prep.cwd = imgui.input_text('##cwd', self._task_prep.cwd)
+                imgui.pop_font()
                 imgui.end_group()
                 utils.draw_hover_text('Working directory from which the command will be executed',text='')
                 _, self._task_prep.interactive = imgui.checkbox('Interactive', self._task_prep.interactive)
@@ -865,10 +871,10 @@ class MainGUI:
         if not imgui.internal.dock_builder_get_node(dock_space_id):
             # first time this GUI is shown, set up as follows:
             #    ____________________________________
-            #    |        |        Task result      |
-            #    |  Task  |-------------------------|
-            #    |  List  |           Log           |
-            #    |        |          Details        |
+            #    |  Task  |        Task result      |
+            #    |   +    |-------------------------|
+            #    |  Event |           Log           |
+            #    |  List  |          Details        |
             #    ------------------------------------
             imgui.internal.dock_builder_remove_node(dock_space_id)
             imgui.internal.dock_builder_add_node(dock_space_id)
@@ -884,59 +890,106 @@ class MainGUI:
 
         if imgui.begin(f'task_list_pane_{item.id}'):
             if item.client:
-                imgui.push_font(imgui_md.get_code_font())
-                for id in item.client.tasks:
-                    tsk = item.client.tasks[id]
-                    lbl = utils.trim_str(tsk.payload, length=12, newline_ellipsis=True)
-                    if imgui.button(f'{lbl}##{tsk.id}'):
-                        self._computer_GUI_tasks[item.id] = id
-                    utils.draw_hover_text(hover_text=tsk.type.value+':\n'+tsk.payload,text='')
-                imgui.pop_font()
+                if item.client.tasks:
+                    imgui.text('Tasks:')
+                    imgui.push_font(imgui_md.get_code_font())
+                    for id in item.client.tasks:
+                        tsk = item.client.tasks[id]
+                        if tsk.type==task.Type.Wake_on_LAN:
+                            lbl = tsk.type.value
+                            hover_text = tsk.type.value
+                        else:
+                            lbl = utils.trim_str(tsk.payload, length=12, newline_ellipsis=True)
+                            hover_text = tsk.type.value+':\n'+tsk.payload
+                        if imgui.button(f'{lbl}##{tsk.id}'):
+                            self._computer_GUI_tasks[item.id] = ('task',id)
+                        utils.draw_hover_text(hover_text=hover_text, text='')
+                    imgui.pop_font()
+                if self.master.client_et_events[item.client.id]:
+                    imgui.text('Eye-tracker events:')
+                    for i,evt in enumerate(self.master.client_et_events[item.client.id]):
+                        str,full_info,_ = eye_tracker.format_event(evt)
+                        lbl = utils.trim_str(str, length=12, newline_ellipsis=True)
+                        if imgui.button(f'{lbl}##et_{i}'):
+                            self._computer_GUI_tasks[item.id] = ('ET',i)
+                        utils.draw_hover_text(hover_text=full_info,text='')
+                if not item.client.tasks and not self.master.client_et_events[item.client.id]:
+                    imgui.text_wrapped('no tasks or eye tracker events available')
         imgui.end()
         if imgui.begin(f'task_result_pane_{item.id}'):
             if item.client and (tid := self._computer_GUI_tasks[item.id]) is not None:
-                tsk = item.client.tasks[tid]
-                imgui.text(tsk.type.value)
-                imgui.text(tsk.status.value)
-                if tsk.return_code:
-                    imgui.text(f'return code: {tsk.return_code}')
-                if tsk.status in [task.Status.Not_started, task.Status.Running]:
-                    imgui.same_line()
-                    if tsk.status==task.Status.Not_started:
-                        button_txt = 'Cancel'
+                if tid[0]=='task':
+                    tsk = item.client.tasks[tid[1]]
+                    if tsk.type==task.Type.Wake_on_LAN:
+                        imgui.text(tsk.type.value)
                     else:
-                        if tsk.interactive and (item.id, tid) not in self._computer_GUI_interactive_sent_finish:
-                            button_txt = 'Finish'
+                        imgui.text(f'{tsk.type.value}:')
+                        imgui.push_font(imgui_md.get_code_font())
+                        if tsk.type in [task.Type.Batch_file, task.Type.Python_script]:
+                            self._task_GUI_editor.set_text(tsk.payload)
+                            width = imgui.get_content_region_max().x - imgui.get_window_content_region_min().x - imgui.get_style().item_spacing.x
+                            line_height = imgui.get_font_size()
+                            num_visible_lines = 10
+                            editor_size = imgui.ImVec2(width, line_height*(num_visible_lines+1))
+                            self._task_GUI_editor.render("Code", False, editor_size)
                         else:
-                            button_txt = 'Stop'
-                    if imgui.button(f'{button_txt}##{tid}'):
-                        async_thread.run(task.send_cancel(item,tsk))
-                        if tsk.interactive:
-                            self._computer_GUI_interactive_sent_finish[(item.id, tid)] = True
+                            utils.push_disabled()
+                            imgui.input_text(f'##task_payload', tsk.payload)
+                            utils.pop_disabled()
+                        imgui.pop_font()
+                    imgui.text(tsk.status.value)
+                    if tsk.return_code:
+                        imgui.text(f'return code: {tsk.return_code}')
+                    if tsk.status in [task.Status.Not_started, task.Status.Running]:
+                        imgui.same_line()
+                        if tsk.status==task.Status.Not_started:
+                            button_txt = 'Cancel'
+                        else:
+                            if tsk.interactive and (item.id, tid[1]) not in self._computer_GUI_interactive_sent_finish:
+                                button_txt = 'Finish'
+                            else:
+                                button_txt = 'Stop'
+                        if imgui.button(f'{button_txt}##{tid[1]}'):
+                            async_thread.run(task.send_cancel(item,tsk))
+                            if tsk.interactive:
+                                self._computer_GUI_interactive_sent_finish[(item.id, tid[1])] = True
+                elif tid[0]=='ET':
+                    evt = self.master.client_et_events[item.client.id][tid[1]]
+                    _,_,evt_info = eye_tracker.format_event(evt)
+                    imgui.text(f'Timestamp: {evt_info[0]}')
+                    imgui.text(f'Event: {evt_info[1]}')
+                    if len(evt_info)>2:
+                        imgui.text(f'Info: {evt_info[2]}')
+            elif item.client:
+                imgui.text('select a task or eye tracker event on the left')
         imgui.end()
         if imgui.begin(f'task_log_pane_{item.id}'):
             if item.client and (tid := self._computer_GUI_tasks[item.id]) is not None:
-                tsk = item.client.tasks[tid]
-                if tsk.interactive and tsk.status==task.Status.Running and ((item.id, tid) not in self._computer_GUI_interactive_sent_finish or not self._computer_GUI_interactive_sent_finish[(item.id, tid)]):
-                    if (item.id, tid) not in self._computer_GUI_interactive_tasks:
-                        self._computer_GUI_interactive_tasks[(item.id, tid)] = ''
-                    entered, self._computer_GUI_interactive_tasks[(item.id, tid)] = \
-                        imgui.input_text(f'##interactive_input{item.id},{tid}', self._computer_GUI_interactive_tasks[(item.id, tid)], flags=imgui.InputTextFlags_.enter_returns_true)
-                    if (disabled := not self._computer_GUI_interactive_tasks[(item.id, tid)]):
-                        utils.push_disabled()
-                    imgui.same_line()
-                    if imgui.button(f'Send##{item.id},{tid}') or entered:
-                        # send
-                        async_thread.run(task.send_input(self._computer_GUI_interactive_tasks[(item.id, tid)]+'\n',item,tsk))
-                        self._computer_GUI_interactive_tasks[(item.id, tid)] = ''
-                    if disabled:
-                        utils.pop_disabled()
-                imgui.set_next_item_open(True, imgui.Cond_.once)
-                if imgui.collapsing_header(f'stdout##{tid}'):
-                    imgui.text_wrapped(tsk.stdout)
-                imgui.set_next_item_open(True, imgui.Cond_.once)
-                if imgui.collapsing_header(f'stderr##{tid}'):
-                    imgui.text_wrapped(tsk.stderr)
+                if tid[0]=='task' and (tsk:=item.client.tasks[tid[1]]).type!=task.Type.Wake_on_LAN:
+                    if tsk.interactive and tsk.status==task.Status.Running and ((item.id, tid[1]) not in self._computer_GUI_interactive_sent_finish or not self._computer_GUI_interactive_sent_finish[(item.id, tid[1])]):
+                        if (item.id, tid[1]) not in self._computer_GUI_interactive_tasks:
+                            self._computer_GUI_interactive_tasks[(item.id, tid[1])] = ''
+                        entered, self._computer_GUI_interactive_tasks[(item.id, tid[1])] = \
+                            imgui.input_text(f'##interactive_input{item.id},{tid[1]}', self._computer_GUI_interactive_tasks[(item.id, tid[1])], flags=imgui.InputTextFlags_.enter_returns_true)
+                        if (disabled := not self._computer_GUI_interactive_tasks[(item.id, tid[1])]):
+                            utils.push_disabled()
+                        imgui.same_line()
+                        if imgui.button(f'Send##{item.id},{tid[1]}') or entered:
+                            # send
+                            async_thread.run(task.send_input(self._computer_GUI_interactive_tasks[(item.id, tid[1])]+'\n',item,tsk))
+                            self._computer_GUI_interactive_tasks[(item.id, tid[1])] = ''
+                        if disabled:
+                            utils.pop_disabled()
+                    imgui.set_next_item_open(True, imgui.Cond_.once)
+                    if imgui.collapsing_header(f'stdout##{tid[1]}'):
+                        imgui.push_font(imgui_md.get_code_font())
+                        imgui.text_wrapped(tsk.stdout)
+                        imgui.pop_font()
+                    imgui.set_next_item_open(True, imgui.Cond_.once)
+                    if imgui.collapsing_header(f'stderr##{tid[1]}'):
+                        imgui.push_font(imgui_md.get_code_font())
+                        imgui.text_wrapped(tsk.stderr)
+                        imgui.pop_font()
         imgui.end()
 
 
