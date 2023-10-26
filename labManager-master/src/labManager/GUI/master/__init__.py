@@ -904,7 +904,13 @@ class MainGUI:
                             hover_text = tsk.type.value+':\n'+tsk.payload
                         if imgui.button(f'{lbl}##{tsk.id}'):
                             self._computer_GUI_tasks[item.id] = ('task',id)
-                        utils.draw_hover_text(hover_text=hover_text, text='')
+                        if imgui.is_item_hovered():
+                            # show no more than 10 lines
+                            lines = hover_text.splitlines()
+                            to_show = '\n'.join(lines[0:10])
+                            if len(lines)>10:
+                                to_show += '\n...'
+                            utils.draw_tooltip(to_show)
                     imgui.pop_font()
                 if self.master.client_et_events[item.client.id]:
                     imgui.text('Eye-tracker events:')
