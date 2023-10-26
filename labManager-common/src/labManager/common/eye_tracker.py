@@ -113,7 +113,7 @@ def notification_callback(notification, data, eye_tracker, callback):
 def subscribe_to_notifications(eye_tracker: ET_class, callback):
     for notification in _get_notifications():
         eye_tracker.subscribe_to(notification,
-            lambda x, note: notification_callback(note, x, eye_tracker, callback))
+            lambda x, note=notification: notification_callback(note, x, eye_tracker, callback))
 
 def unsubscribe_from_notifications(eye_tracker: ET_class):
     for notification in _get_notifications():
