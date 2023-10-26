@@ -56,7 +56,7 @@ class MainGUI:
 
         # task GUI
         self._task_prep: TaskDef = TaskDef()
-        self._task_GUI_editor    = imgui_color_text_edit.TextEditor()
+        self._task_GUI_editor    = imgui_color_text_edit.TextEditor()   # NB: also used for the payload display on a computer pane
         self._task_GUI_editor.set_language_definition(self._task_GUI_editor.LanguageDefinition.python())  # there is no batch, have to live with this...
         self._task_GUI_editor_copy_t = None
         self._task_GUI_open_file_diag = None
@@ -538,7 +538,8 @@ class MainGUI:
                         imgui.new_line()
 
                         imgui.push_font(imgui_md.get_code_font())
-                        self._task_GUI_editor.set_text(self._task_prep.payload_text)
+                        if self._task_GUI_editor.get_text() != self._task_prep.payload_text:
+                            self._task_GUI_editor.set_text(self._task_prep.payload_text)
                         self._task_GUI_editor.render("Code", False, editor_size)
                         self._task_prep.payload_text = self._task_GUI_editor.get_text()
                         imgui.pop_font()
@@ -926,7 +927,8 @@ class MainGUI:
                         imgui.text(f'{tsk.type.value}:')
                         imgui.push_font(imgui_md.get_code_font())
                         if tsk.type in [task.Type.Batch_file, task.Type.Python_script]:
-                            self._task_GUI_editor.set_text(tsk.payload)
+                            if self._task_GUI_editor.get_text() != tsk.payload.replace('\r\n','\n').replace('\r','\n'):
+                                self._task_GUI_editor.set_text(tsk.payload)
                             width = imgui.get_content_region_max().x - imgui.get_window_content_region_min().x - imgui.get_style().item_spacing.x
                             line_height = imgui.get_font_size()
                             num_visible_lines = 10
