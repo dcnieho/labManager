@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "labManager-client"
-version = "0.6.1"
+version = "0.7.0"
 authors = [
     { name = "Diederick Niehorster", email = "diederick_c.niehorster@humlab.lu.se" },
 ]
