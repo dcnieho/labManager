@@ -137,7 +137,10 @@ class Client:
         if self._ssdp_discovery_task:
             self._ssdp_discovery_task.cancel()
         for w in self._writers:
-            w.close()
+            try:
+                w.close()
+            except:
+                pass
 
     def get_waiters(self):
         return self._handler_tasks
