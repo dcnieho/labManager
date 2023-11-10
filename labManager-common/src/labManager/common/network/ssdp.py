@@ -446,7 +446,8 @@ class Client(Base):
             # about the service, if its relevant
             if message.headers['NT']==self.device_type:
                 async_thread.run(self._send_request())
-        else:
+        elif message.headers['ST']==self.device_type:
+            # relevant response, store
             self._store_response(message)
 
     def _store_response(self, response):
