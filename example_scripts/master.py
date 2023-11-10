@@ -8,5 +8,10 @@ if __name__ == "__main__":
     if path.name=='example_scripts':
         path = path.parent
 
-    labManager.common.config.load('master', path/'example_configs'/'master.yaml')
+    if (path / 'master.yaml').is_file():
+        config_file = path/'master.yaml'
+    else:
+        config_file = path/'example_configs'/'master.yaml'
+
+    labManager.common.config.load('master', config_file)
     labManager.master.run()

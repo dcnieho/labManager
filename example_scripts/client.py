@@ -9,7 +9,12 @@ if __name__ == "__main__":
     if path.name=='example_scripts':
         path = path.parent
 
-    labManager.common.config.load('client', path/'example_configs'/'client.yaml')
+    if (path / 'client.yaml').is_file():
+        config_file = path/'client.yaml'
+    else:
+        config_file = path/'example_configs'/'client.yaml'
+
+    labManager.common.config.load('client', config_file)
 
     labManager.common.async_thread.setup()
     asyncio.run(labManager.client.run())

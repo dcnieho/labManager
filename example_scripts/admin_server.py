@@ -10,8 +10,18 @@ def create_app():
     if path.name=='example_scripts':
         path = path.parent
 
-    labManager.common.config.load('admin_server', path/'example_configs'/'admin_server.yaml')
-    labManager.common.secrets.load_secrets(path/'example_scripts'/'.env')   # see /example_configs/example.env for example file
+    if (path / 'admin_server.yaml').is_file():
+        config_file = path/'admin_server.yaml'
+    else:
+        config_file = path/'example_configs'/'admin_server.yaml'
+
+    if (path / '.env').is_file():
+        env_file = path/'.env'
+    else:
+        env_file = path/'example_scripts'/'.env'
+
+    labManager.common.config.load('admin_server', config_file)
+    labManager.common.secrets.load_secrets(env_file)   # see /example_configs/example.env for example file
     return labManager.admin_server.app
 
 if __name__ == "__main__":
