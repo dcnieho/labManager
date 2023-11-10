@@ -25,4 +25,4 @@ def create_app():
     return labManager.admin_server.app
 
 if __name__ == "__main__":
-    uvicorn.run("admin_server:create_app", factory=True, host='0.0.0.0', reload=True)    # reload=True for development
+    uvicorn.run("admin_server:create_app", factory=True, host='0.0.0.0')
