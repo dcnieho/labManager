@@ -1,5 +1,5 @@
 # where to listen
-network: 192.168.1.0/24
+network: 10.0.1.0/24
 
 SSDP:
     device_type: urn:schemas-upnp-org:device:labManager

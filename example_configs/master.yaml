@@ -1,5 +1,5 @@
 # where to listen
-network: 192.168.1.0/24
+network: 10.0.1.0/24
 
 SSDP:
     device_type: urn:schemas-upnp-org:device:labManager
@@ -22,8 +22,8 @@ SMB:
         remove_trailing: $      # part to remove from end of project share name
 
 toems:
-    server: pfsense-dc.humlab.lu.se
-    port:   10022
+    server: SERVER
+    port:   8080
     images:
         format: ^\d{4}-\d{2}    # regex to match project image files
 
