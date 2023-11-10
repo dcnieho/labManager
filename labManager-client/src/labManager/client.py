@@ -199,7 +199,8 @@ class Client:
                         self._mounted_drives.append(msg['drive'])
                     case message.Message.SHARE_UNMOUNT:
                         share.unmount_share(**msg)
-                        self._mounted_drives.remove(msg['drive'])
+                        if msg['drive'] in self._mounted_drives:
+                            self._mounted_drives.remove(msg['drive'])
 
                     case message.Message.TASK_CREATE:
                         new_task = task.RunningTask(msg['task_id'])
