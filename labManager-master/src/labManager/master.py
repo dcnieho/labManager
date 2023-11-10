@@ -291,7 +291,7 @@ class Master:
     def load_known_clients(self, known_clients: List[Tuple[str,str]]):
         with self.known_clients_lock:
             for client in known_clients:
-                kc = structs.KnownClient(client['name'], client['MAC'])
+                kc = structs.KnownClient(client['name'], client['MAC'], configured=True)
                 self.known_clients[kc.id] = kc
 
     def _find_or_add_known_client(self, client: structs.Client):
@@ -300,16 +300,21 @@ class Master:
                 if self.known_clients[id].MAC in client.MACs:
                     client.known_client = self.known_clients[id]
                     self.known_clients[id].client = client
-                    return
+                    return True # known client
 
             # client not known, add
             kc = structs.KnownClient(client.name, client.MACs[0], client=client)
             self.known_clients[kc.id] = kc
             client.known_client = self.known_clients[kc.id]
+            return False    # unknown client
 
     def _remove_known_client(self, client: structs.Client):
         if client.known_client:
             client.known_client.client = None
+            # if not a preconfigured known client, remove from list so that if this one reconnects, its not falsely listed as known
+            if not client.known_client.configured:
+                with self.known_clients_lock:
+                    del self.known_clients[client.known_client.id]
         client.known_client = None
 
     def unmount_client_shares(self, writer=None):

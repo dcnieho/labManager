@@ -50,6 +50,7 @@ class KnownClient:
     name        : str
     MAC         : str
     id          : int = None
+    configured  : bool = False
 
     client      : Client = None
 
