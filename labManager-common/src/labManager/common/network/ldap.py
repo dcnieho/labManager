@@ -7,7 +7,7 @@ def check_credentials(server:str, username:str, password:str, project_format:str
     serv = ldap3.Server(server, use_ssl=True, get_info=ldap3.ALL)
     conn = ldap3.Connection(serv, user=secrets.val['LDAP_ACCOUNT'], password=secrets.val['LDAP_PASSWORD'], auto_bind=True)
 
-    conn.search('OU=People,DC=uw,DC=lu,DC=se', f'(samaccountname={username})', attributes=['displayName','memberOf'])
+    conn.search(secrets.val['LDAP_SEARCH_BASE'], f'(samaccountname={username})', attributes=['displayName','memberOf'])
     results = conn.entries
     if not results:
         return {'success': False, 'error': f'user {username} unknown'}
