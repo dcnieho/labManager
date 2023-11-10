@@ -458,6 +458,7 @@ class Master:
                 continue
 
         writer.close()
+        me.writer = None
 
         # remove from client list
         self._remove_client(me)
