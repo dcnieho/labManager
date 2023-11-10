@@ -4,7 +4,7 @@ LDAP:
         format: ^CN=(HTAHML-(\d{4}-\d{2})) # regex to match projects in memberOf field
 
 toems:
-    server: SERVER
+    server: localhost
     port:   8080
     images:
         format: ^\d{4}-\d{2}    # regex to match project image files
