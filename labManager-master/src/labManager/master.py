@@ -170,6 +170,7 @@ class Master:
             self.toems = None
         self.project = None
         self.has_share_access = False
+        self.unmount_client_shares()
         if self.admin is not None:
             self.admin.unset_project()
 
@@ -283,6 +284,7 @@ class Master:
 
     def _remove_client(self, client: structs.Client):
         self._remove_known_client(client)
+        self.unmount_client_shares(client.writer)
         del self.clients[client.id]
         del self.client_et_events[client.id]
 
@@ -309,6 +311,15 @@ class Master:
         if client.known_client:
             client.known_client.client = None
         client.known_client = None
+
+    def unmount_client_shares(self, writer=None):
+        if config.master['SMB']['mount_share_on_client']:
+            request = {'drive': config.master['SMB']['mount_drive_letter']}
+            if writer is not None:
+                coro = comms.typed_send(writer, message.Message.SHARE_UNMOUNT, request)
+            else:
+                coro = self.broadcast(message.Message.SHARE_UNMOUNT, request)
+            async_thread.run(coro)
 
     async def start_server(self, local_addr: Tuple[str,int]=None, start_ssdp_advertise=True):
         if local_addr is None:
@@ -374,6 +385,19 @@ class Master:
                         me.name = msg['name']
                         me.MACs = msg['MACs']
                         self._find_or_add_known_client(me)
+
+                        # if wanted, tell client to mount drive
+                        if config.master['SMB']['mount_share_on_client']:
+                            # check if we're allowed to issue mount command to this client
+                            if (config.master['SMB']['mount_only_known_clients'] and me.known_client.configured) or not config.master['SMB']['mount_only_known_clients']:
+                                domain, user = _get_SMB_domain_username(self.admin.user['full_name'])
+                                request = {
+                                    'drive': config.master['SMB']['mount_drive_letter'],
+                                    'share_path': f'\\\\{config.master["SMB"]["server"]}\{self.project}{config.master["SMB"]["projects"]["remove_trailing"]}',
+                                    'user': f'{domain}\{user}',
+                                    'password': self.password
+                                    }
+                                await comms.typed_send(writer, message.Message.SHARE_MOUNT, request)
                     case message.Message.INFO:
                         print(f'{me.host}:{me.port}: {msg}')
 
@@ -479,18 +503,22 @@ class Master:
 
 
 def _SMB_get_shares(user, password, project=None):
-    # figure out domain from user, default to configured
-    domain = config.master["SMB"]["domain"]
-    if '\\' in user['full_name']:
-        dom, _ = user['full_name'].split('\\', maxsplit=1)
-        if dom:
-            domain = dom
+    domain, user = _get_SMB_domain_username(user['full_name'])
     try:
-        smb_hndl = smb.SMBHandler(config.master["SMB"]["server"], user['name'], domain, password)
+        smb_hndl = smb.SMBHandler(config.master["SMB"]["server"], user, domain, password)
     except (OSError, smb.SessionError) as exc:
-        print(f'Error connecting as {domain}\{user["name"]} to {config.master["SMB"]["server"]}: {exc}')
+        print(f'Error connecting as {domain}\{user} to {config.master["SMB"]["server"]}: {exc}')
         shares = []
     else:
         shares = smb_hndl.list_shares(matching=config.master["SMB"]["projects"]["format"], remove_trailing=config.master["SMB"]["projects"]["remove_trailing"], contains=project)
 
     return shares
+
+def _get_SMB_domain_username(user):
+    # figure out domain from user, default to configured
+    domain = config.master["SMB"]["domain"]
+    if '\\' in user:
+        dom, user = user.split('\\', maxsplit=1)
+        if dom:
+            domain = dom
+    return domain, user

@@ -3,7 +3,7 @@ import traceback
 import platform
 from typing import List, Tuple
 
-from labManager.common import config, eye_tracker, message, task
+from labManager.common import config, eye_tracker, message, share, task
 from labManager.common.network import comms, ifs, keepalive, ssdp
 
 
@@ -42,6 +42,8 @@ class Client:
         self._writers          : List[asyncio.streams.StreamWriter] = []
 
         self._task_list        : List[task.RunningTask] = []
+
+        self._mounted_drives: List[str] = []
 
     def __del__(self):
         self._stop_sync()
@@ -132,6 +134,8 @@ class Client:
 
     def _stop_sync(self):
         # sync part of stopping
+        for d in self._mounted_drives:
+            share.unmount_share(d)
         for t in self._task_list:
             t.async_task.cancel()
         if self._ssdp_discovery_task:
@@ -189,6 +193,13 @@ class Client:
                                                message.Message.ET_ATTR_UPDATE,
                                                out
                                               )
+
+                    case message.Message.SHARE_MOUNT:
+                        share.mount_share(**msg)
+                        self._mounted_drives.append(msg['drive'])
+                    case message.Message.SHARE_UNMOUNT:
+                        share.unmount_share(**msg)
+                        self._mounted_drives.remove(msg['drive'])
 
                     case message.Message.TASK_CREATE:
                         new_task = task.RunningTask(msg['task_id'])

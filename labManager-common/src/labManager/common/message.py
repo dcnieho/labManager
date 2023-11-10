@@ -25,6 +25,10 @@ class Message(enum_helper.AutoNameDash):
     ET_ATTR_UPDATE      = auto()    # inform about change in eye tracker attribute(s)
     ET_EVENT            = auto()
 
+    ## share mounting
+    SHARE_MOUNT         = auto()    # request client to mount specified share with specified credentials
+    SHARE_UNMOUNT       = auto()    # request client to unmount specified share
+
     ## tasks
     # master -> client
     TASK_CREATE         = auto()    # {task_id, type, payload, cwd, env} # payload is the executable and args of subprocess.Popen, cwd and env (optional) its cwd and env arguments
@@ -49,6 +53,9 @@ type_map = {
     Message.ET_ATTR_REQUEST     : Type.JSON,
     Message.ET_ATTR_UPDATE      : Type.JSON,
     Message.ET_EVENT            : Type.JSON,
+
+    Message.SHARE_MOUNT         : Type.JSON,
+    Message.SHARE_UNMOUNT       : Type.JSON,
 
     Message.TASK_CREATE         : Type.JSON,
     Message.TASK_INPUT          : Type.JSON,

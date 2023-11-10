@@ -16,8 +16,11 @@ _master_schema = s.Map({
         'domain': s.Str(),
         'projects': s.Map({
             'format': s.Str(),
-            s.Optional('remove_trailing'): s.Str(),
+            s.Optional('remove_trailing', default=''): s.Str(),
         }),
+        'mount_share_on_client': s.Bool(),
+        'mount_drive_letter': s.Str(),
+        'mount_only_known_clients': s.Bool(),
     }),
     'admin': s.Map({
         'server': s.Str(),

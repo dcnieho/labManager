@@ -20,6 +20,9 @@ SMB:
     projects:
         format: ^\d{4}-\d{2}\$$ # regex to match project shares
         remove_trailing: $      # part to remove from end of project share name
+    mount_share_on_client: True
+    mount_drive_letter: U
+    mount_only_known_clients: True
 
 toems:
     server: SERVER
