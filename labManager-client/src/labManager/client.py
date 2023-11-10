@@ -251,5 +251,5 @@ class Client:
 
                 # rate-limit to every x seconds
                 await asyncio.sleep(5)
-        except asyncio.CancelledError:
+        except (asyncio.CancelledError, KeyboardInterrupt):
             pass    # we broke out of the loop: cancellation processed
