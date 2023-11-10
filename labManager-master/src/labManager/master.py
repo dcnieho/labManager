@@ -104,6 +104,15 @@ class Master:
 
         self.task_groups: Dict[int, task.TaskGroup] = {}
 
+    def __del__(self):
+        # cleanup
+        self.logout()
+        if async_thread.loop and async_thread.loop.is_running:
+            async_thread.run(self.stop_server())
+        self.task_groups.clear()
+        self.client_et_events.clear()
+        self.clients.clear()
+
     async def login(self, username: str, password: str):
         # clean up old session, if any
         self.logout()
