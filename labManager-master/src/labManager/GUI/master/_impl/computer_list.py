@@ -235,7 +235,7 @@ class ComputerList():
         imgui.text_colored(clrs[0], prepend[0]+' ')
         if et_is_on and imgui.is_item_hovered():
             et = client.client.eye_tracker
-            info = f'{et.model} @ {et.frequency}Hz\n({et.firmware_version}, {et.serial})'
+            info = f'{et.model} @ {et.frequency:.0f}Hz\n({et.firmware_version}, {et.serial})'
             utils.draw_tooltip(info)
         imgui.same_line()
         # computer
