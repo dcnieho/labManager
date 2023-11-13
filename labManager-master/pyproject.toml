@@ -24,7 +24,7 @@ classifiers = [
     "Topic :: Utilities",
 ]
 dependencies = [
-    "labManager-common",
+    "labManager-common==0.7.0",
     "future",
     "six",
     "pyasn1>=0.2.3",

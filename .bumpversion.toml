@@ -1,0 +1,59 @@
+[tool.bumpversion]
+current_version = "0.7.0"
+
+
+[[tool.bumpversion.files]]
+filename = "labManager-admin-server/pyproject.toml"
+search = "labManager-common=={current_version}"
+replace = "labManager-common=={new_version}"
+
+[[tool.bumpversion.files]]
+filename = "labManager-admin-server/pyproject.toml"
+
+
+[[tool.bumpversion.files]]
+filename = "labManager-client/pyproject.toml"
+search = "labManager-common=={current_version}"
+replace = "labManager-common=={new_version}"
+
+[[tool.bumpversion.files]]
+filename = "labManager-client/pyproject.toml"
+
+
+[[tool.bumpversion.files]]
+filename = "labManager-master/pyproject.toml"
+search = "labManager-common=={current_version}"
+replace = "labManager-common=={new_version}"
+
+[[tool.bumpversion.files]]
+filename = "labManager-master/pyproject.toml"
+
+
+[[tool.bumpversion.files]]
+filename = "labManager-common/pyproject.toml"
+
+
+[[tool.bumpversion.files]]
+filename = "README.md"
+search = "labManager v{current_version}"
+replace = "labManager v{new_version}"
+
+[[tool.bumpversion.files]]
+filename = "labManager-admin-server/README.md"
+search = "labManager v{current_version}"
+replace = "labManager v{new_version}"
+
+[[tool.bumpversion.files]]
+filename = "labManager-client/README.md"
+search = "labManager v{current_version}"
+replace = "labManager v{new_version}"
+
+[[tool.bumpversion.files]]
+filename = "labManager-common/README.md"
+search = "labManager v{current_version}"
+replace = "labManager v{new_version}"
+
+[[tool.bumpversion.files]]
+filename = "labManager-master/README.md"
+search = "labManager v{current_version}"
+replace = "labManager v{new_version}"
