@@ -793,7 +793,7 @@ class MainGUI:
 
     async def update_running_image_tasks(self):
         self._active_imaging_tasks_updater_should_stop = False
-        while self._active_imaging_tasks_updater_should_stop:
+        while not self._active_imaging_tasks_updater_should_stop:
             # NB: this is and must remain an atomic update, so its not possible to read incomplete state elsewhere
             self._active_imaging_tasks = await self.master.get_active_imaging_tasks()
 
