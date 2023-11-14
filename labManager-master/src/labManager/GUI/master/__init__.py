@@ -610,10 +610,10 @@ class MainGUI:
         if not imgui.internal.dock_builder_get_node(dock_space_id):
             # first time this GUI is shown, set up as follows:
             #    ____________________________________
-            #    |        |      Image details      |
-            #    | Image  |-------------------------|
-            #    |  List  |          Image          |
-            #    |        |         Actions         |
+            #    |        |          Image          |
+            #    | Image  |         details         |
+            #    |  List  |-------------------------|
+            #    |        |      Image actions      |
             #    ------------------------------------
             imgui.internal.dock_builder_remove_node(dock_space_id)
             imgui.internal.dock_builder_add_node(dock_space_id)
