@@ -727,6 +727,7 @@ class MainGUI:
                             for t in active_imaging_tasks:
                                 imgui.table_next_row()
                                 imgui.table_next_column()
+                                imgui.align_text_to_frame_padding()
                                 imgui.text(t['ComputerName'])
                                 imgui.table_next_column()
                                 imgui.text(t['Status'])
