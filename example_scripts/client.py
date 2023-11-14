@@ -1,12 +1,18 @@
 import asyncio
 import pathlib
+import argparse
 import ctypes
 
 import labManager.client
 import labManager.common
 
 if __name__ == "__main__":
-    ctypes.windll.user32.ShowWindow(ctypes.windll.kernel32.GetConsoleWindow(), 0)
+    parser = argparse.ArgumentParser(description="labManager client")
+    parser.add_argument('--hide', action='store_true', help="hide console window")
+    args = parser.parse_args()
+
+    if args.hide:
+        ctypes.windll.user32.ShowWindow(ctypes.windll.kernel32.GetConsoleWindow(), 0)
 
     path = pathlib.Path('.').resolve()
     if path.name=='example_scripts':
