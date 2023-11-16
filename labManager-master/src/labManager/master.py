@@ -258,7 +258,7 @@ class Master:
             raise RuntimeError(f"can't upload: failed to apply image to computer ({resp['ErrorMessage']})")
 
         resp = await self.toems.computer_upload(comp_id, image_id)
-        if not 'Success' in resp['Value']:
+        if not resp['Success']:
             raise RuntimeError(f"can't upload: failed to start task ({resp['ErrorMessage']})")
 
     async def get_active_imaging_tasks(self, image_id: int|None = None):

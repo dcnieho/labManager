@@ -201,9 +201,11 @@ class Client:
 
         # 5. start upload
         resp = await self.request(f'Computer/StartUpload/{computer_id}')
-        if not 'Success' in resp['Value']:
+        if 'Success' in resp['Value']:
+            resp['Success'] = True
+            return resp
+        else:
             return {'Success': False, 'ErrorMessage': resp['Value']}
-        return resp
 
 
     async def image_get(self, name_or_id=None, project=None, project_format=None):
