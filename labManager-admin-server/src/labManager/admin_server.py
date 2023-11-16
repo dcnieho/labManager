@@ -208,7 +208,12 @@ async def user_toems_image_delete(user_id: int, proj_id: int, image_id: int):
     if not image['Name'].startswith(users[user_id].projects[proj_id].name+'_'):
         raise HTTPException(status_code=403, detail=f'You are not allowed to delete the image "{image["Name"]}" because it is not a part of your project.')
 
-    # 2. then, delete
+    # 2. unprotect image
+    resp = await toems[user_id].conn.image_update(image_id, {"Protected": False})
+    if not resp['Success']:
+        raise HTTPException(status_code=400, detail=resp['ErrorMessage'])
+
+    # 3. then, delete
     resp = await toems[user_id].conn.image_delete(image_id)
     if not resp['Success']:
         raise HTTPException(status_code=400, detail=resp['ErrorMessage'])
