@@ -303,6 +303,7 @@ class MainGUI:
         if self.master.is_serving():
             async_thread.wait(self.master.stop_server())
         self._selected_image_id = None
+        self._active_imaging_tasks_updater_should_stop = True
         self._images_list       = []
         self.proj_select_state  = ActionState.Not_Done
         self.proj_idx           = -1
