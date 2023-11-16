@@ -49,7 +49,7 @@ async def _send_with_length(writer: asyncio.streams.StreamWriter, msg: str) -> b
 
 
 async def typed_receive(reader: asyncio.streams.StreamReader) -> Tuple[message.Message,str]:
-    type    = await _read_with_length(reader)
+    type = await _read_with_length(reader)
     if not type:
         return None,''
     type = message.Message.get(type)
