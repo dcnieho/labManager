@@ -29,6 +29,8 @@ toems:
     port:   8080
     images:
         format: ^\d{4}-\d{2}    # regex to match project image files
+    image_info_script: DeployedImageInfoWriter
+    image_info_script_partition: 3
 
 login:
     hint: lucat id, without @lu.se

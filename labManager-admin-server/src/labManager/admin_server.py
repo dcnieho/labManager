@@ -238,3 +238,17 @@ async def user_toems_image_apply(user_id: int, proj_id: int, image_id: int, comp
 
     # update computer with image
     return await toems[user_id].conn.computer_update(computer_id['computer_id'], {'ImageId': image['Id'], 'ImageProfileId': profile_id})
+
+@app.post('/users/{user_id}/projects/{proj_id}/images/{image_id}/set_script')
+async def user_toems_image_set_script(user_id: int, proj_id: int, image_id: int, args: dict):
+    user_check(user_id)
+    project_check(user_id, proj_id)
+    await toems_check(user_id)
+
+    # check image exists
+    await _toems_get_image(toems[user_id].conn, image_id)
+
+    resp = await toems[user_id].conn.image_set_script_action(image_id, args['script_name'], args['script'])
+    if not resp['Success']:
+        raise HTTPException(status_code=400, detail=resp['ErrorMessage'])
+    return resp

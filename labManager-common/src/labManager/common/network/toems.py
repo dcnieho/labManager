@@ -1,6 +1,8 @@
 # module for interacting with Theopenem server
 from authlib.integrations.httpx_client import AsyncOAuth2Client
 import re
+import json
+import shlex
 
 class Client:
     def __init__(self, server, port=8080, protocol = 'https'):
@@ -313,6 +315,50 @@ class Client:
                 return resp
         return resp
 
+    async def image_set_script_action(self, name_or_id, script_name, script_content):
+        # 1. get image id
+        resp = await self._image_resolve_id_name(name_or_id)
+        if not resp['Success']:
+            return resp
+        image_id = resp['Id']
+
+        # 2. get profile for this image
+        profiles = await self.image_get_profiles(image_id)
+        if len(profiles)==1:
+            profile_id = profiles[0]['Id']
+        else:
+            return {'Success': False, 'ErrorMessage': 'image has more than one profile, cannot select profile to apply action to'}
+
+        # 3. find specified script action
+        actions = await self.script_actions_get()
+        script = None
+        for act in actions:
+            # search for script
+            if act['Name']==script_name:
+                script = act
+                break
+        if not script:
+            return {'Success': False, 'ErrorMessage': f'script with name "{script_name}" not found'}
+
+        # 4. update script to requested contents
+        script['ScriptContents'] = script_content
+        script['ScriptType'] = 3 # 3: ImagingClient_Bash
+        resp = await self.request(f'ScriptModule/Put/{script["Id"]}', req_type='put', json=script)
+        if not 'Success' in resp or not resp['Success']:
+            resp['Success'] = False # ensure this field exists and is filled, i have seen replies where it didn't...
+            return resp
+
+        # 5. activate script action for this image
+        resp = await self.request(f'ImageProfileScript/Post', req_type='post', json={
+            "Priority": 0,
+            "ProfileId": profile_id,
+            "RunWhen": 3,   # 2: BeforeFileCopy, 3: AfterFileCopy
+            "ScriptModuleId": script['Id']
+        })
+        if not 'Success' in resp or not resp['Success']:
+            resp['Success'] = False # ensure this field exists and is filled, i have seen replies where it didn't...
+        return resp
+
     async def image_get_profiles(self, name_or_id):
         # 1. get image id
         resp = await self._image_resolve_id_name(name_or_id)
@@ -336,6 +382,46 @@ class Client:
         # 3. get image size
         resp = await self.request('Image/GetImageSizeOnServer', params={'imageName': image['Name'], 'hdNumber':0})
         return resp['Value']
+
+    async def image_get_audit_log(self, name_or_id):
+        types = {   # https://github.com/jdolny/Toems/blob/master/Toems-Common/Enum/EnumAuditEntry.cs
+            1: 'Create',
+            2: 'Update',
+            3: 'Archive',
+            4: 'Delete',
+            5: 'ActivatePolicy',
+            6: 'DeactivatePolicy',
+            7: 'ApproveProvision',
+            8: 'ApproveReset',
+            9: 'AddPreProvision',
+            10: 'SuccessfulLogin',
+            11: 'FailedLogin',
+
+            13: 'Message',
+            14: 'Reboot',
+            15: 'Shutdown',
+            16: 'Wakeup',
+            17: 'Restore',
+            18: 'OnDemandMulticast',
+            19: 'Multicast',
+            20: 'Deploy',
+            21: 'Upload',
+            22: 'OndUpload',
+            23: 'OndDeploy',
+            24: 'RemoteControl'
+        }
+        # 1. get image id
+        resp = await self._image_resolve_id_name(name_or_id)
+        if not resp['Success']:
+            return resp
+        image_id = resp['Id']
+
+        # 2. get image audit logs
+        resp = await self.request(f'Image/GetImageAuditLogs/{image_id}', params={'limit':9999})
+        # 3. map type id to something we understand
+        for d in resp:
+            d['AuditType'] = types[d['AuditType']] if d['AuditType'] in types else 'Unknown'
+        return resp
 
     async def image_update(self, name_or_id, updates):
         # 1. get image id
@@ -389,3 +475,17 @@ class Client:
 
     async def file_copy_actions_get(self, id=None):
         return await self.request('FileCopyModule/Get'+(f'/{id}' if id is not None else ''))
+
+    async def script_actions_get(self, id=None):
+        return await self.request('ScriptModule/Get'+(f'/{id}' if id is not None else ''))
+
+# helpers
+def make_info_script(info, partition):
+    info = shlex.quote(json.dumps(info))
+    script = f"""
+mkdir /mnt/win &>/dev/null
+ntfs-3g ${{hard_drive}}${{partition_prefix}}{partition} /mnt/win
+echo {info} > /mnt/win/image_info.json
+umount ${{hard_drive}}${{partition_prefix}}{partition}
+"""
+    return script

@@ -764,7 +764,7 @@ class MainGUI:
                 if (disabled := not selected_clients):
                     utils.push_disabled()
                 if imgui.button('Deploy'):
-                    async_thread.run(self.master.deploy_image(im['Name'], [self.master.known_clients[i].name for i in selected_clients]),
+                    async_thread.run(self.master.deploy_image(im['Name'], im['PartOfProject'], [self.master.known_clients[i].name for i in selected_clients]),
                                      lambda fut: self._image_action_result('deploy',fut))
                 if not disabled and imgui.is_item_hovered():
                     stations_txt = '\n  '.join((self.master.known_clients[i].name for i in selected_clients))

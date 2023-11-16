@@ -95,3 +95,6 @@ class Client:
 
     async def apply_image(self, image_id, computer_id):
         return await self.request(f'users/{self.user_id}/projects/{self.proj_id}/images/{image_id}/apply', req_type='post', json={'computer_id': computer_id})
+
+    async def image_set_script(self, image_id, script_name, script):
+        return await self.request(f'users/{self.user_id}/projects/{self.proj_id}/images/{image_id}/set_script', req_type='post', json={'script_name': script_name, 'script': script})

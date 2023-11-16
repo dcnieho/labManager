@@ -204,8 +204,26 @@ class Master:
         image_id = (await self.toems.image_get(name))['Id']
         return await self.admin.delete_image(image_id)
 
-    async def deploy_image(self, image: str, computers: List[str]):
+    async def deploy_image(self, image: str, part_of_project: bool, computers: List[str]):
         image_id = (await self.toems.image_get(image))['Id']
+
+        # update image info script
+        if 'image_info_script' in config.master['toems']:
+            # get timestamp last time image was updated
+            im_logs = await self.toems.image_get_audit_log(image_id)
+            ts = None
+            for l in im_logs:   # NB: logs are sorted newest-first
+                if l['AuditType'] in ['Upload','OndUpload']:
+                    ts = l['DateTime']
+                    break
+
+            info = {"name": image, "timestamp": ts if ts is not None else 'Unknown'}
+            if part_of_project:
+                info['project'] = self.project
+            script = toems.make_info_script(info, config.master['toems']['image_info_script_partition'])
+            resp = await self.admin.image_set_script(image_id, config.master['toems']['image_info_script'], script)
+            if not resp['Success']:
+                raise RuntimeError(f"can't deploy: failed to set image script ({resp['ErrorMessage']})")
 
         if isinstance(computers,str):
             computers = [computers]
