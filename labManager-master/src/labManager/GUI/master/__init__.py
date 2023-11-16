@@ -271,6 +271,7 @@ class MainGUI:
         # update GUI
         project = list(self.master.projects.keys())[self.proj_idx]
         self.project = self.master.projects[project]
+        self.computer_lister.set_project(self.project)
         if self.project!=project:
             self.project = f'{project} ({self.project})'
         self._window_list = [
@@ -308,6 +309,7 @@ class MainGUI:
         self.proj_select_state  = ActionState.Not_Done
         self.proj_idx           = -1
         self.project            = ''
+        self.computer_lister.set_project(self.project)
         self.master.unset_project()
 
         # reset GUI

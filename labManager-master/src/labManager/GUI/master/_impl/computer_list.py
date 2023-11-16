@@ -18,6 +18,8 @@ class ComputerList():
         self._last_clicked_id: int = None
         self._require_sort: bool = True
 
+        self.project: str = ''
+
         self.clr_off = (1., 0.2824, 0.2824, 1.)
         self.clr_on  = (0.0588, 0.4510, 0.0471, 1.)
 
@@ -35,6 +37,9 @@ class ComputerList():
             imgui.TableFlags_.no_host_extend_y |
             imgui.TableFlags_.no_borders_in_body_until_resize
         )
+
+    def set_project(self, project: str):
+        self.project = project
 
     def draw(self):
         if imgui.begin_table(
@@ -247,6 +252,22 @@ class ComputerList():
         imgui.end_group()
         if client.client and imgui.is_item_hovered():
             info = f'{client.client.host}:{client.client.port}'
+            image_info = client.client.image_info
+            if not image_info:
+                image_info = 'image: unknown'
+            else:
+                name = image_info['name']
+                if self.project and name.startswith(self.project+'_'):
+                    name = name[len(self.project)+1:]
+                dt = image_info["timestamp"]
+                if dt!='Unknown':
+                    dt = dt.replace('T',' ')
+                if 'project' in image_info:
+                    image_info = f'image: {name}\nproject: {image_info["project"]}\ntimestamp: {dt}'
+                else:
+                    image_info = f'image: {name}\ntimestamp: {dt}'
+            if image_info:
+                info += f'\n{image_info}'
             utils.draw_tooltip(info)
 
     def _draw_item_info_button(self, id: int, label):

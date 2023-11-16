@@ -27,6 +27,7 @@ class Client:
     port    : int = None
     MACs    : List[str] = None
     name    : str = None
+    image_info: Dict[str,str] = None
     eye_tracker : 'labManager.common.eye_tracker.EyeTracker' = None
 
     known_client: 'KnownClient' = None

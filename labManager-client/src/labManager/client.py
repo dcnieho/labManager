@@ -1,6 +1,8 @@
 import asyncio
 import traceback
 import platform
+import pathlib
+import json
 from typing import List, Tuple
 
 from labManager.common import config, eye_tracker, message, share, task
@@ -170,7 +172,13 @@ class Client:
 
                 match type:
                     case message.Message.IDENTIFY:
-                        await comms.typed_send(writer, message.Message.IDENTIFY, {'name': self.name, 'MACs': self._if_macs})
+                        # check for image-info.json file in root
+                        info_file = pathlib.Path('C:\\image_info.json')
+                        info = None
+                        if info_file.is_file():
+                            with open(info_file) as f:
+                                info = json.load(f)
+                        await comms.typed_send(writer, message.Message.IDENTIFY, {'name': self.name, 'MACs': self._if_macs, 'image_info': info})
                     case message.Message.INFO:
                         print(f'client {self.name} received: {msg}')
 

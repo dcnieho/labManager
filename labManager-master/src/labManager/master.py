@@ -402,6 +402,8 @@ class Master:
                     case message.Message.IDENTIFY:
                         me.name = msg['name']
                         me.MACs = msg['MACs']
+                        if 'image_info' in msg:
+                            me.image_info = msg['image_info']
                         self._find_or_add_known_client(me)
 
                         # if wanted, tell client to mount drive
