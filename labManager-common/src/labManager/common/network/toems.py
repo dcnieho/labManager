@@ -366,7 +366,22 @@ class Client:
 
 
     async def imaging_tasks_get_active(self):
-        return await self.request('ActiveImagingTask/GetActiveTasks')
+        resp = await self.request('ActiveImagingTask/GetActiveTasks')
+        for r in resp:
+            # legend: status TaskCreated = 0, WaitingForLogin = 1, CheckedIn = 2, InImagingQueue = 3, Imaging = 4
+            # https://github.com/jdolny/Toems/blob/master/Toems-Common/Enum/EnumTaskStatus.cs
+            match r['Status']:
+                case 0:
+                    r['Status'] = 'TaskCreated'
+                case 1:
+                    r['Status'] = 'WaitingForLogin'
+                case 2:
+                    r['Status'] = 'CheckedIn'
+                case 3:
+                    r['Status'] = f'InQueue (Position {r["QueuePosition"]})'
+                case 4:
+                    r['Status'] = 'Imaging'
+        return resp
 
     async def imaging_tasks_delete_active(self, task_id: int):
         return await self.request(f'ActiveImagingTask/Delete/{task_id}', req_type='delete')

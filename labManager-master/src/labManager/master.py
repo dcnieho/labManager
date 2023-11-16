@@ -257,26 +257,12 @@ class Master:
             item['ComputerName'] = r['Computer']['Name']
             item['ComputerId'] = r['ComputerId']
             item['Type'] = r['Type']
-
-            # legend: status TaskCreated = 0, WaitingForLogin = 1, CheckedIn = 2, InImagingQueue = 3, Imaging = 4
-            # https://github.com/jdolny/Toems/blob/master/Toems-Common/Enum/EnumTaskStatus.cs
-            match r['Status']:
-                case 0:
-                    item['Status'] = 'TaskCreated'
-                case 1:
-                    item['Status'] = 'WaitingForLogin'
-                case 2:
-                    item['Status'] = 'CheckedIn'
-                case 3:
-                    item['Status'] = f'InQueue (Position {r["QueuePosition"]})'
-                case 4:
-                    item['Status'] = 'Imaging'
+            item['Status'] = r['Status']
             item['Partition'] = r['Partition'] if r['Partition'] is not None else ''
             item['Elapsed'] = r['Elapsed'] if r['Elapsed'] is not None else ''
             item['Remaining'] = r['Remaining'] if r['Remaining'] is not None else ''
             item['Completed'] = r['Completed'] if r['Completed'] is not None else ''
             item['Rate'] = r['Rate'] if r['Rate'] is not None else ''
-
             out.append(item)
 
         return out
