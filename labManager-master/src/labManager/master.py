@@ -257,6 +257,10 @@ class Master:
         if not resp['Success']:
             raise RuntimeError(f"can't upload: failed to apply image to computer ({resp['ErrorMessage']})")
 
+        resp = await self.admin.update_image(image_id, {"Protected": False})
+        if resp['Protected']:   # check it worked
+            raise RuntimeError(f"can't upload: failed to unprotect image ({resp['ErrorMessage']})")
+
         resp = await self.toems.computer_upload(comp_id, image_id)
         if not resp['Success']:
             raise RuntimeError(f"can't upload: failed to start task ({resp['ErrorMessage']})")
