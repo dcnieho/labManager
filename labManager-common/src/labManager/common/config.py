@@ -41,7 +41,7 @@ _master_schema = s.Map({
     s.Optional('clients'): s.Seq(
         s.Map({
             'name': s.Str(),
-            'MAC' : s.Str(),
+            'MAC' : s.CommaSeparated(s.Str()),
         })
     ),
     s.Optional('tasks'): s.Seq(

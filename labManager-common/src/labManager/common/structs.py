@@ -49,7 +49,7 @@ _known_client_id_provider = CounterContext()
 @dataclass
 class KnownClient:
     name        : str
-    MAC         : str
+    MAC         : List[str]
     id          : int = None
     configured  : bool = False
 

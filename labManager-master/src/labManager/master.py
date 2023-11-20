@@ -305,7 +305,7 @@ class Master:
         del self.clients[client.id]
         del self.client_et_events[client.id]
 
-    def load_known_clients(self, known_clients: List[Tuple[str,str]]):
+    def load_known_clients(self, known_clients: List[Dict[str,str|List[str]]]):
         with self.known_clients_lock:
             for client in known_clients:
                 kc = structs.KnownClient(client['name'], client['MAC'], configured=True)
@@ -314,13 +314,14 @@ class Master:
     def _find_or_add_known_client(self, client: structs.Client):
         with self.known_clients_lock:
             for id in self.known_clients:
-                if self.known_clients[id].MAC in client.MACs:
-                    client.known_client = self.known_clients[id]
-                    self.known_clients[id].client = client
-                    return True # known client
+                for m in self.known_clients[id].MAC:
+                    if m in client.MACs:
+                        client.known_client = self.known_clients[id]
+                        self.known_clients[id].client = client
+                        return True # known client
 
             # client not known, add
-            kc = structs.KnownClient(client.name, client.MACs[0], client=client)
+            kc = structs.KnownClient(client.name, client.MACs, client=client)
             self.known_clients[kc.id] = kc
             client.known_client = self.known_clients[kc.id]
             return False    # unknown client

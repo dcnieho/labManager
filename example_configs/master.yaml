@@ -37,39 +37,39 @@ login:
 
 clients:
     - name: STATION01
-      MAC:  0C:9D:92:1F:E6:04
+      MAC:  0C:9D:92:1F:E6:04, F4:E9:D4:73:6F:EC, F4:E9:D4:73:6F:ED
     - name: STATION02
-      MAC:  0C:9D:92:1F:94:12
+      MAC:  0C:9D:92:1F:94:12, F4:E9:D4:73:73:3A, F4:E9:D4:73:73:3B
     - name: STATION03
-      MAC:  04:D4:C4:5B:1F:95
+      MAC:  04:D4:C4:5B:1F:95, F4:E9:D4:73:72:E0, F4:E9:D4:73:72:E1
     - name: STATION04
-      MAC:  04:D4:C4:5B:63:29
+      MAC:  04:D4:C4:5B:63:29, F4:E9:D4:73:6E:A8, F4:E9:D4:73:6E:A9
     - name: STATION05
-      MAC:  0C:9D:92:C3:15:F8
+      MAC:  0C:9D:92:C3:15:F8, F4:E9:D4:73:6A:EE, F4:E9:D4:73:6A:EF
     - name: STATION06
-      MAC:  0C:9D:92:1F:94:9A
+      MAC:  0C:9D:92:1F:94:9A, F4:E9:D4:73:69:F2, F4:E9:D4:73:69:F3
     - name: STATION07
-      MAC:  0C:9D:92:C3:15:7C
+      MAC:  0C:9D:92:C3:15:7C, F4:E9:D4:73:72:CE, F4:E9:D4:73:72:CF
     - name: STATION08
-      MAC:  0C:9D:92:C3:15:16
+      MAC:  0C:9D:92:C3:15:16, F4:E9:D4:73:72:08, F4:E9:D4:73:72:09
     - name: STATION09
-      MAC:  0C:9D:92:C4:26:86
+      MAC:  0C:9D:92:C4:26:86, F4:E9:D4:73:71:E4, F4:E9:D4:73:71:E5
     - name: STATION10
-      MAC:  0C:9D:92:C3:15:1A
+      MAC:  0C:9D:92:C3:15:1A, F4:E9:D4:73:72:AA, F4:E9:D4:73:72:AB
     - name: STATION11
-      MAC:  0C:9D:92:C3:15:66
+      MAC:  0C:9D:92:C3:15:66, F4:E9:D4:73:70:34, F4:E9:D4:73:70:35
     - name: STATION12
-      MAC:  0C:9D:92:C4:24:70
+      MAC:  0C:9D:92:C4:24:70, F4:E9:D4:73:6D:F4, F4:E9:D4:73:6D:F5
     - name: STATION13
-      MAC:  0C:9D:92:C3:15:60
+      MAC:  0C:9D:92:C3:15:60, F4:E9:D4:73:6A:94, F4:E9:D4:73:6A:95
     - name: STATION14
-      MAC:  0C:9D:92:C3:15:98
+      MAC:  0C:9D:92:C3:15:98, 34:80:0D:92:A7:DA, 34:80:0D:92:A7:DB
     - name: STATION15
-      MAC:  0C:9D:92:C3:14:F2
+      MAC:  0C:9D:92:C3:14:F2, 34:80:0D:92:A9:D2, 34:80:0D:92:A9:D3
     - name: STATION16
-      MAC:  0C:9D:92:C3:15:54
+      MAC:  0C:9D:92:C3:15:54, F4:E9:D4:73:71:F6, F4:E9:D4:73:71:F7
     - name: MASTER
-      MAC:  0C:9D:92:C3:15:EE
+      MAC:  0C:9D:92:C3:15:EE, F4:E9:D4:F2:EC:2C, F4:E9:D4:F2:EC:2D
 
 tasks:
     - name: ping
