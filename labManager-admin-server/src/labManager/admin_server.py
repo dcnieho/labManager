@@ -219,7 +219,6 @@ async def user_toems_image_delete(user_id: int, proj_id: int, image_id: int):
         raise HTTPException(status_code=400, detail=resp['ErrorMessage'])
 
 async def _toems_get_image(toems_conn, image_id):
-    # create toems connection if needed
     image = await toems_conn.image_get(image_id)
     if not image:
         raise HTTPException(status_code=404, detail=f'No image with id {image_id}.')
