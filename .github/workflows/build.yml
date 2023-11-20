@@ -45,7 +45,7 @@ jobs:
       with:
         path: "./dist/*.whl"
 
-    - name: Upload wheels as release artifact
+    - name: Upload wheels as release artifacts
       uses: softprops/action-gh-release@v1
       env:
         GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
