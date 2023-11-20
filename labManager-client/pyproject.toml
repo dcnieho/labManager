@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "labManager-client"
-version = "0.7.1"
+version = "0.8.0"
 authors = [
     { name = "Diederick Niehorster", email = "diederick_c.niehorster@humlab.lu.se" },
 ]
@@ -24,7 +24,7 @@ classifiers = [
     "Topic :: Utilities",
 ]
 dependencies = [
-    "labManager-common==0.7.1"
+    "labManager-common==0.8.0"
 ]
 
 [project.optional-dependencies]
