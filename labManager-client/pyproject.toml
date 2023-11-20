@@ -31,7 +31,7 @@ dependencies = [
 eye-tracker  = ["tobii-research"]
 
 [project.urls]
-"Source Code" = "https://github.com/dcnieho/labManager/tree/main/labManager-client"
+"Source Code" = "https://github.com/dcnieho/labManager/tree/master/labManager-client"
 
 [tool.hatch.build.targets.sdist]
 include = [

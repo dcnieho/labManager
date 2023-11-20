@@ -31,7 +31,7 @@ dependencies = [
 ]
 
 [project.urls]
-"Source Code" = "https://github.com/dcnieho/labManager/tree/main/labManager-common"
+"Source Code" = "https://github.com/dcnieho/labManager/tree/master/labManager-common"
 
 [tool.hatch.build.targets.sdist]
 include = [
