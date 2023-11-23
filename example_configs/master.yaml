@@ -83,7 +83,7 @@ tasks:
       interactive: true
     - name: Start ET Manager
       type: Shell command
-      payload: '"C:\Users\Administrator\Desktop\Eye Tracker Manager.lnk"'
+      payload: '"C:\Users\Administrator\Desktop\Tobii Pro Eye Tracker Manager.lnk"'
     - name: Start Tobii Pro Lab
       type: Shell command
       payload: '"C:\Users\Administrator\Desktop\Tobii Pro Lab.lnk"'
