@@ -189,7 +189,7 @@ def format_event(evt_msg):
     elif 'attributes' in evt_msg:
         if Attribute.Frequency in evt_msg['attributes']:
             str = 'Tracking frequency changed'
-            extra = f'new tracking frequency: {evt_msg["attributes"][Attribute.Frequency]} Hz'
+            extra = f'new tracking frequency: {evt_msg["attributes"][Attribute.Frequency]:.0f} Hz'
         if Attribute.Tracking_mode in evt_msg['attributes']:
             str = 'Tracking mode changed'
             extra = f'new tracking mode: {evt_msg["attributes"][Attribute.Tracking_mode]}'
