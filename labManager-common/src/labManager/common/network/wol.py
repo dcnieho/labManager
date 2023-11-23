@@ -76,6 +76,9 @@ async def send_magic_packet(
         port: the port of the host to send the magic packet to.
         interface: the ip address of the network adapter to route the magic packet through.
     """
+    if not macs:
+        # nothing to do
+        return
 
     loop = asyncio.get_running_loop()
     transport, protocol = await loop.create_datagram_endpoint(
