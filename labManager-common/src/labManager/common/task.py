@@ -275,10 +275,11 @@ class Executor:
 async def send(task: Task|TaskGroup, known_client):
     if isinstance(task, TaskGroup):
         if task.type==Type.Wake_on_LAN:
-            MACs = [known_client[task.task_refs[i].known_client].MAC[0] for i in task.task_refs if task.task_refs[i].known_client in known_client]
-            await wol.send_magic_packet(*MACs)
-            for _,t in task.task_refs.items():
-                t.status = Status.Finished  # This task is finished once its sent
+            if task.task_refs:
+                MACs = [known_client[task.task_refs[i].known_client].MAC[0] for i in task.task_refs if task.task_refs[i].known_client in known_client]
+                await wol.send_magic_packet(*MACs)
+                for _,t in task.task_refs.items():
+                    t.status = Status.Finished  # This task is finished once its sent
         else:
             raise RuntimeError(f'API usage error: Task type {task.Type.value} cannot be launched as a group at once. Do this only if the second return argument of task.create_group() is True')
     else:
