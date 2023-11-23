@@ -32,7 +32,7 @@ class UserSession(BaseModel):
     full_name: str
     distinguished_name: str
     timestamp: float
-    projects: Optional[list[Project]] = None
+    projects: Optional[list[Project]] = []
 
 class UserLogin(BaseModel):
     username: str
@@ -93,7 +93,7 @@ def user_check(user_id):
     if not user_id in users:
         raise HTTPException(status_code=404, detail='User not found')
 
-def return_user(user):
+def return_user(user: UserSession):
     # hides password
     reply_user = copy.deepcopy(user)
     reply_user.password = '***hidden***'
