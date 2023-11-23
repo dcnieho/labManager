@@ -3,8 +3,8 @@ import subprocess
 from . import async_thread
 
 def mount_share(drive, share_path, user, password):
-    # net use drive: share_path password /user:user
-    call = f'net use {drive}: {share_path} {password} /user:{user}'
+    # net use drive: share_path password /user:user /p:no
+    call = f'net use {drive}: {share_path} {password} /user:{user} /p:no'
     if not async_thread.loop or not async_thread.loop.is_running:
         subprocess.Popen(call, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=True)
     else:
