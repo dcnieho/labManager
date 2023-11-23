@@ -595,6 +595,8 @@ class MainGUI:
                 utils.draw_hover_text('If enabled, it is possible to send input (stdin) to the running command',text='')
         imgui.end()
         if imgui.begin('task_confirm_pane'):
+            if disabled := not any(self.selected_computers.values()):
+                utils.push_disabled()
             if imgui.button("Run"):
                 selected_clients = [id for id in self.selected_computers if self.selected_computers[id]]
                 async_thread.run(
@@ -608,6 +610,9 @@ class MainGUI:
                         self._task_prep.interactive
                     )
                 )
+            if disabled:
+                utils.draw_hover_text('Select computer(s) for which to execute this task', text='', hovered_flags=imgui.HoveredFlags_.allow_when_disabled)
+                utils.pop_disabled()
             imgui.same_line(imgui.get_content_region_avail().x-imgui.calc_text_size('Clear').x-2*imgui.get_style().frame_padding.x)
             if imgui.button('Clear'):
                 self._task_prep = TaskDef()
@@ -692,7 +697,7 @@ class MainGUI:
                         imgui.table_next_column()
                         imgui.text("Description")
                         imgui.table_next_column()
-                        if (disabled := not im['PartOfProject']):
+                        if disabled := not im['PartOfProject']:
                             utils.push_disabled()
                         changed,self._image_description_cache[im['Id']] = imgui.input_text_multiline(f"##image{im['Id']}_description",self._image_description_cache[im['Id']],flags=imgui.InputTextFlags_.allow_tab_input|imgui.InputTextFlags_.enter_returns_true)
                         if disabled:
