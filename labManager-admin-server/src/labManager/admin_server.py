@@ -56,17 +56,22 @@ toems: dict[int, ToemsEntry] = {}
 @app.post('/users', status_code=201)
 def user_add(user: UserLogin):
     # test login
-    result = ldap.check_credentials(config.admin_server['LDAP']['server'], user.username, user.password, config.admin_server['LDAP']['projects']['format'])
-    if not result['success']:
-        raise HTTPException(status_code=401, detail=f'Login failed: {result["error"]}')
+    try:
+        ldap_query = ldap.LDAP_query(config.admin_server['LDAP']['server'], user.username)
+    except ValueError as e:
+        raise HTTPException(status_code=401, detail=f'Login failed: {str(e)}')
+    ldap_user = ldap_query.check_credentials(user.password)
+    if not ldap_user['success']:
+        raise HTTPException(status_code=401, detail=f'Login failed: {ldap_user["error"]}')
+    groups = ldap_query.get_group_memberships(config.admin_server['LDAP']['projects']['format'])
 
     # success, add new user
     # turn groups into project objects
-    projects = [Project(name=k, full_name=result['groups'][k][0], distinguished_name=result['groups'][k][1]) for k in sorted(result['groups'])]
+    projects = [Project(name=k, full_name=groups[k][0], distinguished_name=groups[k][1]) for k in sorted(groups)]
     # ID
     id = _next_id()
     # assemble user
-    new_user = UserSession(name=user.username, password=user.password, full_name=result['full_username'], distinguished_name=result['distinguished_name'], timestamp=time.perf_counter(), projects=projects)
+    new_user = UserSession(name=user.username, password=user.password, full_name=ldap_user['full_name'], distinguished_name=ldap_user['distinguished_name'], timestamp=time.perf_counter(), projects=projects)
     # register user
     users[id] = new_user
     # return added user (password hidden)
