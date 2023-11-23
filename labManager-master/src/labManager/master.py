@@ -498,6 +498,9 @@ class Master:
         # clients has a special value '*' which means all clients
         if known_clients=='*':
             known_clients = [c for c in self.known_clients]
+        if not known_clients:
+            # nothing to do
+            return
 
         # handle payload
         match payload_type:
