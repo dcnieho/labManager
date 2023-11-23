@@ -348,30 +348,35 @@ class MainGUI:
             if disabled:
                 utils.pop_disabled()
         else:
-            disabled = self.proj_select_state==ActionState.Processing
-            if disabled:
-                utils.push_disabled()
-            imgui.text('Select project:')
-            projects = []
-            for p,pn in self.master.projects.items():
-                if pn==p:
-                    projects.append(p)
-                else:
-                    projects.append(f'{p} ({pn})')
-            _,self.proj_idx = imgui.list_box('##Project', 0 if self.proj_idx==-1 else self.proj_idx, projects)
-
-            if self.proj_select_state==ActionState.Processing:
-                symbol_size = imgui.calc_text_size("x").y*2
-                spinner_radii = [x/22/2*symbol_size for x in [22, 16, 10]]
-                lw = 3.5/22/2*symbol_size
-                imspinner.spinner_ang_triple(f'projSpinner', *spinner_radii, lw, c1=imgui.get_style().color_(imgui.Col_.text_selected_bg), c2=imgui.get_style().color_(imgui.Col_.text), c3=imgui.get_style().color_(imgui.Col_.text_selected_bg))
+            if not self.master.projects:
+                imgui.text_colored((1.,0,0,1.), f'There are no projects for user {self.username}')
+                if imgui.button("Log out"):
+                    self._logout()
             else:
-                if imgui.button("Select"):
-                    self.proj_select_state = ActionState.Processing
-                    async_thread.run(self.master.set_project(list(self.master.projects.keys())[self.proj_idx]), lambda fut: self._login_projectsel_result('project',fut))
+                disabled = self.proj_select_state==ActionState.Processing
+                if disabled:
+                    utils.push_disabled()
+                imgui.text('Select project:')
+                projects = []
+                for p,pn in self.master.projects.items():
+                    if pn==p:
+                        projects.append(p)
+                    else:
+                        projects.append(f'{p} ({pn})')
+                _,self.proj_idx = imgui.list_box('##Project', 0 if self.proj_idx==-1 else self.proj_idx, projects)
 
-            if disabled:
-                utils.pop_disabled()
+                if self.proj_select_state==ActionState.Processing:
+                    symbol_size = imgui.calc_text_size("x").y*2
+                    spinner_radii = [x/22/2*symbol_size for x in [22, 16, 10]]
+                    lw = 3.5/22/2*symbol_size
+                    imspinner.spinner_ang_triple(f'projSpinner', *spinner_radii, lw, c1=imgui.get_style().color_(imgui.Col_.text_selected_bg), c2=imgui.get_style().color_(imgui.Col_.text), c3=imgui.get_style().color_(imgui.Col_.text_selected_bg))
+                else:
+                    if imgui.button("Select"):
+                        self.proj_select_state = ActionState.Processing
+                        async_thread.run(self.master.set_project(list(self.master.projects.keys())[self.proj_idx]), lambda fut: self._login_projectsel_result('project',fut))
+
+                if disabled:
+                    utils.pop_disabled()
 
     def _login_projectsel_result(self, stage, future: asyncio.Future):
         try:
