@@ -14,7 +14,7 @@ async def _read_with_length(reader: asyncio.streams.StreamReader) -> str:
             msg_size = await reader.readexactly(message.SIZE_BYTES)
         except asyncio.IncompleteReadError:
             # connection broken
-            return None
+            return ''
         msg_size = struct.unpack(message.SIZE_FMT, msg_size)[0]
 
         msg = ''
@@ -30,6 +30,9 @@ async def _read_with_length(reader: asyncio.streams.StreamReader) -> str:
 
     except ConnectionError:
         return ''
+    except OSError as e:
+        if e.errno in [113, 121]:   # 113: No route to host; 121: The semaphore timeout period has expired
+            return ''
 
 async def _send_with_length(writer: asyncio.streams.StreamWriter, msg: str) -> bool:
     try:
