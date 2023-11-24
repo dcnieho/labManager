@@ -1,5 +1,5 @@
 [![PyPI Latest Release](https://img.shields.io/pypi/v/labManager-master.svg)](https://pypi.org/project/labManager-master/)
 [![image](https://img.shields.io/pypi/pyversions/labManager-master.svg)](https://pypi.org/project/labManager-master/)
 
-# labManager v0.8.1
+# labManager v0.8.2
 System for managing multi-station multi-tenant lab setups - master.
