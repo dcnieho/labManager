@@ -784,7 +784,7 @@ class MainGUI:
         if imgui.begin('imaging_actions_pane'):
             if im:
                 selected_clients = [id for id in self.selected_computers if self.selected_computers[id]]
-                if (disabled := not selected_clients):
+                if (disabled := not selected_clients or im['DiskSize']=='N/A'):
                     utils.push_disabled()
                 if imgui.button('Deploy'):
                     async_thread.run(self.master.deploy_image(im['Name'], im['PartOfProject'], [self.master.known_clients[i].name for i in selected_clients]),
@@ -792,6 +792,8 @@ class MainGUI:
                 if not disabled and imgui.is_item_hovered():
                     stations_txt = '\n  '.join((self.master.known_clients[i].name for i in selected_clients))
                     utils.draw_tooltip(f"Deploy image '{im['Name']}' to selected stations:\n  "+stations_txt)
+                elif im['DiskSize']=='N/A':
+                    utils.draw_hover_text('Cannot deploy empty image', text='', hovered_flags=imgui.HoveredFlags_.allow_when_disabled)
                 if disabled:
                     utils.pop_disabled()
 
