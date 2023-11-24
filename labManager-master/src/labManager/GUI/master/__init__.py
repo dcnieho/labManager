@@ -229,8 +229,8 @@ class MainGUI:
         return main_space_view
 
     def _show_app_menu_items(self):
-        do_close , _ = imgui.menu_item("Close project", "", False)
-        do_logout, _ = imgui.menu_item("Log out", "", False)
+        do_close , _ = imgui.menu_item("Close project", "", False, enabled=self.proj_select_state==ActionState.Done)
+        do_logout, _ = imgui.menu_item("Log out", "", False, enabled=self.login_state==ActionState.Done)
 
         if do_logout:
             self._logout()
