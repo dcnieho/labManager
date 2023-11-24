@@ -68,6 +68,8 @@ class MainGUI:
         self._active_imaging_tasks = []
         self._active_imaging_tasks_updater = None
         self._active_imaging_tasks_updater_should_stop = False
+        self._active_upload_tasks = set()  # set of images
+        self._active_upload_tasks_map: dict[str,int] = {}
 
         # computer detail GUIs
         self._computer_GUI_tasks: dict[int,tuple[str,int]|None] = {}
@@ -749,6 +751,9 @@ class MainGUI:
                                 imgui.table_set_column_index(i)
                                 imgui.table_header(imgui.table_get_column_name(i))
                             for t in active_imaging_tasks:
+                                if 'upload' in t['Type']:
+                                    self._active_upload_tasks.add(t['ComputerName'])
+                                    self._active_upload_tasks_map[t['ComputerName']] = self._selected_image_id
                                 imgui.table_next_row()
                                 imgui.table_next_column()
                                 imgui.align_text_to_frame_padding()
@@ -792,21 +797,24 @@ class MainGUI:
                 if not disabled and imgui.is_item_hovered():
                     stations_txt = '\n  '.join((self.master.known_clients[i].name for i in selected_clients))
                     utils.draw_tooltip(f"Deploy image '{im['UserFacingName']}' to selected stations:\n  "+stations_txt)
-                elif im['DiskSize']=='N/A':
-                    utils.draw_hover_text('Cannot deploy empty image', text='', hovered_flags=imgui.HoveredFlags_.allow_when_disabled)
                 if disabled:
+                    if im['DiskSize']=='N/A':
+                        utils.draw_hover_text('Cannot deploy empty image', text='', hovered_flags=imgui.HoveredFlags_.allow_when_disabled)
                     utils.pop_disabled()
 
                 if im['PartOfProject']:
-                    if (disabled := len(selected_clients)!=1):
+                    if selected_clients:
+                        station_txt = next((self.master.known_clients[i].name for i in selected_clients))
+                    if (disabled := len(selected_clients)!=1 or station_txt in self._active_upload_tasks):
                         utils.push_disabled()
                     if imgui.button('Upload'):
                         async_thread.run(self.master.upload_computer_to_image(next((self.master.known_clients[i].name for i in selected_clients)), im['Name']),
                                         lambda fut: self._image_action_result('upload',fut))
                     if not disabled and imgui.is_item_hovered():
-                        station_txt = next((self.master.known_clients[i].name for i in selected_clients))
                         utils.draw_tooltip(f"Upload station {station_txt} to image '{im['UserFacingName']}'")
                     if disabled:
+                        if self._selected_image_id in self._active_upload_tasks:
+                            utils.draw_hover_text('Cannot upload image, upload task is already running', text='', hovered_flags=imgui.HoveredFlags_.allow_when_disabled)
                         utils.pop_disabled()
 
                     imgui.push_style_color(imgui.Col_.button, imgui.ImVec4(*imgui.ImColor.hsv(0.9667,.88,.43)))
@@ -823,6 +831,23 @@ class MainGUI:
         while not self._active_imaging_tasks_updater_should_stop:
             # NB: this is and must remain an atomic update, so its not possible to read incomplete state elsewhere
             self._active_imaging_tasks = await self.master.get_active_imaging_tasks()
+
+            # check if an upload task has just finished. If so, trigger image refresh
+            to_del = []
+            for c in self._active_upload_tasks:
+                found = False
+                for t in self._active_imaging_tasks:
+                    if t['ComputerName']==c:
+                        found = True
+                        break
+                if not found:
+                    # computer no longer has an active task, assume upload is finished
+                    # trigger image refresh
+                    to_del.append(c)
+                    await self._get_project_images()
+            for c in to_del:
+                self._active_upload_tasks.remove(c)
+                del self._active_upload_tasks_map[c]
 
             # sleep until the next whole second
             now = time.time()
