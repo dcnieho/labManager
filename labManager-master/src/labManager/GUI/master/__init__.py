@@ -791,7 +791,7 @@ class MainGUI:
                                      lambda fut: self._image_action_result('deploy',fut))
                 if not disabled and imgui.is_item_hovered():
                     stations_txt = '\n  '.join((self.master.known_clients[i].name for i in selected_clients))
-                    utils.draw_tooltip(f"Deploy image '{im['Name']}' to selected stations:\n  "+stations_txt)
+                    utils.draw_tooltip(f"Deploy image '{im['UserFacingName']}' to selected stations:\n  "+stations_txt)
                 elif im['DiskSize']=='N/A':
                     utils.draw_hover_text('Cannot deploy empty image', text='', hovered_flags=imgui.HoveredFlags_.allow_when_disabled)
                 if disabled:
@@ -805,7 +805,7 @@ class MainGUI:
                                         lambda fut: self._image_action_result('upload',fut))
                     if not disabled and imgui.is_item_hovered():
                         station_txt = next((self.master.known_clients[i].name for i in selected_clients))
-                        utils.draw_tooltip(f"Upload station {station_txt} to image '{im['Name']}'")
+                        utils.draw_tooltip(f"Upload station {station_txt} to image '{im['UserFacingName']}'")
                     if disabled:
                         utils.pop_disabled()
 
