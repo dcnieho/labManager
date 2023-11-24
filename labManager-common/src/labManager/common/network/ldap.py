@@ -11,7 +11,7 @@ class LDAP_query:
         # get user information
         conn = ldap3.Connection(self._serv, user=secrets.val['LDAP_ACCOUNT'], password=secrets.val['LDAP_PASSWORD'], auto_bind=True)
         conn.search(secrets.val['LDAP_SEARCH_BASE'], f'(samaccountname={username})', attributes=['displayName','memberOf'])
-        self.user_info = conn.entries[0]
+        self.user_info = conn.entries[0] if conn.entries else None
         conn.unbind()
         if not self.user_info:
             raise ValueError(f'user {username} unknown')
@@ -30,7 +30,7 @@ class LDAP_query:
             full_name = conn.extend.standard.who_am_i()
             if full_name.startswith('u:'):
                 full_name = full_name[2:]
-        conn.unbind()
+            conn.unbind()
 
         # format return
         if not credentials_ok:
