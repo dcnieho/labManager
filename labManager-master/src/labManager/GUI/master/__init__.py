@@ -841,7 +841,7 @@ class MainGUI:
             return
         if not exc:
             # action successful, refresh image cache if needed
-            if action in ['create','update','deploy','update','delete']:
+            if action in ['create','update','deploy','upload','delete']:
                 async_thread.run(self._get_project_images())
             return
 
