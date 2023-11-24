@@ -4,6 +4,7 @@ import aiofile
 import traceback
 import sys
 import threading
+import json
 from typing import Dict, List, Tuple
 
 from labManager.common import async_thread, config, eye_tracker, message, structs, task
@@ -193,6 +194,21 @@ class Master:
     async def get_image_size(self, name_or_id: int|str):
         return await self.toems.image_get_server_size(name_or_id)
 
+    async def get_image_info(self, name_or_id: int|str):
+        image = (await self.toems.image_get(name_or_id))
+
+        # get timestamp last time image was updated
+        im_logs = await self.toems.image_get_audit_log(image['Id'])
+        for l in im_logs:   # NB: logs are sorted newest-first
+            if l['AuditType'] in ['Upload','OndUpload']:
+                upload_info = json.loads(l['ObjectJson'])
+                computer = await self.toems.computer_get(upload_info['ComputerId'])
+                return {
+                    'TimeStamp': l['DateTime'],
+                    'SourceComputer': computer['Name']
+                }
+        return None     # no info found
+
     async def create_image(self, name: str, description: str|None = None):
         return await self.admin.create_image(name, description)
 
@@ -209,15 +225,14 @@ class Master:
 
         # update image info script
         if 'image_info_script' in config.master['toems']:
-            # get timestamp last time image was updated
-            im_logs = await self.toems.image_get_audit_log(image_id)
-            ts = None
-            for l in im_logs:   # NB: logs are sorted newest-first
-                if l['AuditType'] in ['Upload','OndUpload']:
-                    ts = l['DateTime']
-                    break
-
-            info = {"name": image, "timestamp": ts if ts is not None else 'Unknown'}
+            im_info = await self.get_image_info(image_id)
+            info = {"name": image}
+            if im_info is None:
+                info['timestamp'] = None
+                info['source_computer'] = None
+            else:
+                info['timestamp'] = im_info['TimeStamp']
+                info['source_computer'] = im_info['SourceComputer']
             if part_of_project:
                 info['project'] = self.project
             script = toems.make_info_script(info, config.master['toems']['image_info_script_partition'])
