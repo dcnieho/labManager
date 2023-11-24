@@ -254,20 +254,16 @@ class ComputerList():
             info = f'{client.client.host}:{client.client.port}'
             image_info = client.client.image_info
             if not image_info:
-                image_info = 'image: unknown'
+                info += '\nimage: unknown'
             else:
                 name = image_info['name']
                 if self.project and name.startswith(self.project+'_'):
                     name = name[len(self.project)+1:]
-                dt = image_info["timestamp"]
-                if dt!='Unknown':
-                    dt = dt.replace('T',' ')
+                info += f'\nimage: {name}'
                 if 'project' in image_info:
-                    image_info = f'image: {name}\nproject: {image_info["project"]}\ntimestamp: {dt}'
-                else:
-                    image_info = f'image: {name}\ntimestamp: {dt}'
-            if image_info:
-                info += f'\n{image_info}'
+                    info += f'\nproject: {image_info["project"]}'
+                dt = image_info["timestamp"].replace('T',' ')
+                info += f'\ntimestamp: {dt}\nsource computer: {image_info["source_computer"]}'
             utils.draw_tooltip(info)
 
     def _draw_item_info_button(self, id: int, label):
