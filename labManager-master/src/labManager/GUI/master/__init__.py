@@ -291,6 +291,9 @@ class MainGUI:
         # also get image size on disk
         for im in temp_list:
             im['DiskSize'] = await self.master.get_image_size(im['Id'])
+            info = await self.master.get_image_info(im['Id'])
+            im['TimeStamp'] = info['TimeStamp'] if info is not None else 'Unknown'
+            im['SourceComputer'] = info['SourceComputer'] if info is not None else 'Unknown'
         # flag if the images belong to the selected project
         # simple trick: if image belongs to the project, then its user-facing name doesn't
         # match its name (since the project prefix is removed)
@@ -717,8 +720,16 @@ class MainGUI:
                         imgui.table_next_column()
                         imgui.text("Size on disk")
                         imgui.table_next_column()
-                        if 'DiskSize' in im:
-                            imgui.text(im['DiskSize'])
+                        imgui.text(im['DiskSize'])
+                        if im['DiskSize']!='N/A':
+                            imgui.table_next_column()
+                            imgui.text("Upload time")
+                            imgui.table_next_column()
+                            imgui.text(im['TimeStamp'].replace('T',' '))
+                            imgui.table_next_column()
+                            imgui.text("Source computer")
+                            imgui.table_next_column()
+                            imgui.text(im['SourceComputer'])
                         imgui.end_table()
                     active_imaging_tasks = self.get_running_imaging_tasks(self._selected_image_id)
                     imgui.text(f"{len(active_imaging_tasks)} running tasks for this image")
