@@ -908,34 +908,44 @@ class MainGUI:
         if imgui.begin(f'task_list_pane_{item.id}'):
             if item.client:
                 if item.client.tasks:
-                    imgui.text('Tasks:')
-                    imgui.push_font(imgui_md.get_code_font())
-                    for id in item.client.tasks:
-                        tsk = item.client.tasks[id]
-                        if tsk.type==task.Type.Wake_on_LAN:
-                            lbl = tsk.type.value
-                            hover_text = tsk.type.value
-                        else:
-                            lbl = utils.trim_str(tsk.payload, length=12, newline_ellipsis=True)
-                            hover_text = tsk.type.value+':\n'+tsk.payload
-                        if imgui.button(f'{lbl}##{tsk.id}'):
-                            self._computer_GUI_tasks[item.id] = ('task',id)
-                        if imgui.is_item_hovered():
-                            # show no more than 10 lines
-                            lines = hover_text.splitlines()
-                            to_show = '\n'.join(lines[0:10])
-                            if len(lines)>10:
-                                to_show += '\n...'
-                            utils.draw_tooltip(to_show)
-                    imgui.pop_font()
+                    show = True
+                    if self.master.client_et_events[item.client.id]:
+                        show = imgui.collapsing_header('Tasks:')
+                    else:
+                        imgui.text('Tasks:')
+                    if show:
+                        imgui.push_font(imgui_md.get_code_font())
+                        for id in item.client.tasks:
+                            tsk = item.client.tasks[id]
+                            if tsk.type==task.Type.Wake_on_LAN:
+                                lbl = tsk.type.value
+                                hover_text = tsk.type.value
+                            else:
+                                lbl = utils.trim_str(tsk.payload, length=12, newline_ellipsis=True)
+                                hover_text = tsk.type.value+':\n'+tsk.payload
+                            if imgui.button(f'{lbl}##{tsk.id}'):
+                                self._computer_GUI_tasks[item.id] = ('task',id)
+                            if imgui.is_item_hovered():
+                                # show no more than 10 lines
+                                lines = hover_text.splitlines()
+                                to_show = '\n'.join(lines[0:10])
+                                if len(lines)>10:
+                                    to_show += '\n...'
+                                utils.draw_tooltip(to_show)
+                        imgui.pop_font()
                 if self.master.client_et_events[item.client.id]:
-                    imgui.text('Eye-tracker events:')
-                    for i,evt in enumerate(self.master.client_et_events[item.client.id]):
-                        str,full_info,_ = eye_tracker.format_event(evt)
-                        lbl = utils.trim_str(str, length=12, newline_ellipsis=True)
-                        if imgui.button(f'{lbl}##et_{i}'):
-                            self._computer_GUI_tasks[item.id] = ('ET',i)
-                        utils.draw_hover_text(hover_text=full_info,text='')
+                    show = True
+                    if item.client.tasks:
+                        show = imgui.collapsing_header('Eye-tracker events:')
+                    else:
+                        imgui.text('Eye-tracker events:')
+                    if show:
+                        for i,evt in enumerate(self.master.client_et_events[item.client.id]):
+                            str,full_info,_ = eye_tracker.format_event(evt)
+                            lbl = utils.trim_str(str, length=12, newline_ellipsis=True)
+                            if imgui.button(f'{lbl}##et_{i}'):
+                                self._computer_GUI_tasks[item.id] = ('ET',i)
+                            utils.draw_hover_text(hover_text=full_info,text='')
                 if not item.client.tasks and not self.master.client_et_events[item.client.id]:
                     imgui.text_wrapped('no tasks or eye tracker events available')
         imgui.end()
