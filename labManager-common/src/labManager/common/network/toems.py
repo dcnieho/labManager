@@ -46,7 +46,7 @@ class Client:
     async def user_group_get(self, id=None):
         return await self.request('UserGroup/Get'+(f'/{id}' if id is not None else ''), req_type="post", json={'SearchText': "", 'Limit' : 0})
 
-    async def user_group_create(self, name, images):
+    async def user_group_create(self, name):
         # 1. create group
         resp = await self.request('UserGroup/Post', req_type="post", json={
             "Name": name,
@@ -59,17 +59,6 @@ class Client:
         group_id = resp['Id']
         # 2. set ACLs
         resp = await self.request('UserGroupRight/Post', req_type='post', json=[{'UserGroupId': group_id, 'Right': r} for r in ["computerRead","imageRead","imageUploadTask","imageDeployTask"]])
-        # 3. provide access to images
-        # 3a. for the named images, find out what the image ids are
-        image_ids = []
-        resp = await self.image_get()
-        for im in images:
-            for ims in resp:
-                if ims['Name']==im:
-                    image_ids.append(ims['Id'])
-                    break
-        # 3b. set access to these images
-        resp = await self.user_group_add_managed_images(group_id, image_ids, overwrite=True)
         return group_id
 
     async def user_group_get_managed_images(self, group_id):
@@ -79,7 +68,14 @@ class Client:
         ori_image_ids = []
         if not overwrite:
             ori_image_ids = await self.user_group_get_managed_images(group_id)
-        return await self.request(f'UserGroup/UpdateImageManagement/{group_id}', req_type='post', json=[{'UserGroupId': group_id, 'ImageId': i} for i in ori_image_ids+image_ids])
+        for id in image_ids:
+            resp = await self._image_resolve_id_name(id)
+            if not resp['Success']:
+                return resp
+            else:
+                if resp['Id'] not in ori_image_ids:
+                    ori_image_ids.append(resp['Id'])
+        return await self.request(f'UserGroup/UpdateImageManagement/{group_id}', req_type='post', json=[{'UserGroupId': group_id, 'ImageId': i} for i in ori_image_ids])
 
 
     async def computer_get(self, name_or_id=None, filter_list=None):

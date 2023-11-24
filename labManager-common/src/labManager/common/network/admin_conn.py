@@ -62,7 +62,8 @@ class Client:
 
         group_exists = await self.request(f'users/{self.user_id}/projects/{self.proj_id}/toems')
         if not group_exists:
-            group_exists = await self.request(f'users/{self.user_id}/projects/{self.proj_id}/toems', req_type='post', expected_return_code=204)
+            group_id = await self.request(f'users/{self.user_id}/projects/{self.proj_id}/toems', req_type='post', expected_return_code=204)
+            await self.request(f'users/{self.user_id}/projects/{self.proj_id}/toems_images', req_type='post', json={'group_id': group_id}, expected_return_code=204)
 
     def _check_user(self):
         if self.user is None:

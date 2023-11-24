@@ -147,7 +147,15 @@ async def user_toems_group_create(user_id: int, proj_id: int):
     user_check(user_id)
     project_check(user_id, proj_id)
     await toems_check(user_id)
-    toems[user_id].group_id = await toems[user_id].conn.user_group_create(users[user_id].projects[proj_id].full_name, config.admin_server['toems']['images']['standard'])
+    toems[user_id].group_id = await toems[user_id].conn.user_group_create(users[user_id].projects[proj_id].full_name)
+    return toems[user_id].group_id
+
+@app.post('/users/{user_id}/projects/{proj_id}/toems_images', status_code=204)
+async def user_toems_group_add_images(user_id: int, proj_id: int, group_id: dict):
+    user_check(user_id)
+    project_check(user_id, proj_id)
+    await toems_check(user_id)
+    return await toems[user_id].conn.user_group_add_managed_images(group_id['group_id'], config.admin_server['toems']['images']['standard'], overwrite=True)
 
 async def toems_check(user_id):
     # create toems connection if needed
