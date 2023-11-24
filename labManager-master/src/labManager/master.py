@@ -236,9 +236,14 @@ class Master:
             if part_of_project:
                 info['project'] = self.project
             script = toems.make_info_script(info, config.master['toems']['image_info_script_partition'])
-            resp = await self.admin.image_set_script(image_id, config.master['toems']['image_info_script'], script)
+            resp = await self.admin.image_set_script(image_id, config.master['toems']['image_info_script'], script, priority=1, run_when=2)
             if not resp['Success']:
-                raise RuntimeError(f"can't deploy: failed to set image script ({resp['ErrorMessage']})")
+                raise RuntimeError(f"can't deploy: failed to set image info script ({resp['ErrorMessage']})")
+        if 'pre_upload_script' in config.master['toems']:
+            # if there is a pre-upload script, disable it
+            resp = await self.admin.image_set_script(image_id, config.master['toems']['pre_upload_script'], '', priority=0, run_when=0)
+            if not resp['Success']:
+                raise RuntimeError(f"can't deploy: failed to disable image cleanup script ({resp['ErrorMessage']})")
 
         if isinstance(computers,str):
             computers = [computers]
@@ -271,6 +276,18 @@ class Master:
         resp = await self.admin.apply_image(image_id, comp_id)
         if not resp['Success']:
             raise RuntimeError(f"can't upload: failed to apply image to computer ({resp['ErrorMessage']})")
+
+        # handle scripts
+        if 'pre_upload_script' in config.master['toems']:
+            # if there is a pre-upload script, enable it
+            resp = await self.admin.image_set_script(image_id, config.master['toems']['pre_upload_script'], '', priority=0, run_when=1)
+            if not resp['Success']:
+                raise RuntimeError(f"can't upload: failed to set image cleanup script ({resp['ErrorMessage']})")
+        if 'image_info_script' in config.master['toems']:
+            # if there is a post-deploy script, disable it
+            resp = await self.admin.image_set_script(image_id, config.master['toems']['image_info_script'], '', priority=1, run_when=0)
+            if not resp['Success']:
+                raise RuntimeError(f"can't upload: failed to unset image info script ({resp['ErrorMessage']})")
 
         resp = await self.admin.update_image(image_id, {"Protected": False})
         if resp['Protected']:   # check it worked

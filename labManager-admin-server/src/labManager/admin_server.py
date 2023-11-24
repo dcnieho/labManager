@@ -265,7 +265,7 @@ async def user_toems_image_set_script(user_id: int, proj_id: int, image_id: int,
     # check image exists
     await _toems_get_image(toems[user_id].conn, image_id)
 
-    resp = await toems[user_id].conn.image_set_script_action(image_id, args['script_name'], args['script'])
+    resp = await toems[user_id].conn.image_set_script_action(image_id, args['script_name'], args['script'], args['priority'], args['run_when'])
     if not resp['Success']:
         raise HTTPException(status_code=400, detail=resp['ErrorMessage'])
     return resp

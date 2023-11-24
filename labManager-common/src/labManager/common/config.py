@@ -32,6 +32,7 @@ _master_schema = s.Map({
         'images': s.Map({
             'format': s.Str(),
         }),
+        s.Optional('pre_upload_script'): s.Str(),
         s.Optional('image_info_script'): s.Str(),
         s.Optional('image_info_script_partition'): s.Int(),
     }),

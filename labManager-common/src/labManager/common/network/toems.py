@@ -313,7 +313,7 @@ class Client:
                 return resp
         return resp
 
-    async def image_set_script_action(self, name_or_id, script_name, script_content):
+    async def image_set_script_action(self, name_or_id, script_name, script_content, priority, run_when):
         # 1. get image id
         resp = await self._image_resolve_id_name(name_or_id)
         if not resp['Success']:
@@ -338,19 +338,20 @@ class Client:
         if not script:
             return {'Success': False, 'ErrorMessage': f'script with name "{script_name}" not found'}
 
-        # 4. update script to requested contents
-        script['ScriptContents'] = script_content
-        script['ScriptType'] = 3 # 3: ImagingClient_Bash
-        resp = await self.request(f'ScriptModule/Put/{script["Id"]}', req_type='put', json=script)
-        if not 'Success' in resp or not resp['Success']:
-            resp['Success'] = False # ensure this field exists and is filled, i have seen replies where it didn't...
-            return resp
+        # 4. update script to requested contents (skipped if empty)
+        if script_content:
+            script['ScriptContents'] = script_content
+            script['ScriptType'] = 3 # 3: ImagingClient_Bash
+            resp = await self.request(f'ScriptModule/Put/{script["Id"]}', req_type='put', json=script)
+            if not 'Success' in resp or not resp['Success']:
+                resp['Success'] = False # ensure this field exists and is filled, i have seen replies where it didn't...
+                return resp
 
-        # 5. activate script action for this image
+        # 5. update/activate/deactivate script action for this image
         resp = await self.request(f'ImageProfileScript/Post', req_type='post', json={
-            "Priority": 0,
+            "Priority": priority,
             "ProfileId": profile_id,
-            "RunWhen": 3,   # 2: BeforeFileCopy, 3: AfterFileCopy
+            "RunWhen": run_when,   # 0: Disabled, 1: BeforeImaging, 2: BeforeFileCopy, 3: AfterFileCopy
             "ScriptModuleId": script['Id']
         })
         if not 'Success' in resp or not resp['Success']:
