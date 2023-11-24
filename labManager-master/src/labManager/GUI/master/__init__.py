@@ -685,7 +685,7 @@ class MainGUI:
                         self._active_imaging_tasks_updater_should_stop = True
                 else:
                     if not self._active_imaging_tasks_updater:
-                        self._active_imaging_tasks_updater = async_thread.run(self.update_running_image_tasks())
+                        self._active_imaging_tasks_updater = async_thread.run(self.update_running_image_tasks(), self._restart_active_imaging_tasks_updater)
                     if im['Id'] not in self._image_description_cache:
                         self._image_description_cache[im['Id']] = im['Description']
                     if imgui.begin_table("##image_infos",2):
@@ -828,6 +828,15 @@ class MainGUI:
             now = time.time()
             await asyncio.sleep(math.ceil(now) - now)
         self._active_imaging_tasks_updater = None
+    def _restart_active_imaging_tasks_updater(self, future: asyncio.Future):
+        try:
+            future.exception()
+        except concurrent.futures.CancelledError:
+            pass
+        self._active_imaging_tasks_updater = None
+        if not self._active_imaging_tasks_updater_should_stop:
+            self._active_imaging_tasks_updater = async_thread.run(self.update_running_image_tasks(), self._restart_active_imaging_tasks_updater)
+
     def get_running_imaging_tasks(self, id: int|None):
         if id is None:
             return self._active_imaging_tasks
