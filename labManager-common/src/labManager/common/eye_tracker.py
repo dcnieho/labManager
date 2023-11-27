@@ -155,6 +155,8 @@ def get_attribute(eye_tracker: ET_class, attributes: List[Attribute]|str):
     return out if out else None
 
 def update_attributes(eye_tracker: EyeTracker, attributes: Dict[Attribute,bool|str|int]):
+    if not attributes:
+        return
     for attr, value in attributes.items():
         match attr:
             case Attribute.Serial:

@@ -478,10 +478,10 @@ class Master:
                         if 'timestamp' in msg:
                             self.client_et_events[me.id].append(msg)
                     case message.Message.ET_ATTR_UPDATE:
-                        if not me.eye_tracker:
+                        if not me.eye_tracker or not msg:
                             continue
                         # update attributes if any attached to message
-                        if 'attributes' in msg:
+                        if 'attributes' in msg and msg['attributes']:
                             eye_tracker.update_attributes(me.eye_tracker, msg['attributes'])
                         # if timestamped, store as event
                         if 'timestamp' in msg:
