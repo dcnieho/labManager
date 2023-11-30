@@ -188,6 +188,8 @@ def format_event(evt_msg):
         str = evt_msg['event']
         if str=='calibration_changed':
             str = 'Calibration changed'
+        if 'info' in evt_msg:
+            extra = f'additional info about event: {evt_msg["info"]}'
     elif 'attributes' in evt_msg:
         if Attribute.Frequency in evt_msg['attributes']:
             str = 'Tracking frequency changed'
