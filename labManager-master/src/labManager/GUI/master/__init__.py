@@ -970,8 +970,23 @@ class MainGUI:
                             else:
                                 lbl = utils.trim_str(tsk.payload, length=12, newline_ellipsis=True)
                                 hover_text = tsk.type.value+':\n'+tsk.payload
+                            # decide button color
+                            match tsk.status:
+                                case task.Status.Not_started:
+                                    clr = (.5,.5,.5,1.)
+                                case task.Status.Running:
+                                    clr = (1.,1.,0.,1.)
+                                case task.Status.Finished:
+                                    clr = (.0,1.,0.,1.)
+                                case task.Status.Errored:
+                                    clr = (1.,.0,.0,1.)
+                            alpha = 0.3
+                            imgui.push_style_color(imgui.Col_.button,[x*alpha+y*(1-alpha) for x,y in zip(clr,imgui.get_style_color_vec4(imgui.Col_.button))])
+                            imgui.push_style_color(imgui.Col_.button_hovered,[x*alpha+y*(1-alpha) for x,y in zip(clr,imgui.get_style_color_vec4(imgui.Col_.button_hovered))])
+                            imgui.push_style_color(imgui.Col_.button_active,[x*alpha+y*(1-alpha) for x,y in zip(clr,imgui.get_style_color_vec4(imgui.Col_.button_active))])
                             if imgui.button(f'{lbl}##{tsk.id}'):
                                 self._computer_GUI_tasks[item.id] = ('task',id)
+                            imgui.pop_style_color(3)
                             if imgui.is_item_hovered():
                                 # show no more than 10 lines
                                 lines = hover_text.splitlines()
