@@ -86,7 +86,7 @@ tasks:
       payload: '"C:\Users\Administrator\Desktop\Tobii Pro Eye Tracker Manager.lnk"'
     - name: Start Tobii Pro Lab
       type: Shell command
-      payload: '"C:\Users\Administrator\Desktop\Tobii Pro Lab.lnk"'
+      payload: '"C:\Users\Public\Desktop\Tobii Pro Lab.lnk"'
     - name: Start Breakout Demo
       type: Shell command
       payload: '"C:\Users\Administrator\Desktop\Run breakout demo.lnk"'
