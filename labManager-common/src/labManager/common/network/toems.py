@@ -1,5 +1,6 @@
 # module for interacting with Theopenem server
 from authlib.integrations.httpx_client import AsyncOAuth2Client
+from authlib.integrations.base_client.errors import InvalidTokenError
 import re
 import json
 import shlex
@@ -9,12 +10,16 @@ class Client:
         self.server     = server
         self.port       = port
         self.protocol   = protocol
+        self._username  = None
+        self._password  = None
 
         self.endpoint   = f'{self.protocol}://{self.server}:{self.port}/'
 
         self.client     = AsyncOAuth2Client()
 
     async def connect(self, username, password):
+        self._username   = username
+        self._password   = password
         self.token = await self.client.fetch_token(
             self.endpoint+'token',
             grant_type='password',
@@ -37,7 +42,13 @@ class Client:
             case _:
                 raise ValueError
 
-        resp = await coro
+        try:
+            resp = await coro
+        except InvalidTokenError:
+            # session expired, try to renew token and relaunch request
+            await self.connect(self._username, self._password)
+            return await self.request(resource, req_type, **kwargs)
+
         if resp.text:
             return resp.json()
         else:
