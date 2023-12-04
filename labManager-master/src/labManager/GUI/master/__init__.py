@@ -1112,6 +1112,9 @@ class MainGUI:
         if self.proj_select_state!=ActionState.Done:
             return
 
+        imgui.align_text_to_frame_padding()
+        imgui.text('Select:')
+        imgui.same_line()
         if imgui.button('On'):
             utils.set_all(self.selected_computers, False)
             utils.set_all(self.selected_computers, True, predicate=lambda id: self.master.known_clients[id].client)
