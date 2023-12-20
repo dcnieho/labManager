@@ -914,11 +914,11 @@ class MainGUI:
 
 
     def _open_computer_detail(self, item: structs.KnownClient):
-        win = next((x for x in hello_imgui.get_runner_params().docking_params.dockable_windows if x.label==item.name), None)
+        win_name = f'{item.name}##computer_view'
+        win = next((x for x in hello_imgui.get_runner_params().docking_params.dockable_windows if x.label==win_name), None)
         if win:
             win.focus_window_at_next_frame = True
         else:
-            win_name = f'{item.name}##computer_view'
             self._window_list = hello_imgui.get_runner_params().docking_params.dockable_windows
             self._window_list.append(
                 self._make_main_space_window(win_name, lambda: self._computer_detail_GUI(item), can_be_closed=True)
