@@ -5,7 +5,7 @@ import traceback
 import sys
 import threading
 import json
-from typing import Dict, List, Tuple
+from typing import Callable, Dict, List, Tuple
 
 from labManager.common import async_thread, config, eye_tracker, message, structs, task
 from labManager.common.network import admin_conn, comms, ifs, keepalive, smb, ssdp, toems
@@ -102,8 +102,10 @@ class Master:
         self.known_clients: Dict[int, structs.KnownClient] = {}
         self.known_clients_lock = threading.Lock()
         self.client_et_events: Dict[int, List[Dict]] = {}
+        self.remove_client_hook: Callable = None
 
         self.task_groups: Dict[int, task.TaskGroup] = {}
+        self.task_state_change_hook: Callable = None
 
     def __del__(self):
         # cleanup
@@ -333,6 +335,8 @@ class Master:
         self.client_et_events[client.id] = []
 
     def _remove_client(self, client: structs.Client):
+        if self.remove_client_hook:
+            self.remove_client_hook(client)
         self._remove_known_client(client)
         self.unmount_client_shares(client.writer)
         del self.clients[client.id]
@@ -498,9 +502,12 @@ class Master:
                                 mytask.stderr += msg['output']
                     case message.Message.TASK_UPDATE:
                         mytask = me.tasks[msg['task_id']]
+                        status_change = mytask.status!=msg['status']
                         mytask.status = msg['status']
                         if 'return_code' in msg:
                             mytask.return_code = msg['return_code']
+                        if status_change and self.task_state_change_hook:
+                            self.task_state_change_hook(me, mytask)
 
                     case _:
                         print(f'got unhandled type {type.value}, message: {msg}')

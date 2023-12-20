@@ -306,8 +306,8 @@ class MainGUI:
 
 
     def _unload_project(self):
-        if self.master.is_serving():
-            async_thread.wait(self.master.stop_server())
+        self.master.unset_project()
+        self.selected_computers = {k:False for k in self.selected_computers}
         self._selected_image_id = None
         self._active_imaging_tasks_updater_should_stop = True
         self._images_list       = []
@@ -315,7 +315,6 @@ class MainGUI:
         self.proj_idx           = -1
         self.project            = ''
         self.computer_lister.set_project(self.project)
-        self.master.unset_project()
 
         # reset GUI
         self._task_prep = TaskDef()
