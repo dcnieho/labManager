@@ -79,6 +79,7 @@ class MainGUI:
         self._computer_GUI_tasks: dict[int,tuple[str,int]|None] = {}
         self._computer_GUI_interactive_tasks: dict[tuple[int,int],str] = {}
         self._computer_GUI_interactive_sent_finish: dict[tuple[int,int],bool] = {}
+        self._computer_GUI_command_copy_t = None
 
         # Show errors in threads
         def asyncexcepthook(future: asyncio.Future):
@@ -1054,11 +1055,22 @@ class MainGUI:
                             num_visible_lines = 10
                             editor_size = imgui.ImVec2(width, line_height*(num_visible_lines+1))
                             self._task_GUI_editor.render("Code", False, editor_size)
+                            imgui.pop_font()
                         else:
                             utils.push_disabled()
                             imgui.input_text(f'##task_payload', tsk.payload)
                             utils.pop_disabled()
-                        imgui.pop_font()
+                            imgui.pop_font()
+                            imgui.same_line()
+                            if imgui.button(icons_fontawesome.ICON_FA_COPY):
+                                self._computer_GUI_command_copy_t = immapp.clock_seconds()
+                                imgui.set_clipboard_text(tsk.payload)
+                            if imgui.is_item_hovered():
+                                was_copied_recently = self._computer_GUI_command_copy_t is not None and (immapp.clock_seconds()-self._computer_GUI_command_copy_t) < 0.7
+                                if was_copied_recently:
+                                    imgui.set_tooltip("Copied!")
+                                else:
+                                    imgui.set_tooltip("Copy")
                     if tsk.cwd:
                         imgui.text(f'cwd: {tsk.cwd}')
                     imgui.text(tsk.status.value)
