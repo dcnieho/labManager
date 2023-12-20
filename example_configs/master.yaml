@@ -108,3 +108,6 @@ tasks:
     - name: Shutdown Computers
       type: Shell command
       payload: shutdown -s -t 0
+    - name: Copy folders and files
+      type: Shell command
+      payload: xcopy <source> <destination> /E /H /C /I
