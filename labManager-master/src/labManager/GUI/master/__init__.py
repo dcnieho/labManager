@@ -1071,7 +1071,7 @@ class MainGUI:
                         if (disabled := not self._computer_GUI_interactive_tasks[(item.id, tid[1])]):
                             utils.push_disabled()
                         imgui.same_line()
-                        if imgui.button(f'Send##{item.id},{tid[1]}') or entered:
+                        if imgui.button(f'Send##{item.id},{tid[1]}') or (entered and not disabled):
                             # send
                             async_thread.run(task.send_input(self._computer_GUI_interactive_tasks[(item.id, tid[1])]+'\n',item,tsk))
                             self._computer_GUI_interactive_tasks[(item.id, tid[1])] = ''
