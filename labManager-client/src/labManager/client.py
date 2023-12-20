@@ -227,6 +227,7 @@ class Client:
                         for t in self._task_list:
                             if msg['task_id']==t.id and not t.async_task.done():
                                 my_task = t
+                                break
                         if my_task and my_task.input:
                             await my_task.input.put(msg['payload'])
 
@@ -236,6 +237,7 @@ class Client:
                         for t in self._task_list:
                             if msg['task_id']==t.id and not t.async_task.done():
                                 my_task = t
+                                break
                         if my_task:
                             if my_task.input and not my_task.tried_stdin_close:
                                 my_task.tried_stdin_close = True
