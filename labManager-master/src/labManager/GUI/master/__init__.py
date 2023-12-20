@@ -1073,6 +1073,7 @@ class MainGUI:
                                     imgui.set_tooltip("Copy")
                     if tsk.cwd:
                         imgui.text(f'cwd: {tsk.cwd}')
+                    imgui.align_text_to_frame_padding()
                     imgui.text(tsk.status.value)
                     if tsk.return_code:
                         imgui.text(f'return code: {tsk.return_code}')
