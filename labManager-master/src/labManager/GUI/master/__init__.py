@@ -1105,12 +1105,16 @@ class MainGUI:
                     if tsk.interactive and tsk.status==task.Status.Running and ((item.id, tid[1]) not in self._computer_GUI_interactive_sent_finish or not self._computer_GUI_interactive_sent_finish[(item.id, tid[1])]):
                         if (item.id, tid[1]) not in self._computer_GUI_interactive_tasks:
                             self._computer_GUI_interactive_tasks[(item.id, tid[1])] = ''
-                        entered, self._computer_GUI_interactive_tasks[(item.id, tid[1])] = \
-                            imgui.input_text(f'##interactive_input{item.id},{tid[1]}', self._computer_GUI_interactive_tasks[(item.id, tid[1])], flags=imgui.InputTextFlags_.enter_returns_true)
+                        _, self._computer_GUI_interactive_tasks[(item.id, tid[1])] = \
+                            imgui.input_text(f'##interactive_input{item.id},{tid[1]}', self._computer_GUI_interactive_tasks[(item.id, tid[1])], flags=imgui.InputTextFlags_.escape_clears_all)
+                        enter_pressed = False
+                        if imgui.is_item_deactivated_after_edit():
+                            enter_pressed = True
+                            imgui.set_keyboard_focus_here(-1)   # refocus above input_text box
                         if (disabled := not self._computer_GUI_interactive_tasks[(item.id, tid[1])]):
                             utils.push_disabled()
                         imgui.same_line()
-                        if imgui.button(f'Send##{item.id},{tid[1]}') or (entered and not disabled):
+                        if imgui.button(f'Send##{item.id},{tid[1]}') or (enter_pressed and not disabled):
                             # send
                             async_thread.run(task.send_input(self._computer_GUI_interactive_tasks[(item.id, tid[1])]+'\n',item,tsk))
                             self._computer_GUI_interactive_tasks[(item.id, tid[1])] = ''
