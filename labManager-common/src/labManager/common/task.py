@@ -20,7 +20,6 @@ class Type(enum_helper.AutoNameSpace):
     Shell_command   = auto()    # run command in shell
     Process_exec    = auto()    # run executable
     Batch_file      = auto()    # invoke batch file
-    Python_statement= auto()    # sys.executable + '-c'
     Python_module   = auto()    # sys.executable + '-m'
     Python_script   = auto()    # sys.executable, invoke python script
     Wake_on_LAN     = auto()    # special task to broadcast WoL packets (TODO)
@@ -29,7 +28,6 @@ types = [x.value for x in Type]
 Type.Shell_command   .doc = 'Run command in shell'
 Type.Process_exec    .doc = 'Run executable'
 Type.Batch_file      .doc = 'Invoke batch file'
-Type.Python_statement.doc = 'Call client''s active python.exe (sys.executable) with -c command line switch'
 Type.Python_module   .doc = 'Call client''s active python.exe (sys.executable) with -m command line switch'
 Type.Python_script   .doc = 'Execute Python script with the client''s active python.exe (sys.executable)'
 Type.Wake_on_LAN     .doc = 'Send Wake on LAN command'
@@ -213,9 +211,6 @@ class Executor:
                 folder   = pathlib.Path(f'task{id}')
                 filename = (folder/'script.bat').resolve()
                 cmd = [str(filename)]
-            case Type.Python_statement:
-                # sys.executable + '-c' + '-u' for unbuffered so that we get all output to stdout/stderr piped to us directly
-                cmd = [sys.executable, '-c', '-u'] + shlex.split(payload, posix=False)
             case Type.Python_module:
                 # sys.executable + '-m' + '-u' for unbuffered so that we get all output to stdout/stderr piped to us directly
                 cmd = [sys.executable, '-m', '-u'] + shlex.split(payload, posix=False)

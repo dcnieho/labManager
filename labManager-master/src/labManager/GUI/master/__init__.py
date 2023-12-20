@@ -513,10 +513,8 @@ class MainGUI:
                         else:
                             field_name = 'Batch file'
                         can_select_payload_type = True
-                    case task.Type.Python_statement:
-                        field_name = 'Statement'
                     case task.Type.Python_module:
-                        field_name = 'Module'
+                        field_name = 'Python module'
                     case task.Type.Python_script:
                         if self._task_prep.payload_type=='text':
                             field_name = 'Python script contents'
