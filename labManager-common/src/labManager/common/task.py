@@ -214,16 +214,16 @@ class Executor:
                 filename = (folder/'script.bat').resolve()
                 cmd = [str(filename)]
             case Type.Python_statement:
-                # sys.executable + '-c'
-                cmd = [sys.executable, '-c'] + shlex.split(payload, posix=False)
+                # sys.executable + '-c' + '-u' for unbuffered so that we get all output to stdout/stderr piped to us directly
+                cmd = [sys.executable, '-c', '-u'] + shlex.split(payload, posix=False)
             case Type.Python_module:
-                # sys.executable + '-m'
-                cmd = [sys.executable, '-m'] + shlex.split(payload, posix=False)
+                # sys.executable + '-m' + '-u' for unbuffered so that we get all output to stdout/stderr piped to us directly
+                cmd = [sys.executable, '-m', '-u'] + shlex.split(payload, posix=False)
             case Type.Python_script:
-                # sys.executable
+                # sys.executable + '-u' for unbuffered so that we get all output to stdout/stderr piped to us directly
                 folder   = pathlib.Path(f'task{id}')
                 filename = (folder/'script.py').resolve()
-                cmd = [sys.executable, str(filename)]
+                cmd = [sys.executable, '-u', str(filename)]
 
         # write payload to file if needed
         if filename:
