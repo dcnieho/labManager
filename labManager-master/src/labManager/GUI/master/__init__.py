@@ -1055,6 +1055,8 @@ class MainGUI:
                             imgui.input_text(f'##task_payload', tsk.payload)
                             utils.pop_disabled()
                         imgui.pop_font()
+                    if tsk.cwd:
+                        imgui.text(f'cwd: {tsk.cwd}')
                     imgui.text(tsk.status.value)
                     if tsk.return_code:
                         imgui.text(f'return code: {tsk.return_code}')
