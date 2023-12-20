@@ -214,7 +214,7 @@ class Client:
                         new_task = task.RunningTask(msg['task_id'])
                         new_task.async_task = asyncio.create_task(
                             task.Executor().run(
-                                msg['task_id'],msg['type'],msg['payload'],msg['cwd'],msg['env'],msg['interactive'],
+                                msg['task_id'],msg['type'],msg['payload'],msg['cwd'],msg['env'],msg['interactive'],msg['python_unbuf'],
                                 new_task,
                                 writer)
                         )

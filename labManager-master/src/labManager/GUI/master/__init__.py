@@ -30,6 +30,7 @@ class TaskDef:
     cwd         : str       = ''
     env         : dict      = field(default_factory=dict)
     interactive : bool      = False
+    python_unbuf: bool      = False
 
 class MainGUI:
     def __init__(self):
@@ -478,6 +479,7 @@ class MainGUI:
                     self._task_prep.cwd         = t['cwd']
                     self._task_prep.env         = t['env']
                     self._task_prep.interactive = t['interactive']
+                    self._task_prep.python_unbuf= t['python_unbuffered']
         imgui.end()
         if imgui.begin('task_type_pane'):
             for t in task.Type:
@@ -616,6 +618,9 @@ class MainGUI:
                 utils.draw_hover_text('Working directory from which the command will be executed',text='')
                 _, self._task_prep.interactive = imgui.checkbox('Interactive', self._task_prep.interactive)
                 utils.draw_hover_text('If enabled, it is possible to send input (stdin) to the running command',text='')
+                if self._task_prep.type in [task.Type.Python_module, task.Type.Python_script]:
+                    _, self._task_prep.python_unbuf = imgui.checkbox('Unbuffered mode', self._task_prep.python_unbuf)
+                    utils.draw_hover_text('If enabled, the "_u" switch is specified for the python call, so that all output of the process is directly visible in the task result view',text='')
         imgui.end()
         if imgui.begin('task_confirm_pane'):
             if disabled := not any(self.selected_computers.values()):
@@ -630,7 +635,8 @@ class MainGUI:
                         self._task_prep.payload_type,
                         self._task_prep.cwd,
                         self._task_prep.env,
-                        self._task_prep.interactive
+                        self._task_prep.interactive,
+                        self._task_prep.python_unbuf
                     )
                 )
             if disabled:

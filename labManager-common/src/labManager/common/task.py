@@ -47,9 +47,11 @@ class Task:
     payload     : str           # command, batch file contents, python script contents
     cwd         : str = None    # if not None, working directory to execute from
     env         : dict= None    # if not None, environment variables when executing
+    interactive : bool = False  # if True, stdin is connected to a pipe and commands can be sent by master to control
+    python_unbuf: bool= False   # if task.Type is Python_module or Python_script, specify whether the -u flag should be passed to run in unbuffered mode
+
     id          : int = None
     status      : Status = Status.Not_started
-    interactive : bool = False  # if True, stdin is connected to a pipe and commands can be sent by master to control
 
     known_client: int = None
     task_group_id: int = None
@@ -189,7 +191,7 @@ class Executor:
 
         return return_code
 
-    async def run(self, id: int, type: Type, payload: str, cwd: str, env: dict, interactive: bool, running_task: RunningTask, writer):
+    async def run(self, id: int, type: Type, payload: str, cwd: str, env: dict, interactive: bool, python_unbuf: bool, running_task: RunningTask, writer):
         # setup executor
         match type:
             case Type.Shell_command:
@@ -213,12 +215,18 @@ class Executor:
                 cmd = [str(filename)]
             case Type.Python_module:
                 # sys.executable + '-m' + '-u' for unbuffered so that we get all output to stdout/stderr piped to us directly
-                cmd = [sys.executable, '-m', '-u'] + shlex.split(payload, posix=False)
+                cmd = [sys.executable, '-m']
+                if python_unbuf:
+                    cmd += ['-u']
+                cmd += shlex.split(payload, posix=False)
             case Type.Python_script:
                 # sys.executable + '-u' for unbuffered so that we get all output to stdout/stderr piped to us directly
                 folder   = pathlib.Path(f'task{id}')
                 filename = (folder/'script.py').resolve()
-                cmd = [sys.executable, '-u', str(filename)]
+                cmd = [sys.executable]
+                if python_unbuf:
+                    cmd += ['-u']
+                cmd += [str(filename)]
 
         # write payload to file if needed
         if filename:
@@ -293,6 +301,7 @@ async def send(task: Task|TaskGroup, known_client):
                     'cwd': task.cwd,
                     'env': task.env,
                     'interactive': task.interactive,
+                    'python_unbuf': task.python_unbuf,
                 }
             )
 
@@ -317,13 +326,13 @@ async def send_cancel(known_client, task: Task):
             }
         )
 
-def create_group(type: Type, payload: str, known_clients: List[int], cwd: str=None, env: dict=None, interactive=False) -> TaskGroup:
+def create_group(type: Type, payload: str, known_clients: List[int], cwd: str=None, env: dict=None, interactive=False, python_unbuf=False) -> TaskGroup:
     task_group = TaskGroup(type, payload)
 
     # make individual tasks
     for c in known_clients:
         # create task
-        task = Task(type, payload, cwd=cwd, env=env, interactive=interactive, known_client=c, task_group_id=task_group.id)
+        task = Task(type, payload, cwd=cwd, env=env, interactive=interactive, python_unbuf=python_unbuf, known_client=c, task_group_id=task_group.id)
         # add to task group
         task_group.task_refs[c] = task
 

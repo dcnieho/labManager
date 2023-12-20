@@ -54,6 +54,7 @@ _master_schema = s.Map({
             s.Optional('cwd', default=''): s.Str(),
             s.Optional('env', default=''): s.Str(),
             s.Optional('interactive', default=False): s.Bool(),
+            s.Optional('python_unbuffered', default=False): s.Bool(),
         }),
     ),
 })
