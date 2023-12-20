@@ -130,8 +130,7 @@ class Master:
         self.unset_project()
         self.username, self.password = None, None
         self.projects = {}
-        if self.admin is not None:
-            self.admin = None
+        self.admin = None
 
     def load_projects(self):
         projects = self.admin.get_projects()
@@ -159,9 +158,8 @@ class Master:
         if project == self.project:
             return
 
-        # we got a different project, unload old
-        if self.toems is not None:
-            self.toems = None
+        # ensure possible previous project is unloaded
+        self.toems = None
 
         # set new project
         self.admin.set_project(project)
@@ -176,13 +174,16 @@ class Master:
         self.project = project
 
     def unset_project(self):
-        if self.toems is not None:
-            self.toems = None
+        async_thread.run(self.stop_server())
+        self.toems = None
         self.project = None
         self.has_share_access = False
         self.unmount_client_shares()
         if self.admin is not None:
             self.admin.unset_project()
+        self.task_groups.clear()
+        self.client_et_events.clear()
+        self.clients.clear()
 
 
     async def get_computers(self):
