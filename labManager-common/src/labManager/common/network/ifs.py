@@ -33,9 +33,9 @@ def get_ifaces(ip_network):
         return [],[]
 
     # sort both based on ip, return
-    ips, macs = zip(*[(x,y) for x,y in sorted(zip(ips, macs))])
+    # NB: special key turns ips into integer tuple so that lexicographical sort does the right thing
+    ips, macs = zip(*[(x,y) for x,y in sorted(zip(ips, macs), key=lambda item: (*socket.inet_aton(item[0]), item[1]))])
     return ips, macs
-
 
 # https://stackoverflow.com/a/41420850
 def _getNics() :
