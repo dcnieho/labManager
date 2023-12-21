@@ -80,6 +80,7 @@ class MainGUI:
         self._computer_GUI_interactive_tasks: dict[tuple[int,int],str] = {}
         self._computer_GUI_interactive_sent_finish: dict[tuple[int,int],bool] = {}
         self._computer_GUI_command_copy_t = None
+        self._computer_GUI_cwd_copy_t = None
 
         # Show errors in threads
         def asyncexcepthook(future: asyncio.Future):
@@ -1070,7 +1071,7 @@ class MainGUI:
                             utils.pop_disabled()
                             imgui.pop_font()
                             imgui.same_line()
-                            if imgui.button(icons_fontawesome.ICON_FA_COPY):
+                            if imgui.button(icons_fontawesome.ICON_FA_COPY+'##command'):
                                 self._computer_GUI_command_copy_t = immapp.clock_seconds()
                                 imgui.set_clipboard_text(tsk.payload)
                             if imgui.is_item_hovered():
@@ -1080,7 +1081,22 @@ class MainGUI:
                                 else:
                                     imgui.set_tooltip("Copy")
                     if tsk.cwd:
-                        imgui.text(f'cwd: {tsk.cwd}')
+                        imgui.text('cwd')
+                        imgui.push_font(imgui_md.get_code_font())
+                        utils.push_disabled()
+                        imgui.input_text(f'##task_cwd', tsk.cwd)
+                        utils.pop_disabled()
+                        imgui.pop_font()
+                        imgui.same_line()
+                        if imgui.button(icons_fontawesome.ICON_FA_COPY+'##cwd'):
+                            self._computer_GUI_cwd_copy_t = immapp.clock_seconds()
+                            imgui.set_clipboard_text(tsk.cwd)
+                        if imgui.is_item_hovered():
+                            was_copied_recently = self._computer_GUI_cwd_copy_t is not None and (immapp.clock_seconds()-self._computer_GUI_cwd_copy_t) < 0.7
+                            if was_copied_recently:
+                                imgui.set_tooltip("Copied!")
+                            else:
+                                imgui.set_tooltip("Copy")
                     imgui.align_text_to_frame_padding()
                     imgui.text(tsk.status.value)
                     if tsk.return_code:
