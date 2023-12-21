@@ -5,7 +5,7 @@ import traceback
 import sys
 import threading
 import json
-from typing import Callable, Dict, List, Tuple
+from typing import Callable
 
 from labManager.common import async_thread, config, eye_tracker, message, structs, task
 from labManager.common.network import admin_conn, comms, ifs, keepalive, smb, ssdp, toems
@@ -85,7 +85,7 @@ class Master:
         self.username = None
         self.password = None
         # all projects user has access to and selected project
-        self.projects = Dict[str, str]
+        self.projects = dict[str, str]
         self.project  = None
         self.has_share_access = False
 
@@ -98,14 +98,14 @@ class Master:
         self.server  = None
         self.ssdp_server: ssdp.Server = None
 
-        self.clients: Dict[int, structs.Client] = {}
+        self.clients: dict[int, structs.Client] = {}
         self.clients_lock = threading.Lock()
-        self.known_clients: Dict[int, structs.KnownClient] = {}
+        self.known_clients: dict[int, structs.KnownClient] = {}
         self.known_clients_lock = threading.Lock()
-        self.client_et_events: Dict[int, List[Dict]] = {}
+        self.client_et_events: dict[int, list[dict]] = {}
         self.remove_client_hook: Callable = None
 
-        self.task_groups: Dict[int, task.TaskGroup] = {}
+        self.task_groups: dict[int, task.TaskGroup] = {}
         self.task_state_change_hook: Callable = None
 
     def __del__(self):
@@ -224,7 +224,7 @@ class Master:
         image_id = (await self.toems.image_get(name))['Id']
         return await self.admin.delete_image(image_id)
 
-    async def deploy_image(self, image: str, part_of_project: bool, computers: List[str]):
+    async def deploy_image(self, image: str, part_of_project: bool, computers: list[str]):
         image_id = (await self.toems.image_get(image))['Id']
 
         # update image info script
@@ -345,7 +345,7 @@ class Master:
             del self.clients[client.id]
             del self.client_et_events[client.id]
 
-    def load_known_clients(self, known_clients: List[Dict[str,str|List[str]]]):
+    def load_known_clients(self, known_clients: list[dict[str,str|list[str]]]):
         with self.known_clients_lock:
             for client in known_clients:
                 kc = structs.KnownClient(client['name'], client['MAC'], configured=True)
@@ -384,7 +384,7 @@ class Master:
                 coro = self.broadcast(message.Message.SHARE_UNMOUNT, request)
             async_thread.run(coro)
 
-    async def start_server(self, local_addr: Tuple[str,int]=None, start_ssdp_advertise=True):
+    async def start_server(self, local_addr: tuple[str,int]=None, start_ssdp_advertise=True):
         if local_addr is None:
             if_ips,_ = ifs.get_ifaces(config.master['network'])
             if not if_ips:
@@ -535,7 +535,7 @@ class Master:
     async def run_task(self,
                        type: task.Type,
                        payload: str,
-                       known_clients: List[int] | str,
+                       known_clients: list[int] | str,
                        payload_type='text',
                        cwd: str=None,
                        env: dict=None,
