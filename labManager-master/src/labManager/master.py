@@ -99,6 +99,7 @@ class Master:
         self.ssdp_server: ssdp.Server = None
 
         self.clients: Dict[int, structs.Client] = {}
+        self.clients_lock = threading.Lock()
         self.known_clients: Dict[int, structs.KnownClient] = {}
         self.known_clients_lock = threading.Lock()
         self.client_et_events: Dict[int, List[Dict]] = {}
@@ -331,16 +332,18 @@ class Master:
 
 
     def _add_client(self, client: structs.Client):
-        self.clients[client.id] = client
-        self.client_et_events[client.id] = []
+        with self.clients_lock:
+            self.clients[client.id] = client
+            self.client_et_events[client.id] = []
 
     def _remove_client(self, client: structs.Client):
         if self.remove_client_hook:
             self.remove_client_hook(client)
         self._remove_known_client(client)
         self.unmount_client_shares(client.writer)
-        del self.clients[client.id]
-        del self.client_et_events[client.id]
+        with self.clients_lock:
+            del self.clients[client.id]
+            del self.client_et_events[client.id]
 
     def load_known_clients(self, known_clients: List[Dict[str,str|List[str]]]):
         with self.known_clients_lock:
@@ -524,8 +527,9 @@ class Master:
         self._remove_client(me)
 
     async def broadcast(self, type: message.Message, message: str=''):
-        for c in self.clients:
-            await comms.typed_send(self.clients[c].writer, type, message)
+        with self.clients_lock:
+            for c in self.clients:
+                await comms.typed_send(self.clients[c].writer, type, message)
 
     async def run_task(self,
                        type: task.Type,
@@ -538,7 +542,8 @@ class Master:
                        python_unbuf=False):
         # clients has a special value '*' which means all clients
         if known_clients=='*':
-            known_clients = [c for c in self.known_clients]
+            with self.known_clients_lock:
+                known_clients = [c for c in self.known_clients]
         if not known_clients:
             # nothing to do
             return
