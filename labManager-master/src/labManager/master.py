@@ -534,7 +534,8 @@ class Master:
                        payload_type='text',
                        cwd: str=None,
                        env: dict=None,
-                       interactive=False):
+                       interactive=False,
+                       python_unbuf=False):
         # clients has a special value '*' which means all clients
         if known_clients=='*':
             known_clients = [c for c in self.known_clients]
@@ -551,7 +552,7 @@ class Master:
                     payload = await afp.read()
 
         # make task group
-        task_group, launch_group = task.create_group(type, payload, known_clients, cwd=cwd, env=env, interactive=interactive)
+        task_group, launch_group = task.create_group(type, payload, known_clients, cwd=cwd, env=env, interactive=interactive, python_unbuf=python_unbuf)
         self.task_groups[task_group.id] = task_group
 
         # start tasks
