@@ -528,8 +528,9 @@ class Master:
 
     async def broadcast(self, type: message.Message, message: str=''):
         with self.clients_lock:
-            for c in self.clients:
-                await comms.typed_send(self.clients[c].writer, type, message)
+            await asyncio.gather(*[
+                comms.typed_send(self.clients[c].writer, type, message) for c in self.clients
+            ])
 
     async def run_task(self,
                        type: task.Type,
