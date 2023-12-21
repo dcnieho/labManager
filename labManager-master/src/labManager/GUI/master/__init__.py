@@ -621,7 +621,7 @@ class MainGUI:
                 utils.draw_hover_text('If enabled, it is possible to send input (stdin) to the running command',text='')
                 if self._task_prep.type in [task.Type.Python_module, task.Type.Python_script]:
                     _, self._task_prep.python_unbuf = imgui.checkbox('Unbuffered mode', self._task_prep.python_unbuf)
-                    utils.draw_hover_text('If enabled, the "_u" switch is specified for the python call, so that all output of the process is directly visible in the task result view',text='')
+                    utils.draw_hover_text('If enabled, the "-u" switch is specified for the python call, so that all output of the process is directly visible in the task result view',text='')
         imgui.end()
         if imgui.begin('task_confirm_pane'):
             if disabled := not any(self.selected_computers.values()):
