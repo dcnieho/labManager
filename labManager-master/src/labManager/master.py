@@ -251,7 +251,7 @@ class Master:
 
         if isinstance(computers,str):
             computers = [computers]
-        comps = [(await self.toems.computer_get(c)) for c in computers]
+        comps = await asyncio.gather(*[self.toems.computer_get(c) for c in computers])
         comp_ids = [c['Id'] for c in comps if c is not None]
         if not comp_ids:
             raise RuntimeError(f"can't deploy: the selected computers are not found or not known to Toems")
