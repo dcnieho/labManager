@@ -426,16 +426,24 @@ class MainGUI:
         # we lost this client. Clear out all state related to it
         if client.known_client:
             self._computer_GUI_tasks[client.known_client.id] = None
+
+            to_del = []
             for t in self._computer_GUI_interactive_tasks:
                 if t[0]==client.known_client.id:
-                    del self._computer_GUI_interactive_tasks[t]
+                    to_del.append(t)
+            for t in to_del:
+                del self._computer_GUI_interactive_tasks[t]
+
+            to_del = []
             for t in self._computer_GUI_interactive_sent_finish:
                 if t[0]==client.known_client.id:
-                    del self._computer_GUI_interactive_sent_finish[t]
+                    to_del.append(t)
+            for t in to_del:
+                del self._computer_GUI_interactive_sent_finish[t]
 
-    def _task_status_changed(self, client: structs.Client, task: task.Task):
-        key = (client.known_client.id, task.id)
-        if task.status in [task.Status.Finished, task.Status.Errored]:
+    def _task_status_changed(self, client: structs.Client, tsk: task.Task):
+        key = (client.known_client.id, tsk.id)
+        if tsk.status in [task.Status.Finished, task.Status.Errored]:
             if key in self._computer_GUI_interactive_tasks:
                 del self._computer_GUI_interactive_tasks[key]
             if key in self._computer_GUI_interactive_sent_finish:
