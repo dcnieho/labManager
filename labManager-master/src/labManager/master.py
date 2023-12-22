@@ -358,7 +358,8 @@ class Master:
                 except:
                     pass
             close_waiters = [asyncio.create_task(self.clients[c].writer.wait_closed()) for c in self.clients]
-        await asyncio.wait(close_waiters)
+        if close_waiters:
+            await asyncio.wait(close_waiters)
 
         if self.server:
             self.server.close()
