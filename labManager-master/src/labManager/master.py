@@ -503,7 +503,7 @@ class Master:
 
         # start tasks
         coros = []
-        for c in task_group.task_refs:
+        for c in task_group.task_refs:  # NB: index is client ID
             mytask = task_group.task_refs[c]
             # add to client task list
             if self.known_clients[c].client:
@@ -515,6 +515,9 @@ class Master:
             coros.append(task.send(task_group, self.known_clients))
 
         await asyncio.gather(*coros)
+
+        # return TaskGroup.id and [Task.id, ...] for all constituent tasks
+        return task_group.id, [task_group.task_refs[c].id for c in task_group.task_refs]
 
 
 def _check_has_GUI():
