@@ -271,8 +271,10 @@ class Master:
         self._remove_known_client(client)
         self.unmount_client_shares(client.writer)
         with self.clients_lock:
-            del self.clients[client.id]
-            del self.client_et_events[client.id]
+            if client.id in self.clients:
+                del self.clients[client.id]
+            if client.id in self.client_et_events:
+                del self.client_et_events[client.id]
 
     def load_known_clients(self, known_clients: list[dict[str,str|list[str]]] = None):
         if not known_clients:
@@ -303,7 +305,8 @@ class Master:
             # if not a preconfigured known client, remove from list so that if this one reconnects, its not falsely listed as known
             if not client.known_client.configured:
                 with self.known_clients_lock:
-                    del self.known_clients[client.known_client.id]
+                    if client.known_client.id in self.known_clients:
+                        del self.known_clients[client.known_client.id]
         client.known_client = None
 
     def unmount_client_shares(self, writer=None):
