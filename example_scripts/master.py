@@ -23,4 +23,7 @@ if __name__ == "__main__":
         config_file = path/'example_configs'/'master.yaml'
 
     labManager.common.config.load('master', config_file)
-    labManager.master.run()
+
+    labManager.master.set_up()
+    labManager.master.run_GUI()
+    labManager.master.clean_up()

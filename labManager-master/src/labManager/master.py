@@ -10,74 +10,6 @@ from typing import Callable
 from labManager.common import async_thread, config, eye_tracker, message, structs, task
 from labManager.common.network import admin_conn, comms, ifs, keepalive, smb, ssdp, toems
 
-def _check_has_GUI():
-    if 'imgui-bundle' not in {pkg.key for pkg in pkg_resources.working_set}:
-        raise RuntimeError('You must install labManager-master with the [GUI] extra if you wish to use the GUI. Required dependencies for the GUI not available...')
-
-
-# main function for independently running master
-# does not return until master has closed down
-# duration parameter only applies to command-line master (use_GUI==False)
-def run(use_GUI: bool = True, duration: float = None):
-    # if we want a GUI, first check we have that functionality installed
-    if use_GUI:
-        _check_has_GUI()
-
-    # set up thread for running asyncs
-    async_thread.setup()
-
-    # run actual master
-    if use_GUI:
-        do_run_GUI()
-    else:
-        asyncio.run(do_run(duration))
-
-    # clean up
-    async_thread.cleanup()
-
-# coroutine that runs command-line master
-async def do_run(duration: float = None):
-    from getpass import getpass
-    username = input(f'Username: ')
-    password = getpass(f'Password: ')
-    master = Master()
-    master.load_known_clients(config.master['clients'])
-    await master.login(username, password)
-    print('You have access to the following projects, which would you like to use?')
-    for p,pn in master.projects.items():
-        if pn==p:
-            print(f'  {p}')
-        else:
-            print(f'  {p} ({pn})')
-    project = input(f'Project: ')
-    await master.set_project(project)
-
-    # start server to connect with stations
-    await master.start_server()
-
-    # run
-    if not duration:
-        # wait forever
-        await asyncio.Event().wait()
-    else:
-        await asyncio.sleep(duration)
-
-    # stop servers
-    await master.stop_server()
-
-# run GUI master
-def do_run_GUI():
-    _check_has_GUI()
-    from labManager.GUI import master as master_GUI
-    if getattr(sys, "frozen", False) and "nohide" not in sys.argv:
-        import ctypes
-        ctypes.windll.user32.ShowWindow(ctypes.windll.kernel32.GetConsoleWindow(), 0)
-
-    gui = master_GUI.MainGUI()
-    # returns when GUI closed
-    gui.run()
-
-
 class Master:
     def __init__(self):
         ### user interface
@@ -584,6 +516,43 @@ class Master:
         await asyncio.gather(*coros)
 
 
+def _check_has_GUI():
+    if 'imgui-bundle' not in {pkg.key for pkg in pkg_resources.working_set}:
+        raise RuntimeError('You must install labManager-master with the [GUI] extra if you wish to use the GUI. Required dependencies for the GUI not available...')
+
+# run GUI master - returns when GUI is closed
+def run_GUI():
+    _check_has_GUI()
+    from labManager.GUI import master as master_GUI
+    if getattr(sys, "frozen", False) and "nohide" not in sys.argv:
+        import ctypes
+        ctypes.windll.user32.ShowWindow(ctypes.windll.kernel32.GetConsoleWindow(), 0)
+
+    gui = master_GUI.MainGUI()
+    gui.run()
+# GUI (and master in general) requires some setup, call these functions
+def set_up():
+    async_thread.setup()
+def clean_up():
+    async_thread.cleanup()
+
+async def cmd_login_flow(master: Master, username: str = None, password: str = None, project: str = None):
+    if not username:
+        username = input(f'Username: ')
+    if not password:
+        from getpass import getpass
+        password = getpass(f'Password: ')
+    await master.login(username, password)
+
+    if not project:
+        print('You have access to the following projects, which would you like to use?')
+        for p,pn in master.projects.items():
+            if pn==p:
+                print(f'  {p}')
+            else:
+                print(f'  {p} ({pn})')
+        project = input(f'Project: ')
+    await master.set_project(project)
 
 def _SMB_get_shares(user, password, project=None):
     domain, user = _get_SMB_domain_username(user['full_name'])
