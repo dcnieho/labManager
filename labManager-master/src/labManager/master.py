@@ -186,7 +186,8 @@ class Master:
             self.admin.unset_project()
         self.task_groups.clear()
         self.client_et_events.clear()
-        self.clients.clear()
+        with self.clients_lock:
+            self.clients.clear()
 
 
     async def get_computers(self):
