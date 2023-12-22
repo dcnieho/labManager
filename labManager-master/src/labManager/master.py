@@ -109,13 +109,8 @@ class Master:
         self.task_state_change_hook: Callable = None
 
     def __del__(self):
-        # cleanup
+        # cleanup: logout() takes care of all teardown
         self.logout()
-        if async_thread.loop and async_thread.loop.is_running:
-            async_thread.run(self.stop_server())
-        self.task_groups.clear()
-        self.client_et_events.clear()
-        self.clients.clear()
 
     async def login(self, username: str, password: str):
         # clean up old session, if any
@@ -177,7 +172,8 @@ class Master:
         self.project = project
 
     def unset_project(self):
-        async_thread.run(self.stop_server())
+        if async_thread.loop and async_thread.loop.is_running:
+            async_thread.run(self.stop_server())
         self.toems = None
         self.project = None
         self.has_share_access = False
@@ -379,6 +375,8 @@ class Master:
         client.known_client = None
 
     def unmount_client_shares(self, writer=None):
+        if not async_thread.loop or not async_thread.loop.is_running:
+            return
         if config.master['SMB']['mount_share_on_client']:
             request = {'drive': config.master['SMB']['mount_drive_letter']}
             if writer is not None:
