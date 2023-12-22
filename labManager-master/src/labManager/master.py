@@ -463,8 +463,6 @@ class Master:
                                     'password': self.password
                                     }
                                 await comms.typed_send(writer, message.Message.SHARE_MOUNT, request)
-                    case message.Message.INFO:
-                        print(f'{me.host}:{me.port}: {msg}')
 
                     case message.Message.ET_STATUS_INFORM:
                         if not me.eye_tracker:

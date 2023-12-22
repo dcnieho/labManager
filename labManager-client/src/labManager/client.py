@@ -191,8 +191,6 @@ class Client:
                             with open(info_file) as f:
                                 info = json.load(f)
                         await comms.typed_send(writer, message.Message.IDENTIFY, {'name': self.name, 'MACs': self._if_macs, 'image_info': info})
-                    case message.Message.INFO:
-                        print(f'client {self.name} received: {msg}')
 
 
                     case message.Message.ET_STATUS_REQUEST:
