@@ -164,9 +164,8 @@ class Client:
 
     async def broadcast(self, type: message.Message, message: str=''):
         with self.master_lock:
-            await asyncio.gather(*[
-                comms.typed_send(self.masters[m].writer, type, message) for m in self.masters
-            ])
+            coros = [comms.typed_send(self.masters[m].writer, type, message) for m in self.masters]
+        await asyncio.gather(*coros)
 
     def _remove_finished_task(self, m: int, my_task: asyncio.Task):
         for i,t in enumerate(self.masters[m].task_list):
