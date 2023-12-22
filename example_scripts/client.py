@@ -6,6 +6,13 @@ import ctypes
 import labManager.client
 import labManager.common
 
+# set up some simple logging
+import sys
+import tempfile
+temp_dir = pathlib.Path(tempfile.gettempdir())
+sys.stdout = open(temp_dir / "labManager_client_stdout.txt", "w")
+sys.stderr = open(temp_dir / "labManager_client_stderr.txt", "w")
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="labManager client")
     parser.add_argument('--hide', action='store_true', help="hide console window")
