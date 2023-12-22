@@ -274,7 +274,8 @@ class Client:
 
         # remove self from state
         with self.master_lock:
-            del self.masters[m]
+            if m in self.masters:
+                del self.masters[m]
 
     async def _poll_for_eyetrackers(self):
         try:
