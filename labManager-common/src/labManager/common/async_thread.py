@@ -10,6 +10,9 @@ done_callback: typing.Callable = None
 
 def setup(enable_asyncio_debug=False):
     global loop, thread
+    if loop and thread:
+        # already set up, nothing to do
+        return
 
     loop = asyncio.new_event_loop()
     loop.set_debug(enable_asyncio_debug)
