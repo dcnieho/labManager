@@ -6,7 +6,7 @@ import labManager.master
 import labManager.common
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="labManager client")
+    parser = argparse.ArgumentParser(description="labManager master")
     parser.add_argument('--hide', action='store_true', help="hide console window")
     args = parser.parse_args()
 

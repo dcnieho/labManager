@@ -8,7 +8,7 @@ import labManager.common.secrets
 import labManager.admin_server
 
 def create_app():
-    parser = argparse.ArgumentParser(description="labManager client")
+    parser = argparse.ArgumentParser(description="labManager admin server")
     parser.add_argument('--hide', action='store_true', help="hide console window")
     args = parser.parse_args()
 
