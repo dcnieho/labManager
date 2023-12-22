@@ -419,6 +419,15 @@ class Master:
         if self.ssdp_server is not None:
             await self.ssdp_server.stop()
 
+        with self.clients_lock:
+            for c in self.clients:
+                try:
+                    self.clients[c].writer.close()
+                except:
+                    pass
+            close_waiters = [asyncio.create_task(self.clients[c].writer.wait_closed()) for c in self.clients]
+        await asyncio.wait(close_waiters)
+
         if self.server:
             self.server.close()
             await self.server.wait_closed()
