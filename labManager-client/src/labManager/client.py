@@ -6,25 +6,31 @@ import json
 import threading
 from dataclasses import dataclass, field
 
-from labManager.common import config, eye_tracker, message, share, task
+from labManager.common import async_thread, config, eye_tracker, message, share, task
 from labManager.common.network import comms, ifs, keepalive, ssdp
 
 
 # main function for independently running client
-# NB: requires that labManager.common.async_thread has been set up
 async def run(duration: float = None):
-    client = Client(config.client['network'])
-    await client.start(keep_ssdp_running=True)
+    async_thread.setup()
 
-    # run
-    if not duration:
-        # wait forever
-        await asyncio.Event().wait()
-    else:
-        await asyncio.sleep(duration)
+    try:
+        client = Client(config.client['network'])
+        await client.start(keep_ssdp_running=True)
 
-    # shut down client if necessary, wait for it to quit
-    await client.stop()
+        # run
+        if not duration:
+            # wait forever
+            await asyncio.Event().wait()
+        else:
+            await asyncio.sleep(duration)
+
+        # shut down client if necessary, wait for it to quit
+        await client.stop()
+    except KeyboardInterrupt:
+        pass
+
+    async_thread.cleanup()
 
 
 @dataclass
