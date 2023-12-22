@@ -4,6 +4,7 @@ from authlib.integrations.base_client.errors import InvalidTokenError
 import re
 import json
 import shlex
+import asyncio
 
 class Client:
     def __init__(self, server, port=8080, protocol = 'https'):
@@ -79,8 +80,11 @@ class Client:
         ori_image_ids = []
         if not overwrite:
             ori_image_ids = await self.user_group_get_managed_images(group_id)
+        coros = []
         for id in image_ids:
-            resp = await self._image_resolve_id_name(id)
+            coros.append(self._image_resolve_id_name(id))
+        resps = await asyncio.gather(*coros)
+        for resp in resps:
             if not resp['Success']:
                 return resp
             else:
@@ -170,14 +174,20 @@ class Client:
             return {'Success': False, 'ErrorMessage': f'The image is empty.'}
 
         # 4. check that the selected computers have the correct image assigned
+        coros = []
         for c in computer_ids:
-            computer = await self.computer_get(c)
+            coros.append(self.computer_get(c))
+        computers = await asyncio.gather(*coros)
+        for computer in computers:
             if computer['ImageId'] != image_id:
                 return {'Success': False, 'ErrorMessage': f'You do not have the right image (image_id should be: {image_id}, is: {computer["ImageId"]}) assigned to the computer {computer["Name"]} (computer_id: {c}).'}
 
         # 5. start deploy
+        coros = []
         for c in computer_ids:
-            resp = await self.request(f'Computer/StartDeploy/{c}')
+            coros.append(self.request(f'Computer/StartDeploy/{c}'))
+        resps = await asyncio.gather(*coros)
+        for resp in resps:
             if not 'Success' in resp['Value']:
                 return {'Success': False, 'ErrorMessage': resp['Value']}
 
@@ -302,6 +312,7 @@ class Client:
         actions = await self.file_copy_actions_get()
 
         # 4. for image, set the image copy action
+        coros = []
         for i,act in enumerate(file_copy_actions):
             # get id of file copy action
             copy_id = None
@@ -312,12 +323,14 @@ class Client:
             if not copy_id:
                 return {'Success': False, 'ErrorMessage': f'file copy action with name "{act["name"]}" not found'}
             # activate file copy action for this image
-            resp = await self.request(f'ImageProfileFileCopy/Post', req_type='post', json={
+            coros.append(self.request(f'ImageProfileFileCopy/Post', req_type='post', json={
                 "DestinationPartition": act['partition_id'],
                 "FileCopyModuleId": copy_id,
                 "Priority": i,
                 "ProfileId": profile_id
-            })
+            }))
+        resps = await asyncio.gather(*coros)
+        for resp in resps:
             if not 'Success' in resp or not resp['Success']:
                 # early exit upon error
                 resp['Success'] = False # ensure this field exists, i have seen replies where it didn't...

@@ -296,10 +296,17 @@ class MainGUI:
 
     async def _get_project_images(self):
         temp_list = await self.master.get_images()
-        # also get image size on disk
+        # get extra info about disk images
+        coros = []
         for im in temp_list:
-            im['DiskSize'] = await self.master.get_image_size(im['Id'])
-            info = await self.master.get_image_info(im['Id'])
+            coros.append(self.master.get_image_info(im['Id']))
+            coros.append(self.master.get_image_size(im['Id']))
+        res   = await asyncio.gather(*coros)
+        infos = res[0::2]
+        dss   = res[1::2]
+        # add to output
+        for im,info,ds in zip(temp_list,infos,dss):
+            im['DiskSize'] = ds
             im['TimeStamp'] = info['TimeStamp'] if info is not None else 'Unknown'
             im['SourceComputer'] = info['SourceComputer'] if info is not None else 'Unknown'
         # flag if the images belong to the selected project
