@@ -102,10 +102,10 @@ tasks:
     - name: Stop Matlab
       type: Shell command
       payload: taskkill /t /f /im matlab.exe
-    - name: Restart Computers
+    - name: Restart Computer
       type: Shell command
       payload: shutdown -r -t 0
-    - name: Shutdown Computers
+    - name: Shutdown Computer
       type: Shell command
       payload: shutdown -s -t 0
     - name: Copy folders and files
