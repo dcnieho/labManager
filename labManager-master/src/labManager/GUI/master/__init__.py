@@ -374,6 +374,8 @@ class MainGUI:
                     else:
                         projects.append(f'{p} ({pn})')
                 _,self.proj_idx = imgui.list_box('##Project', 0 if self.proj_idx==-1 else self.proj_idx, projects)
+                # select on double-click or press of enter key
+                selected = (imgui.is_item_clicked() and imgui.is_mouse_double_clicked(imgui.MouseButton_.left)) or imgui.is_key_pressed(imgui.Key.enter)
 
                 if self.proj_select_state==ActionState.Processing:
                     symbol_size = imgui.calc_text_size("x").y*2
@@ -381,7 +383,7 @@ class MainGUI:
                     lw = 3.5/22/2*symbol_size
                     imspinner.spinner_ang_triple(f'projSpinner', *spinner_radii, lw, c1=imgui.get_style().color_(imgui.Col_.text_selected_bg), c2=imgui.get_style().color_(imgui.Col_.text), c3=imgui.get_style().color_(imgui.Col_.text_selected_bg))
                 else:
-                    if imgui.button("Select"):
+                    if imgui.button("Select") or selected:
                         self.proj_select_state = ActionState.Processing
                         async_thread.run(self.master.set_project(list(self.master.projects.keys())[self.proj_idx]), lambda fut: self._login_projectsel_result('project',fut))
 
