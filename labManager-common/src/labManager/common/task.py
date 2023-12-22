@@ -69,6 +69,9 @@ class Task:
         with _task_id_provider:
             self.id = _task_id_provider.count
 
+    def done(self):
+        return self.status in [Status.Finished, Status.Errored]
+
 @dataclass
 class RunningTask:
     id                  : int
