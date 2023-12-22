@@ -345,7 +345,9 @@ class Master:
             del self.clients[client.id]
             del self.client_et_events[client.id]
 
-    def load_known_clients(self, known_clients: list[dict[str,str|list[str]]]):
+    def load_known_clients(self, known_clients: list[dict[str,str|list[str]]] = None):
+        if not known_clients:
+            known_clients = config.master['clients']
         with self.known_clients_lock:
             for client in known_clients:
                 kc = structs.KnownClient(client['name'], client['MAC'], configured=True)

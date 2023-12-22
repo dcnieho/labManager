@@ -38,7 +38,7 @@ class MainGUI:
         self.popup_stack = []
 
         self.master = Master()
-        self.master.load_known_clients(config.master['clients'])
+        self.master.load_known_clients()
         # install hooks
         self.master.remove_client_hook = self._lost_client
         self.master.task_state_change_hook = self._task_status_changed
