@@ -14,21 +14,18 @@ from labManager.common.network import comms, ifs, keepalive, ssdp
 async def run(duration: float = None):
     async_thread.setup()
 
-    try:
-        client = Client(config.client['network'])
-        await client.start(keep_ssdp_running=True)
+    client = Client(config.client['network'])
+    await client.start(keep_ssdp_running=True)
 
-        # run
-        if not duration:
-            # wait forever
-            await asyncio.Event().wait()
-        else:
-            await asyncio.sleep(duration)
+    # run
+    if not duration:
+        # wait forever
+        await asyncio.Event().wait()
+    else:
+        await asyncio.sleep(duration)
 
-        # shut down client if necessary, wait for it to quit
-        await client.stop()
-    except KeyboardInterrupt:
-        pass
+    # shut down client if necessary, wait for it to quit
+    await client.stop()
 
     async_thread.cleanup()
 

@@ -32,4 +32,7 @@ if __name__ == "__main__":
 
     labManager.common.config.load('client', config_file)
 
-    asyncio.run(labManager.client.run())
+    try:
+        asyncio.run(labManager.client.run())
+    except KeyboardInterrupt:
+        pass
