@@ -178,6 +178,10 @@ class MainGUI:
         # Always start with this layout, do not persist changes made by the user
         runner_params.docking_params.layout_condition = hello_imgui.DockingLayoutCondition.application_start
 
+        # we use docking throughout this app just for resizable layouting and tab bars
+        # set some flags so that users can't undock or see the menu arrow to hide the tab bar
+        runner_params.docking_params.main_dock_space_node_flags = imgui.DockNodeFlags_.no_undocking | imgui.internal.DockNodeFlagsPrivate_.no_window_menu_button
+
         # This will split the preexisting default dockspace "MainDockSpace" in two parts.
         # Then, add a space to the left which occupies a column whose width is 25% of the app width
         split_main_left = hello_imgui.DockingSplit()
