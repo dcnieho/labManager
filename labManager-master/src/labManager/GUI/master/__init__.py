@@ -77,7 +77,7 @@ class MainGUI:
         self._active_upload_tasks_map: dict[str,int] = {}
 
         # computer detail GUIs
-        self._computer_GUI_tasks: dict[int,tuple[str,int]|None] = {}
+        self._computer_GUI_tasks: dict[int,list[str,int,int]|None] = {}
         self._computer_GUI_interactive_tasks: dict[tuple[int,int],str] = {}
         self._computer_GUI_interactive_sent_finish: dict[tuple[int,int],bool] = {}
         self._computer_GUI_command_copy_t = None
@@ -1095,7 +1095,7 @@ class MainGUI:
                             imgui.push_style_color(imgui.Col_.button_hovered,[x*alpha+y*(1-alpha) for x,y in zip(clr,imgui.get_style_color_vec4(imgui.Col_.button_hovered))])
                             imgui.push_style_color(imgui.Col_.button_active,[x*alpha+y*(1-alpha) for x,y in zip(clr,imgui.get_style_color_vec4(imgui.Col_.button_active))])
                             if imgui.button(f'{lbl}##{tsk.id}'):
-                                self._computer_GUI_tasks[item.id] = ('task',id)
+                                self._computer_GUI_tasks[item.id] = ['task',id,0]
                             imgui.pop_style_color(3)
                             if imgui.is_item_hovered():
                                 # show no more than 10 lines
@@ -1116,7 +1116,7 @@ class MainGUI:
                             str,full_info,_ = eye_tracker.format_event(evt)
                             lbl = utils.trim_str(str, length=12, newline_ellipsis=True)
                             if imgui.button(f'{lbl}##et_{i}'):
-                                self._computer_GUI_tasks[item.id] = ('ET',i)
+                                self._computer_GUI_tasks[item.id] = ['ET',i,0]
                             utils.draw_hover_text(hover_text=full_info,text='')
                 if not item.client.tasks and not self.master.client_et_events[item.client.id]:
                     imgui.text_wrapped('no tasks or eye tracker events available')
@@ -1205,6 +1205,17 @@ class MainGUI:
                 if tid[0]=='task' and (tsk:=item.client.tasks[tid[1]]).type!=task.Type.Wake_on_LAN:
                     imgui.push_font(imgui_md.get_code_font())
                     imgui.input_text_multiline(f"##output_content", tsk.output, size=(imgui.get_content_region_avail().x,-imgui.get_frame_height_with_spacing()), flags=imgui.InputTextFlags_.read_only | imgui.InputTextFlags_.no_horizontal_scroll)
+                    # scroll to bottom if output has changed
+                    output_length = len(tsk.output)
+                    if tid[2]!=output_length:
+                        if tid[2]>0:
+                            # need one frame delay for win.scroll_max.y to be updated
+                            tid[2]=0
+                        else:
+                            win_name = f'task_log_pane_{item.id}' # imgui.get_current_context().current_window.name -- not available
+                            win = imgui.internal.find_window_by_name(f'{win_name}/##output_content_{imgui.get_id("##output_content"):08X}') # https://github.com/ocornut/imgui/issues/5484#issuecomment-1189989347
+                            imgui.internal.set_scroll_y(win, win.scroll_max.y)
+                            tid[2] = output_length
                     imgui.pop_font()
                     # if interactive task, add text box for input
                     if tsk.interactive and tsk.status==task.Status.Running and ((item.id, tid[1]) not in self._computer_GUI_interactive_sent_finish or not self._computer_GUI_interactive_sent_finish[(item.id, tid[1])]):
