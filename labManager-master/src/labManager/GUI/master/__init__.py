@@ -320,7 +320,9 @@ class MainGUI:
 
     def _unload_project(self):
         self.master.unset_project()
-        self.selected_computers = {k:False for k in self.selected_computers}
+        self.selected_computers.clear()
+        with self.master.known_clients_lock:
+            self.selected_computers |= {k:False for k in self.master.known_clients}
         self._selected_image_id = None
         self._active_imaging_tasks_updater_should_stop = True
         self._images_list       = []
