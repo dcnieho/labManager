@@ -759,9 +759,40 @@ class MainGUI:
                         imgui.table_setup_column("##image_infos_right", imgui.TableColumnFlags_.width_stretch)
                         imgui.table_next_row()
                         imgui.table_next_column()
+                        imgui.align_text_to_frame_padding()
                         imgui.text("Image name")
                         imgui.table_next_column()
+                        imgui.align_text_to_frame_padding()
                         imgui.text(im['UserFacingName'])
+                        if im['PartOfProject']:
+                            imgui.same_line()
+                            if imgui.button(icons_fontawesome.ICON_FA_EDIT):
+                                new_image_name = im['UserFacingName']
+                                def _rename_image_popup():
+                                    nonlocal new_image_name
+                                    imgui.dummy((30*imgui.calc_text_size('x').x,0))
+                                    enter_pressed = False
+                                    if imgui.begin_table("##edit_image",2):
+                                        imgui.table_setup_column("##edit_image_left", imgui.TableColumnFlags_.width_fixed)
+                                        imgui.table_setup_column("##edit_image_right", imgui.TableColumnFlags_.width_stretch)
+                                        imgui.table_next_row()
+                                        imgui.table_next_column()
+                                        imgui.align_text_to_frame_padding()
+                                        imgui.text("Image name")
+                                        imgui.table_next_column()
+                                        imgui.set_next_item_width(-1)
+                                        _,new_image_name = imgui.input_text("##edited_image_name",new_image_name)
+                                        enter_pressed = imgui.is_item_deactivated_after_edit()
+                                        imgui.end_table()
+                                    return 0 if enter_pressed else None
+
+                                buttons = {
+                                    icons_fontawesome.ICON_FA_CHECK+" Rename image": lambda: async_thread.run(self.master.update_image(im['Name'],{'Name':self.master.project + '_' + new_image_name}),
+                                                                                        lambda fut: self._image_action_result('update',fut)),
+                                    icons_fontawesome.ICON_FA_BAN+" Cancel": None
+                                }
+                                utils.push_popup(self, lambda: utils.popup("Rename image", _rename_image_popup, buttons = buttons, closable=True))
+                            utils.draw_hover_text('Edit image name','')
                         imgui.table_next_row()
                         imgui.table_next_column()
                         imgui.text("Description")
