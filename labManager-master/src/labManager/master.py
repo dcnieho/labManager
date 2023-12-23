@@ -169,7 +169,7 @@ class Master:
             if part_of_project:
                 info['project'] = self.project
             script = toems.make_info_script(info, config.master['toems']['image_info_script_partition'])
-            resp = await self.admin.image_set_script(image_id, config.master['toems']['image_info_script'], script, priority=1, run_when=2)
+            resp = await self.admin.image_set_script(image_id, config.master['toems']['image_info_script'], script, priority=1, run_when=3)
             if not resp['Success']:
                 raise RuntimeError(f"can't deploy: failed to set image info script ({resp['ErrorMessage']})")
         if 'pre_upload_script' in config.master['toems']:
