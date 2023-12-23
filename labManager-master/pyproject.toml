@@ -36,7 +36,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-GUI  = ["imgui_bundle==0.9.0"]
+GUI  = ["imgui_bundle==1.1.0"]
 
 [project.urls]
 "Source Code" = "https://github.com/dcnieho/labManager/tree/master/labManager-master"

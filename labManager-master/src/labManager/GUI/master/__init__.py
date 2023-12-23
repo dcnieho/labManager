@@ -503,7 +503,7 @@ class MainGUI:
             imgui.internal.dock_builder_dock_window('task_config_pane',self._imaging_GUI_details_dock_id)
             imgui.internal.dock_builder_dock_window('task_confirm_pane',self._imaging_GUI_action_dock_id)
             imgui.internal.dock_builder_finish(dock_space_id)
-        imgui.dock_space(dock_space_id, (0.,0.), imgui.DockNodeFlags_.no_split|imgui.internal.DockNodeFlagsPrivate_.no_tab_bar)
+        imgui.dock_space(dock_space_id, (0.,0.), imgui.DockNodeFlags_.no_docking_split|imgui.internal.DockNodeFlagsPrivate_.no_tab_bar)
 
         if imgui.begin('task_list_pane'):
             for t in config.master['tasks']:
@@ -705,7 +705,7 @@ class MainGUI:
             imgui.internal.dock_builder_dock_window('image_details_pane',self._imaging_GUI_details_dock_id)
             imgui.internal.dock_builder_dock_window('imaging_actions_pane',self._imaging_GUI_action_dock_id)
             imgui.internal.dock_builder_finish(dock_space_id)
-        imgui.dock_space(dock_space_id, (0.,0.), imgui.DockNodeFlags_.no_split|imgui.internal.DockNodeFlagsPrivate_.no_tab_bar)
+        imgui.dock_space(dock_space_id, (0.,0.), imgui.DockNodeFlags_.no_docking_split|imgui.internal.DockNodeFlagsPrivate_.no_tab_bar)
 
         if imgui.begin('images_list_pane'):
             imgui.text('Basis images:')
@@ -1056,7 +1056,7 @@ class MainGUI:
             imgui.internal.dock_builder_dock_window(f'task_result_pane_{item.id}',self._imaging_GUI_details_dock_id)
             imgui.internal.dock_builder_dock_window(f'task_log_pane_{item.id}',self._imaging_GUI_action_dock_id)
             imgui.internal.dock_builder_finish(dock_space_id)
-        imgui.dock_space(dock_space_id, (0.,0.), imgui.DockNodeFlags_.no_split|imgui.internal.DockNodeFlagsPrivate_.no_tab_bar)
+        imgui.dock_space(dock_space_id, (0.,0.), imgui.DockNodeFlags_.no_docking_split|imgui.internal.DockNodeFlagsPrivate_.no_tab_bar)
 
         if imgui.begin(f'task_list_pane_{item.id}'):
             if item.client:
@@ -1278,6 +1278,6 @@ class MainGUI:
                 new_vals = {k:(self.selected_computers[k] if k in self.selected_computers else False) for k in self.master.known_clients}
                 self.selected_computers.clear()
                 self.selected_computers |= new_vals
-            imgui.begin_child("##computer_list_frame", size=(0,-imgui.get_frame_height_with_spacing()), flags=imgui.WindowFlags_.horizontal_scrollbar)
+            imgui.begin_child("##computer_list_frame", size=(0,-imgui.get_frame_height_with_spacing()), window_flags=imgui.WindowFlags_.horizontal_scrollbar)
             self.computer_lister.draw()
             imgui.end_child()
