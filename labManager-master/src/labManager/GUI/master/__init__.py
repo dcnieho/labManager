@@ -318,11 +318,6 @@ class MainGUI:
             im['DiskSize'] = ds
             im['TimeStamp'] = info['TimeStamp'] if info is not None else 'Unknown'
             im['SourceComputer'] = info['SourceComputer'] if info is not None else 'Unknown'
-        # flag if the images belong to the selected project
-        # simple trick: if image belongs to the project, then its user-facing name doesn't
-        # match its name (since the project prefix is removed)
-        for im in temp_list:
-            im['PartOfProject'] = im['UserFacingName'] != im['Name']
         # atomic update so we can't read incomplete state elsewhere
         self._images_list = temp_list
 

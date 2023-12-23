@@ -253,9 +253,11 @@ class Client:
             images = ims
 
         for im in images:
-            # add user-facing name, which does not include project name (if there was one)
+            # check if image is part of the project (that is, starts with project name)
+            # create a user-facing name, which does not include project name (if there was one)
             im['UserFacingName'] = im['Name']
-            if project and im['Name'].startswith(project+'_'):
+            im['PartOfProject'] = project and im['Name'].startswith(project+'_')
+            if im['PartOfProject']:
                 im['UserFacingName'] = im['Name'][len(project)+1:]
             # globally override image name shown to user
             if name_mapping and im['Name'] in name_mapping:
