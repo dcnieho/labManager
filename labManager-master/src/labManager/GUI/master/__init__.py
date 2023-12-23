@@ -712,6 +712,7 @@ class MainGUI:
                 def _add_image_popup():
                     nonlocal new_image_name
                     imgui.dummy((30*imgui.calc_text_size('x').x,0))
+                    enter_pressed = False
                     if imgui.begin_table("##new_image_info",2):
                         imgui.table_setup_column("##new_image_infos_left", imgui.TableColumnFlags_.width_fixed)
                         imgui.table_setup_column("##new_image_infos_right", imgui.TableColumnFlags_.width_stretch)
@@ -722,11 +723,13 @@ class MainGUI:
                         imgui.table_next_column()
                         imgui.set_next_item_width(-1)
                         _,new_image_name = imgui.input_text("##new_image_name",new_image_name)
+                        enter_pressed = imgui.is_item_deactivated_after_edit()
                         imgui.end_table()
+                    return 0 if enter_pressed else None
 
                 buttons = {
                     icons_fontawesome.ICON_FA_CHECK+" Add image": lambda: async_thread.run(self.master.create_image(new_image_name),
-                                                                                           lambda fut: self._image_action_result('create',fut)),
+                                                                        lambda fut: self._image_action_result('create',fut)),
                     icons_fontawesome.ICON_FA_BAN+" Cancel": None
                 }
                 utils.push_popup(self, lambda: utils.popup("Add image", _add_image_popup, buttons = buttons, closable=True))
