@@ -49,7 +49,7 @@ class MainGUI:
         self.proj_select_state= ActionState.Not_Done
         self.proj_idx         = -1
         self.project_select_immediately = False
-        self.project          = ''  # NB: display name
+        self.project          = ''  # NB: display name, self.master.project for real name
 
         # GUI state
         self._window_list     = []
@@ -69,7 +69,7 @@ class MainGUI:
         # image management GUI
         self._images_list = []
         self._selected_image_id = None
-        self._image_description_cache = {}
+        self._image_description_cache: dict[int, list[bool, str]] = {}
         self._active_imaging_tasks = []
         self._active_imaging_tasks_updater = None
         self._active_imaging_tasks_updater_should_stop = False
@@ -320,6 +320,12 @@ class MainGUI:
             im['SourceComputer'] = info['SourceComputer'] if info is not None else 'Unknown'
         # atomic update so we can't read incomplete state elsewhere
         self._images_list = temp_list
+        # also dump potentially stale image description cache
+        for im in self._images_list:
+            if im['Id'] in self._image_description_cache:
+                if not self._image_description_cache[im['Id']][0] or self._image_description_cache[im['Id']][1]==im['Description']:
+                    # was not edited or current description matches cache, dump
+                    del self._image_description_cache[im['Id']]
 
 
     def _unload_project(self):
@@ -756,7 +762,7 @@ class MainGUI:
                     if not self._active_imaging_tasks_updater:
                         self._active_imaging_tasks_updater = async_thread.run(self.update_running_image_tasks(), self._restart_active_imaging_tasks_updater)
                     if im['Id'] not in self._image_description_cache:
-                        self._image_description_cache[im['Id']] = im['Description']
+                        self._image_description_cache[im['Id']] = [False, im['Description']]
                     if imgui.begin_table("##image_infos",2):
                         imgui.table_setup_column("##image_infos_left", imgui.TableColumnFlags_.width_fixed)
                         imgui.table_setup_column("##image_infos_right", imgui.TableColumnFlags_.width_stretch)
@@ -802,19 +808,21 @@ class MainGUI:
                         imgui.table_next_column()
                         if disabled := not im['PartOfProject']:
                             utils.push_disabled()
-                        changed,self._image_description_cache[im['Id']] = imgui.input_text_multiline(f"##image{im['Id']}_description",self._image_description_cache[im['Id']],flags=imgui.InputTextFlags_.allow_tab_input|imgui.InputTextFlags_.enter_returns_true)
+                        changed,self._image_description_cache[im['Id']][1] = imgui.input_text_multiline(f"##image{im['Id']}_description",self._image_description_cache[im['Id']][1],flags=imgui.InputTextFlags_.allow_tab_input)
+                        if changed:
+                            self._image_description_cache[im['Id']][0] = self._image_description_cache[im['Id']][1]!=im['Description']
                         if disabled:
                             utils.pop_disabled()
                         do_update = False
-                        if self._image_description_cache[im['Id']]!=im['Description']:
+                        if self._image_description_cache[im['Id']][0]:
                             imgui.same_line()
                             imgui.begin_group()
                             do_update = imgui.button('Save')
                             if imgui.button('Discard changes'):
-                                self._image_description_cache[im['Id']] = im['Description']
+                                self._image_description_cache[im['Id']] = [False, im['Description']]
                             imgui.end_group()
-                        if changed | do_update:
-                            async_thread.run(self.master.update_image(im['Name'],{'Description':self._image_description_cache[im['Id']]}),
+                        if do_update:
+                            async_thread.run(self.master.update_image(im['Name'],{'Description': self._image_description_cache[im['Id']][1]}),
                                              lambda fut: self._image_action_result('update',fut))
                         imgui.table_next_row()
                         imgui.table_next_column()
