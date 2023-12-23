@@ -707,7 +707,14 @@ class MainGUI:
         imgui.dock_space(dock_space_id, (0.,0.), imgui.DockNodeFlags_.no_split|imgui.internal.DockNodeFlagsPrivate_.no_tab_bar)
 
         if imgui.begin('images_list_pane'):
-            if imgui.button('+'):
+            imgui.text('Basis images:')
+            for im in self._images_list:
+                if not im['PartOfProject'] and imgui.button(im['UserFacingName']):
+                    self._selected_image_id = im['Id']
+
+            imgui.separator()
+            imgui.text('Project images:')
+            if imgui.button('+ new image'):
                 new_image_name = ''
                 def _add_image_popup():
                     nonlocal new_image_name
@@ -735,9 +742,10 @@ class MainGUI:
                 utils.push_popup(self, lambda: utils.popup("Add image", _add_image_popup, buttons = buttons, closable=True))
 
             for im in self._images_list:
-                if imgui.button(im['UserFacingName']):
+                if im['PartOfProject'] and imgui.button(im['UserFacingName']):
                     self._selected_image_id = im['Id']
         imgui.end()
+
         im = None
         for i in self._images_list:
             if i['Id']==self._selected_image_id:
