@@ -1072,13 +1072,14 @@ class MainGUI:
                         imgui.text('Tasks:')
                     if show:
                         imgui.push_font(imgui_md.get_code_font())
+                        nchar = int((imgui.get_content_region_max().x)//imgui.calc_text_size('x').x)-1
                         for id in item.client.tasks:
                             tsk = item.client.tasks[id]
                             if tsk.type==task.Type.Wake_on_LAN:
                                 lbl = tsk.type.value
                                 hover_text = tsk.type.value
                             else:
-                                lbl = utils.trim_str(tsk.payload, length=12, newline_ellipsis=True)
+                                lbl = utils.trim_str(tsk.payload, length=nchar, newline_ellipsis=True)
                                 hover_text = tsk.type.value+':\n'+tsk.payload
                             # decide button color
                             match tsk.status:
