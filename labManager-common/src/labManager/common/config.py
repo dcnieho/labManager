@@ -63,6 +63,10 @@ master = None
 
 _client_schema = s.Map({
     'network': s.Str(),
+    'network_retry': s.Map({
+        'number_tries': s.Int(),
+        'wait': s.Int(),
+    }),
     'SSDP': s.Map({
         'device_type': s.Str(),
     }),

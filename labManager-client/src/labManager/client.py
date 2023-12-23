@@ -61,9 +61,15 @@ class Client:
 
     async def start(self, server_addr: tuple[str,int] = None, *, keep_ssdp_running = False):
         # 1. get interfaces we can work with
-        self._if_ips, self._if_macs = ifs.get_ifaces(self.network)
-        if not self._if_ips:
-            raise RuntimeError(f'No interfaces found that are connected to the configured network {self.network}')
+        for i in range(1,config.client['network_retry']['number_tries']+1):
+            self._if_ips, self._if_macs = ifs.get_ifaces(self.network)
+            if self._if_ips:
+                break
+            else:
+                if i<config.client['network_retry']['number_tries']:
+                    await asyncio.sleep(config.client['network_retry']['wait'])
+                else:
+                    raise RuntimeError(f'No interfaces found that are connected to the configured network {self.network}')
 
         # 2. start eye tracker poller
         self._poll_for_eyetrackers_task = asyncio.create_task(self._poll_for_eyetrackers())
