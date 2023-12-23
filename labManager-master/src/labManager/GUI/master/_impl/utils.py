@@ -133,7 +133,7 @@ def popup(label: str, popup_content: typing.Callable, buttons: dict[str, typing.
         if outside:
             closed = close_weak_popup()
         imgui.begin_group()
-        popup_content()
+        activate_button = popup_content()
         imgui.end_group()
         imgui.spacing()
         if buttons:
@@ -142,8 +142,8 @@ def popup(label: str, popup_content: typing.Callable, buttons: dict[str, typing.
             new_pos_x = cur_pos_x + imgui.get_content_region_avail().x - btns_width
             if new_pos_x > cur_pos_x:
                 imgui.set_cursor_pos_x(new_pos_x)
-            for label, callback in buttons.items():
-                if imgui.button(label):
+            for i, (label,callback) in enumerate(buttons.items()):
+                if imgui.button(label) or activate_button==i:
                     if callback:
                         callback()
                     imgui.close_current_popup()
