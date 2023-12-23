@@ -14,21 +14,21 @@ class Master:
     def __init__(self):
         ### user interface
         # credentials
-        self.username = None
-        self.password = None
+        self.username: str              = None
+        self.password: str              = None
         # all projects user has access to and selected project
-        self.projects = dict[str, str]
-        self.project  = None
-        self.has_share_access = False
+        self.projects: dict[str, str]   = {}
+        self.project:  str              = None
+        self.has_share_access           = False
 
         # connections to servers
-        self.admin: admin_conn.Client = None
-        self.toems: toems.Client = None
+        self.admin:    admin_conn.Client= None
+        self.toems:    toems.Client     = None
 
         # servers
-        self.address = None
-        self.server  = None
-        self.ssdp_server: ssdp.Server = None
+        self.address:  str              = None
+        self.server:   str              = None
+        self.ssdp_server: ssdp.Server   = None
 
         self.clients: dict[int, structs.Client] = {}
         self.clients_lock = threading.Lock()
