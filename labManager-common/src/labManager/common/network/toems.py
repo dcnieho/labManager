@@ -225,7 +225,7 @@ class Client:
             return {'Success': False, 'ErrorMessage': resp['Value']}
 
 
-    async def image_get(self, name_or_id=None, project=None, project_format=None):
+    async def image_get(self, name_or_id:str|int=None, project:str=None, project_format:str=None, name_mapping: dict=None):
         images = await self.request('Image/Get'+(f'/{name_or_id}' if isinstance(name_or_id, int) else ''))
         if isinstance(images, dict) and 'Success' in images and not images['Success']:
             # this only happens if an id is provided that doesn't exist or we do not have access to
@@ -257,6 +257,9 @@ class Client:
             im['UserFacingName'] = im['Name']
             if project and im['Name'].startswith(project+'_'):
                 im['UserFacingName'] = im['Name'][len(project)+1:]
+            # globally override image name shown to user
+            if name_mapping and im['Name'] in name_mapping:
+                im['UserFacingName'] = name_mapping[im['Name']]
 
         if name_or_id is not None:
             if images:

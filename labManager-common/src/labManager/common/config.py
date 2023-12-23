@@ -11,6 +11,7 @@ _master_schema = s.Map({
     s.Optional('projects'): s.Map({
         'name_table': s.MapPattern(s.Str(), s.Str()),
     }),
+    s.Optional('base_image_name_table'): s.MapPattern(s.Str(), s.Str()),
     'SMB': s.Map({
         'server': s.Str(),
         'domain': s.Str(),

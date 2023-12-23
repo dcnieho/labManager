@@ -122,7 +122,7 @@ class Master:
         return await self.toems.computer_get(filter_list=[c['name'] for c in config.master['clients']])
 
     async def get_images(self):
-        return await self.toems.image_get(project=self.project, project_format=config.master['toems']['images']['format'])
+        return await self.toems.image_get(project=self.project, project_format=config.master['toems']['images']['format'], name_mapping=config.master['base_image_name_table'] if 'base_image_name_table' in config.master else None)
 
     async def get_image_size(self, name_or_id: int|str):
         return await self.toems.image_get_server_size(name_or_id)
