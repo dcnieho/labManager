@@ -48,6 +48,7 @@ class MainGUI:
         self.login_state      = ActionState.Not_Done
         self.proj_select_state= ActionState.Not_Done
         self.proj_idx         = -1
+        self.project_select_immediately = False
         self.project          = ''  # NB: display name
 
         # GUI state
@@ -237,13 +238,21 @@ class MainGUI:
         return main_space_view
 
     def _show_app_menu_items(self):
-        do_close , _ = imgui.menu_item("Close project", "", False, enabled=self.proj_select_state==ActionState.Done)
-        do_logout, _ = imgui.menu_item("Log out", "", False, enabled=self.login_state==ActionState.Done)
-
-        if do_logout:
-            self._logout()
-        elif do_close:
+        if imgui.begin_menu("Open project", self.login_state==ActionState.Done):
+            for i,(p,pn) in enumerate(self.master.projects.items()):
+                if self.proj_select_state==ActionState.Done and i==self.proj_idx:
+                    # don't show currently loaded project in menu
+                    continue
+                lbl = p if pn==p else f'{p} ({pn})'
+                if imgui.menu_item(lbl, "", False)[0]:
+                    self._unload_project()
+                    self.proj_idx = i
+                    self.project_select_immediately = True
+            imgui.end_menu()
+        if imgui.menu_item("Close project", "", False, enabled=self.proj_select_state==ActionState.Done)[0]:
             self._unload_project()
+        if imgui.menu_item("Log out", "", False, enabled=self.login_state==ActionState.Done)[0]:
+            self._logout()
 
     def _get_window_title(self, add_user=False, add_project=False):
         title = "labManager Master"
@@ -372,6 +381,11 @@ class MainGUI:
                 if imgui.button("Log out"):
                     self._logout()
             else:
+                # if we have preselected a project (e.g. through change project menu),
+                # start the loading action immediately
+                if self.project_select_immediately:
+                    self._do_select_project()
+                    self.project_select_immediately = False
                 disabled = self.proj_select_state==ActionState.Processing
                 if disabled:
                     utils.push_disabled()
@@ -384,7 +398,7 @@ class MainGUI:
                         projects.append(f'{p} ({pn})')
                 _,self.proj_idx = imgui.list_box('##Project', 0 if self.proj_idx==-1 else self.proj_idx, projects)
                 # select on double-click or press of enter key
-                selected = (imgui.is_item_clicked() and imgui.is_mouse_double_clicked(imgui.MouseButton_.left)) or imgui.is_key_pressed(imgui.Key.enter)
+                selection_done = (imgui.is_item_clicked() and imgui.is_mouse_double_clicked(imgui.MouseButton_.left)) or imgui.is_key_pressed(imgui.Key.enter)
 
                 if self.proj_select_state==ActionState.Processing:
                     symbol_size = imgui.calc_text_size("x").y*2
@@ -392,12 +406,14 @@ class MainGUI:
                     lw = 3.5/22/2*symbol_size
                     imspinner.spinner_ang_triple(f'projSpinner', *spinner_radii, lw, c1=imgui.get_style().color_(imgui.Col_.text_selected_bg), c2=imgui.get_style().color_(imgui.Col_.text), c3=imgui.get_style().color_(imgui.Col_.text_selected_bg))
                 else:
-                    if imgui.button("Select") or selected:
-                        self.proj_select_state = ActionState.Processing
-                        async_thread.run(self.master.set_project(list(self.master.projects.keys())[self.proj_idx]), lambda fut: self._login_projectsel_result('project',fut))
+                    if imgui.button("Select") or selection_done:
+                        self._do_select_project()
 
                 if disabled:
                     utils.pop_disabled()
+    def _do_select_project(self):
+        self.proj_select_state = ActionState.Processing
+        async_thread.run(self.master.set_project(list(self.master.projects.keys())[self.proj_idx]), lambda fut: self._login_projectsel_result('project',fut))
 
     def _login_projectsel_result(self, stage, future: asyncio.Future):
         try:
