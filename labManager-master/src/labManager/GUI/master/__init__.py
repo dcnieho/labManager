@@ -1203,6 +1203,10 @@ class MainGUI:
         if imgui.begin(f'task_log_pane_{item.id}'):
             if item.client and (tid := self._computer_GUI_tasks[item.id]) is not None:
                 if tid[0]=='task' and (tsk:=item.client.tasks[tid[1]]).type!=task.Type.Wake_on_LAN:
+                    imgui.push_font(imgui_md.get_code_font())
+                    imgui.input_text_multiline(f"##output_content", tsk.output, size=(imgui.get_content_region_avail().x,-imgui.get_frame_height_with_spacing()), flags=imgui.InputTextFlags_.read_only | imgui.InputTextFlags_.no_horizontal_scroll)
+                    imgui.pop_font()
+                    # if interactive task, add text box for input
                     if tsk.interactive and tsk.status==task.Status.Running and ((item.id, tid[1]) not in self._computer_GUI_interactive_sent_finish or not self._computer_GUI_interactive_sent_finish[(item.id, tid[1])]):
                         if (item.id, tid[1]) not in self._computer_GUI_interactive_tasks:
                             self._computer_GUI_interactive_tasks[(item.id, tid[1])] = ''
@@ -1221,16 +1225,6 @@ class MainGUI:
                             self._computer_GUI_interactive_tasks[(item.id, tid[1])] = ''
                         if disabled:
                             utils.pop_disabled()
-                    imgui.set_next_item_open(True, imgui.Cond_.once)
-                    if imgui.collapsing_header(f'stdout##{tid[1]}'):
-                        imgui.push_font(imgui_md.get_code_font())
-                        imgui.text_wrapped(tsk.stdout)
-                        imgui.pop_font()
-                    imgui.set_next_item_open(True, imgui.Cond_.once)
-                    if imgui.collapsing_header(f'stderr##{tid[1]}'):
-                        imgui.push_font(imgui_md.get_code_font())
-                        imgui.text_wrapped(tsk.stderr)
-                        imgui.pop_font()
         imgui.end()
 
 

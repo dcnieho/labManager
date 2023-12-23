@@ -33,7 +33,7 @@ async def run():
 
     # print output of first task
     print(f'ran "{tasks[0].payload}" on {master.clients[c].host} which finished with exit code {tasks[0].return_code}, got:')
-    print(tasks[0].stdout)
+    print(tasks[0].output)
 
     # clean up
     await master.stop_server()

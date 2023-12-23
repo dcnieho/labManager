@@ -56,9 +56,8 @@ class Task:
     known_client: int = None
     task_group_id: int = None
 
-    # when running, client starts sending these back as they become available:
-    stdout      : str = ''
-    stderr      : str = ''
+    # when running, client starts sending back stdout and stderr as they become available. Buffer to store them in:
+    output      : str = ''
     # when status finished or errored, client provides the return code:
     return_code : int = None
 

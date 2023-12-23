@@ -442,11 +442,8 @@ class Master:
 
                     case message.Message.TASK_OUTPUT:
                         mytask = me.tasks[msg['task_id']]
-                        match msg['stream_type']:
-                            case task.StreamType.STDOUT:
-                                mytask.stdout += msg['output']
-                            case task.StreamType.STDERR:
-                                mytask.stderr += msg['output']
+                        # NB: ignore msg['stream_type'] and just concat all to one text buffer
+                        mytask.output += msg['output']
                     case message.Message.TASK_UPDATE:
                         mytask = me.tasks[msg['task_id']]
                         status_change = mytask.status!=msg['status']
