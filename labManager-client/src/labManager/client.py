@@ -186,8 +186,7 @@ class Client:
                 break
 
     async def _handle_master(self, m: int, reader: asyncio.streams.StreamReader, writer: asyncio.streams.StreamWriter):
-        type = None
-        while type != message.Message.QUIT:
+        while True:
             try:
                 type, msg = await comms.typed_receive(reader)
                 if not type:
@@ -195,6 +194,8 @@ class Client:
                     break
 
                 match type:
+                    case message.Message.QUIT:
+                        break
                     case message.Message.IDENTIFY:
                         # check for image-info.json file in root
                         info_file = pathlib.Path('C:\\image_info.json')
