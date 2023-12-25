@@ -95,11 +95,9 @@ class Master:
         self.admin.set_project(project)
 
         # check SMB access
-        shares = await smb.get_shares(config.master["SMB"]["server"],
-                                      self.admin.user['full_name'], self.password, config.master["SMB"]["domain"],
-                                      check_access_level=smb.AccessLevel.READ|smb.AccessLevel.WRITE|smb.AccessLevel.DELETE, matching=config.master["SMB"]["projects"]["format"], contains=project,
-                                      remove_trailing=config.master["SMB"]["projects"]["remove_trailing"])
-        self.has_share_access = project in shares
+        self.has_share_access = await smb.check_share(config.master["SMB"]["server"],
+                                      self.admin.user['full_name'], self.password, project+config.master["SMB"]["projects"]["remove_trailing"],
+                                      config.master["SMB"]["domain"], check_access_level=smb.AccessLevel.READ|smb.AccessLevel.WRITE|smb.AccessLevel.DELETE)
 
         # log into toems server
         await self.admin.prep_toems()
@@ -402,7 +400,7 @@ class Master:
                         self._find_or_add_known_client(me)
 
                         # if wanted and available, tell client to mount project share as drive
-                        if config.master['SMB']['mount_share_on_client'] and self.has_share_access:
+                        if self.has_share_access and config.master['SMB']['mount_share_on_client']:
                             # check if we're allowed to issue mount command to this client
                             if (config.master['SMB']['mount_only_known_clients'] and me.known_client.configured) or not config.master['SMB']['mount_only_known_clients']:
                                 domain, user = smb.get_domain_username(self.admin.user['full_name'], config.master["SMB"]["domain"])

@@ -2,6 +2,7 @@ import enum
 
 from aiosmb.commons.connection.factory import SMBConnectionFactory
 from aiosmb.commons.interfaces.machine import SMBMachine
+from aiosmb.commons.interfaces.share import SMBShare
 from aiosmb.commons.connection.target import SMBTarget
 from aiosmb.wintypes.access_mask import FileAccessMask
 
@@ -38,7 +39,7 @@ def _check_access(flags: FileAccessMask, level: AccessLevel):
     return access
 
 # convenience wrapper
-async def get_shares(server: str, user: str, password: str, domain='', check_access_level=None, matching='', contains=None, remove_trailing='', ignored:list[str]=['IPC$']):
+async def get_shares(server: str, user: str, password: str, domain='', check_access_level: AccessLevel=None, matching='', contains=None, remove_trailing='', ignored:list[str]=['IPC$']):
     shares = []
 
     domain, user = get_domain_username(user, domain)
@@ -87,7 +88,7 @@ async def get_shares(server: str, user: str, password: str, domain='', check_acc
                         continue    # no access at all
                     if share.tree_id is not None:
                         await connection.tree_disconnect(share.tree_id)
-                    # check if we have access
+                    # check if we have access at requested level
                     if _check_access(share.maximal_access, check_access_level):
                         shares.append(share_name)
                 else:
@@ -99,6 +100,39 @@ async def get_shares(server: str, user: str, password: str, domain='', check_acc
             print(f'SMB: Error listing shares on server using {server} when connected using domain "{domain}", user "{user}": {exc}')
 
     return shares
+
+async def check_share(server: str, user: str, password: str, share_name: str, domain='', check_access_level: AccessLevel=None):
+    domain, user = get_domain_username(user, domain)
+    stage = 1
+    try:
+        smb_mgr = SMBConnectionFactory.from_components(server,username=user,secret=password, domain=domain, dialect='smb2')
+        if isinstance(smb_mgr.credential, SMBTarget):
+            # there are versions of aiosmb where these two fields were accidentally reversed, fix
+            smb_mgr.target, smb_mgr.credential = smb_mgr.credential, smb_mgr.target
+        async with (connection:=smb_mgr.get_connection()):
+            _, err = await connection.login()
+            if err is not None:
+                raise err
+
+            # now try to connect to the share
+            share = SMBShare(fullpath = '\\\\%s\\%s' % (connection.target.get_hostname_or_ip(), share_name))
+            _, err = await share.connect(connection)     # connect so the maximal_access field gets filled
+            if err is not None:
+                return False    # no access at all
+            if share.tree_id is not None:
+                await connection.tree_disconnect(share.tree_id)
+
+            # check if we have access at requested level
+            return _check_access(share.maximal_access, check_access_level)
+
+    except Exception as exc:
+        if stage==1:
+            print(f'SMB: Error connecting using domain "{domain}", user "{user}" to {server}: {exc}')
+        elif stage==2:
+            print(f'SMB: Error connecting to share "{share_name}" on server using {server} when connected using domain "{domain}", user "{user}": {exc}')
+
+    return False
+
 
 def get_domain_username(user: str, default_domain: str):
     # figure out domain from user (format domain\user)
