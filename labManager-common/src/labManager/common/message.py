@@ -40,7 +40,7 @@ class Message(enum_helper.AutoNameDash):
     ## file browsing
     # master -> client
     FILE_GET_DRIVES     = auto()    # request information about known local harddrives and network names
-    FILE_GET_SHARES     = auto()    # {net_name} request accessible shares at a network name (user Guest without password is used if not provided)
+    FILE_GET_SHARES     = auto()    # {net_name, user, password, domain, access_level} request accessible shares at a network name (user Guest without password is used if not provided)
     FILE_GET_LISTING    = auto()    # {path} request contents of a local path
     # client -> master
     FILE_DRIVES         = auto()    # {local_drives, network_names}: known drives and network names
