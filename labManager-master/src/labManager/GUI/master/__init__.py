@@ -1063,6 +1063,7 @@ class MainGUI:
 
         if imgui.begin(f'task_list_pane_{item.id}'):
             if item.online:
+                nchar = int((imgui.get_content_region_max().x)//imgui.calc_text_size('x').x)-1
                 if item.online.tasks:
                     show = True
                     if item.online.et_events:
@@ -1071,7 +1072,6 @@ class MainGUI:
                         imgui.text('Tasks:')
                     if show:
                         imgui.push_font(imgui_md.get_code_font())
-                        nchar = int((imgui.get_content_region_max().x)//imgui.calc_text_size('x').x)-1
                         for id in item.online.tasks:
                             tsk = item.online.tasks[id]
                             if tsk.type==task.Type.Wake_on_LAN:
@@ -1114,7 +1114,7 @@ class MainGUI:
                     if show:
                         for i,evt in enumerate(item.online.et_events):
                             str,full_info,_ = eye_tracker.format_event(evt)
-                            lbl = utils.trim_str(str, length=12, newline_ellipsis=True)
+                            lbl = utils.trim_str(str, length=nchar, newline_ellipsis=True)
                             if imgui.button(f'{lbl}##et_{i}'):
                                 self._computer_GUI_tasks[item.id] = ['ET',i,0]
                             utils.draw_hover_text(hover_text=full_info,text='')
