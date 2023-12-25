@@ -1,13 +1,16 @@
 import asyncio
+import aioshutil
+import aiopath
 import traceback
 import platform
 import pathlib
 import json
+import string
 import threading
 from dataclasses import dataclass, field
 
-from labManager.common import async_thread, config, eye_tracker, message, share, task
-from labManager.common.network import comms, ifs, keepalive, net_names, ssdp
+from labManager.common import async_thread, config, dir_list, eye_tracker, message, share, task
+from labManager.common.network import comms, ifs, keepalive, net_names, smb, ssdp
 
 
 # main function for independently running client
@@ -199,12 +202,12 @@ class Client:
     async def _handle_master(self, m: int, reader: asyncio.streams.StreamReader, writer: asyncio.streams.StreamWriter):
         while True:
             try:
-                type, msg = await comms.typed_receive(reader)
-                if not type:
+                msg_type, msg = await comms.typed_receive(reader)
+                if not msg_type:
                     # connection broken, close
                     break
 
-                match type:
+                match msg_type:
                     case message.Message.QUIT:
                         break
                     case message.Message.IDENTIFY:
@@ -215,7 +218,6 @@ class Client:
                             with open(info_file) as f:
                                 info = json.load(f)
                         await comms.typed_send(writer, message.Message.IDENTIFY, {'name': self.name, 'MACs': self._if_macs, 'image_info': info})
-
 
                     case message.Message.ET_STATUS_REQUEST:
                         if not self.connected_eye_tracker:
@@ -254,7 +256,6 @@ class Client:
                         )
                         self.masters[m].task_list.append(new_task)
                         new_task.async_task.add_done_callback(lambda tsk: self._remove_finished_task(m, tsk))
-
                     case message.Message.TASK_INPUT:
                         # find if there is a running task with this id and which has an input queue, else ignore the input
                         my_task = None
@@ -264,7 +265,6 @@ class Client:
                                 break
                         if my_task and my_task.input:
                             await my_task.input.put(msg['payload'])
-
                     case message.Message.TASK_CANCEL:
                         # find if there is a running task with this id, else ignore the request
                         my_task = None
@@ -278,6 +278,117 @@ class Client:
                                 await my_task.input.put(None)
                             else:
                                 t.async_task.cancel()
+
+                    case message.Message.FILE_GET_DRIVES:
+                        drives = []
+                        for letter in string.ascii_uppercase:
+                            drive = f"{letter}:\\"
+                            if await aiopath.AsyncPath(drive).exists():
+                                drives.append(pathlib.Path(drive))
+                        await comms.typed_send(writer,
+                                               message.Message.FILE_DRIVES,
+                                               {'drives': drives, 'net_names': self._net_names}
+                                              )
+                    case message.Message.FILE_GET_SHARES:
+                        # default to Guest with empty password and domain
+                        if 'user' not in msg:
+                            msg['user'] = 'Guest'
+                        if 'password' not in msg:
+                            msg['password'] = ''
+                        if 'domain' not in msg:
+                            msg['domain'] = ''
+                        out = msg
+                        out['listing'] = await smb.get_shares(msg['net_name'], msg['user'], msg['password'], msg['domain'], check_access_level=smb.AccessLevel.READ)
+                        del out['password']
+                        await comms.typed_send(writer,
+                                               message.Message.FILE_LISTING,
+                                               out
+                                              )
+                    case message.Message.FILE_GET_LISTING:
+                        listing = await dir_list.get_dir_list(msg['path'])
+                        await comms.typed_send(writer,
+                                               message.Message.FILE_LISTING,
+                                               {'path': msg['path'], 'listing': listing}
+                                              )
+
+                    case message.Message.FILE_MAKE:
+                        error = None
+                        path = aiopath.AsyncPath(msg['path'])
+                        try:
+                            if msg['is_dir']:
+                                await path.mkdir()
+                            else:
+                                await path.touch()
+                        except Exception as exc:
+                            error = exc
+                        out = msg
+                        out['action'] = msg_type
+                        out['status'] = 'ok' if not error else 'error'
+                        if error:
+                            out['error'] = f'{type(error).__name__}: {error}'
+                        await comms.typed_send(writer,
+                                               message.Message.FILE_ACTION_STATUS,
+                                               out
+                                              )
+                    case message.Message.FILE_RENAME:
+                        error = None
+                        try:
+                            await aiopath.AsyncPath(msg['old_path']).rename(msg['new_path'])
+                        except Exception as exc:
+                            error = exc
+                        out = msg
+                        out['action'] = msg_type
+                        out['status'] = 'ok' if not error else 'error'
+                        if error:
+                            out['error'] = f'{type(error).__name__}: {error}'
+                        await comms.typed_send(writer,
+                                               message.Message.FILE_ACTION_STATUS,
+                                               out
+                                              )
+                    case message.Message.FILE_COPY_MOVE:
+                        error = None
+                        source_path = aiopath.AsyncPath(msg['source_path'])
+                        dest_path = aiopath.AsyncPath(msg['dest_path'])
+                        try:
+                            if msg['is_move']:
+                                return_path = await aioshutil.move(source_path, dest_path)
+                            else:
+                                if await source_path.is_dir():
+                                    return_path = await aioshutil.copytree(source_path, dest_path)
+                                else:
+                                    return_path = await aioshutil.copy2(source_path, dest_path)
+                        except Exception as exc:
+                            error = exc
+                        out = msg
+                        out['return_path'] = return_path
+                        out['action'] = msg_type
+                        out['status'] = 'ok' if not error else 'error'
+                        if error:
+                            out['error'] = f'{type(error).__name__}: {error}'
+                        await comms.typed_send(writer,
+                                               message.Message.FILE_ACTION_STATUS,
+                                               out
+                                              )
+                    case message.Message.FILE_DELETE:
+                        error = None
+                        path = aiopath.AsyncPath(msg['path'])
+                        try:
+                            if await path.is_dir():
+                                await aioshutil.rmtree(path,ignore_errors=True)
+                            else:
+                                await path.unlink()
+                        except Exception as exc:
+                            error = exc
+                        out = msg
+                        out['action'] = msg_type
+                        out['status'] = 'ok' if not error else 'error'
+                        if error:
+                            out['error'] = f'{type(error).__name__}: {error}'
+                        await comms.typed_send(writer,
+                                               message.Message.FILE_ACTION_STATUS,
+                                               out
+                                              )
+
 
             except Exception as exc:
                 tb_lines = traceback.format_exception(exc)

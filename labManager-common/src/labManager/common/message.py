@@ -37,6 +37,25 @@ class Message(enum_helper.AutoNameDash):
     TASK_OUTPUT         = auto()    # {task_id, stream_type, output}, task (stdout or stderr) output
     TASK_UPDATE         = auto()    # {task_id, status, Optional[return_code]}, task status update (started running, errored, finished). Latter two include return code
 
+    ## file browsing
+    # master -> client
+    FILE_GET_DRIVES     = auto()    # request information about known local harddrives and network names
+    FILE_GET_SHARES     = auto()    # {net_name} request accessible shares at a network name (user Guest without password is used if not provided)
+    FILE_GET_LISTING    = auto()    # {path} request contents of a local path
+    # client -> master
+    FILE_DRIVES         = auto()    # {local_drives, network_names}: known drives and network names
+    FILE_LISTING        = auto()    # {path, dir_list}: listing of directories and files at path
+
+    ## file actions (NB: local paths below includes network shares accessible by the client)
+    # master -> client
+    FILE_MAKE           = auto()    # {path, is_dir, action_id} request creation of a local path (empty file or directory)
+    FILE_RENAME         = auto()    # {old_path, new_path, action_id} request renaming of a local path
+    FILE_COPY_MOVE      = auto()    # {source_path, dest_path, is_move, action_id} request a copy or move between two local paths
+    FILE_DELETE         = auto()    # {path, action_id} request deleting a path
+    # client -> master
+    FILE_ACTION_STATUS  = auto()    # {path, action_id, action, status...} status update for file actions
+
+
 @enum_helper.get('message types')
 class Type(enum_helper.AutoNameDash):
     SIMPLE      = auto()
@@ -61,6 +80,18 @@ type_map = {
     Message.TASK_CANCEL         : Type.JSON,
     Message.TASK_OUTPUT         : Type.JSON,
     Message.TASK_UPDATE         : Type.JSON,
+
+    Message.FILE_GET_DRIVES     : Type.JSON,
+    Message.FILE_GET_SHARES     : Type.JSON,
+    Message.FILE_GET_LISTING    : Type.JSON,
+    Message.FILE_DRIVES         : Type.JSON,
+    Message.FILE_LISTING        : Type.JSON,
+
+    Message.FILE_MAKE           : Type.JSON,
+    Message.FILE_RENAME         : Type.JSON,
+    Message.FILE_COPY_MOVE      : Type.JSON,
+    Message.FILE_DELETE         : Type.JSON,
+    Message.FILE_ACTION_STATUS  : Type.JSON,
     }
 
 

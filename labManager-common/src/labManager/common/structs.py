@@ -1,4 +1,5 @@
 import asyncio
+import pathlib
 from dataclasses import dataclass, field
 from typing import Dict, List
 
@@ -62,3 +63,13 @@ class KnownClient:
 
     def __repr__(self):
         return f'{self.name}@{self.MAC}, {"" if self.client else "not "}connected'
+
+@dataclass
+class DirEntry:
+    name: str
+    is_dir: bool
+    full_path: pathlib.Path
+    ctime: float
+    mtime: float
+    size: int
+    mime_type: str
