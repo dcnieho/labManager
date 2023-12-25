@@ -290,15 +290,8 @@ class Client:
                                                {'drives': drives, 'net_names': self._net_names}
                                               )
                     case message.Message.FILE_GET_SHARES:
-                        # default to Guest with empty password and domain
-                        if 'user' not in msg:
-                            msg['user'] = 'Guest'
-                        if 'password' not in msg:
-                            msg['password'] = ''
-                        if 'domain' not in msg:
-                            msg['domain'] = ''
                         out = msg
-                        out['listing'] = await smb.get_shares(msg['net_name'], msg['user'], msg['password'], msg['domain'], check_access_level=smb.AccessLevel.READ)
+                        out['listing'] = await smb.get_shares(msg['net_name'], msg['user'], msg['password'], msg['domain'], check_access_level=msg['access_level'])
                         del out['password']
                         await comms.typed_send(writer,
                                                message.Message.FILE_LISTING,
@@ -312,7 +305,9 @@ class Client:
                                               )
 
                     case message.Message.FILE_MAKE:
-                        error = None
+                        out = msg
+                        out['action'] = msg_type
+
                         path = aiopath.AsyncPath(msg['path'])
                         try:
                             if msg['is_dir']:
@@ -320,33 +315,35 @@ class Client:
                             else:
                                 await path.touch()
                         except Exception as exc:
-                            error = exc
-                        out = msg
-                        out['action'] = msg_type
-                        out['status'] = 'ok' if not error else 'error'
-                        if error:
-                            out['error'] = f'{type(error).__name__}: {error}'
+                            out['error'] = exc
+                            out['status'] = 'error'
+                        else:
+                            out['status'] = 'ok'
+
                         await comms.typed_send(writer,
                                                message.Message.FILE_ACTION_STATUS,
                                                out
                                               )
                     case message.Message.FILE_RENAME:
-                        error = None
+                        out = msg
+                        out['action'] = msg_type
+
                         try:
                             await aiopath.AsyncPath(msg['old_path']).rename(msg['new_path'])
                         except Exception as exc:
-                            error = exc
-                        out = msg
-                        out['action'] = msg_type
-                        out['status'] = 'ok' if not error else 'error'
-                        if error:
-                            out['error'] = f'{type(error).__name__}: {error}'
+                            out['error'] = exc
+                            out['status'] = 'error'
+                        else:
+                            out['status'] = 'ok'
+
                         await comms.typed_send(writer,
                                                message.Message.FILE_ACTION_STATUS,
                                                out
                                               )
                     case message.Message.FILE_COPY_MOVE:
-                        error = None
+                        out = msg
+                        out['action'] = msg_type
+
                         source_path = aiopath.AsyncPath(msg['source_path'])
                         dest_path = aiopath.AsyncPath(msg['dest_path'])
                         try:
@@ -358,19 +355,20 @@ class Client:
                                 else:
                                     return_path = await aioshutil.copy2(source_path, dest_path)
                         except Exception as exc:
-                            error = exc
-                        out = msg
-                        out['return_path'] = return_path
-                        out['action'] = msg_type
-                        out['status'] = 'ok' if not error else 'error'
-                        if error:
-                            out['error'] = f'{type(error).__name__}: {error}'
+                            out['error'] = exc
+                            out['status'] = 'error'
+                        else:
+                            out['return_path'] = return_path
+                            out['status'] = 'ok'
+
                         await comms.typed_send(writer,
                                                message.Message.FILE_ACTION_STATUS,
                                                out
                                               )
                     case message.Message.FILE_DELETE:
-                        error = None
+                        out = msg
+                        out['action'] = msg_type
+
                         path = aiopath.AsyncPath(msg['path'])
                         try:
                             if await path.is_dir():
@@ -378,12 +376,11 @@ class Client:
                             else:
                                 await path.unlink()
                         except Exception as exc:
-                            error = exc
-                        out = msg
-                        out['action'] = msg_type
-                        out['status'] = 'ok' if not error else 'error'
-                        if error:
-                            out['error'] = f'{type(error).__name__}: {error}'
+                            out['error'] = exc
+                            out['status'] = 'error'
+                        else:
+                            out['status'] = 'ok'
+
                         await comms.typed_send(writer,
                                                message.Message.FILE_ACTION_STATUS,
                                                out
