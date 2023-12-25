@@ -37,6 +37,8 @@ async def _read_with_length(reader: asyncio.streams.StreamReader, decode: bool) 
             return ''
 
 async def _send_with_length(writer: asyncio.streams.StreamWriter, msg: str|bytes, encode: bool) -> bool:
+    if writer.is_closing():
+        return False
     try:
         if encode:
             msg = msg.encode('utf8')
