@@ -272,7 +272,6 @@ class Master:
         if self.remove_client_hook:
             self.remove_client_hook(client)
         self._remove_known_client(client)
-        self.unmount_client_shares(client.writer)
         with self.clients_lock:
             if client.id in self.clients:
                 del self.clients[client.id]
@@ -464,6 +463,7 @@ class Master:
                 print("".join(tb_lines))
                 continue
 
+        self.unmount_client_shares(me.writer)
         writer.close()
         me.writer = None
 
