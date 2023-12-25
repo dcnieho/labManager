@@ -95,7 +95,10 @@ class Master:
         self.admin.set_project(project)
 
         # check SMB access
-        self.has_share_access = _SMB_get_shares(self.admin.user, self.password, project)
+        shares = smb.get_shares(config.master["SMB"]["server"],
+                                self.admin.user['full_name'], self.password, config.master["SMB"]["domain"],
+                                check_access=True, matching=config.master["SMB"]["projects"]["format"], remove_trailing=config.master["SMB"]["projects"]["remove_trailing"], contains=project)
+        self.has_share_access = project in shares
 
         # log into toems server
         await self.admin.prep_toems()
@@ -402,7 +405,7 @@ class Master:
                         if config.master['SMB']['mount_share_on_client']:
                             # check if we're allowed to issue mount command to this client
                             if (config.master['SMB']['mount_only_known_clients'] and me.known_client.configured) or not config.master['SMB']['mount_only_known_clients']:
-                                domain, user = _get_SMB_domain_username(self.admin.user['full_name'])
+                                domain, user = smb.get_domain_username(self.admin.user['full_name'], config.master["SMB"]["domain"])
                                 request = {
                                     'drive': config.master['SMB']['mount_drive_letter'],
                                     'share_path': f'\\\\{config.master["SMB"]["server"]}\{self.project}{config.master["SMB"]["projects"]["remove_trailing"]}',
@@ -557,24 +560,3 @@ async def cmd_login_flow(master: Master, username: str = None, password: str = N
                 print(f'  {p} ({pn})')
         project = input(f'Project: ')
     await master.set_project(project)
-
-def _SMB_get_shares(user, password, project=None):
-    domain, user = _get_SMB_domain_username(user['full_name'])
-    try:
-        smb_hndl = smb.SMBHandler(config.master["SMB"]["server"], user, domain, password)
-    except (OSError, smb.SessionError) as exc:
-        print(f'Error connecting as {domain}\{user} to {config.master["SMB"]["server"]}: {exc}')
-        shares = []
-    else:
-        shares = smb_hndl.list_shares(matching=config.master["SMB"]["projects"]["format"], remove_trailing=config.master["SMB"]["projects"]["remove_trailing"], contains=project)
-
-    return shares
-
-def _get_SMB_domain_username(user):
-    # figure out domain from user, default to configured
-    domain = config.master["SMB"]["domain"]
-    if '\\' in user:
-        dom, user = user.split('\\', maxsplit=1)
-        if dom:
-            domain = dom
-    return domain, user

@@ -76,3 +76,26 @@ class SMBHandler:
 
     def __del__(self):
         self.close()
+
+# convenience wrapper
+def get_shares(server: str, user: str, password: str, domain='', check_access=True, matching='', remove_trailing='', contains=None):
+    domain, user = get_domain_username(user, domain)
+    try:
+        smb_hndl = SMBHandler(server, user, domain, password)
+    except (OSError, SessionError) as exc:
+        print(f'Error connecting using domain "{domain}", user "{user}" to {server}: {exc}')
+        shares = []
+    else:
+        shares = smb_hndl.list_shares(check_access=check_access, matching=matching, remove_trailing=remove_trailing, contains=contains)
+
+    return shares
+
+def get_domain_username(user: str, default_domain: str):
+    # figure out domain from user (format domain\user)
+    # if no domain found in user string, use default_domain
+    domain = default_domain
+    if '\\' in user:
+        dom, user = user.split('\\', maxsplit=1)
+        if dom:
+            domain = dom
+    return domain, user
