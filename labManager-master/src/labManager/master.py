@@ -33,12 +33,6 @@ class ConnectedClient:
     def __repr__(self):
         return f'{self.name}@{self.host}:{self.port}'
 
-    def cleanup(self):
-        # clear all project-specific state
-        self.tasks          = {}
-        self.et_events      = []
-        self.mounted_shares = {}
-
 class Master:
     def __init__(self):
         ### user interface
@@ -150,10 +144,7 @@ class Master:
         if self.admin is not None:
             self.admin.unset_project()
         self.task_groups.clear()
-        with self.clients_lock:
-            for c in self.clients:
-                if self.clients[c].online:
-                    self.clients[c].online.cleanup()
+        # NB: no need to clean up clients, stop_server() above will stop the connections, which cleans them up for us
 
 
     async def start_server(self, local_addr: tuple[str,int]=None, start_ssdp_advertise=True):
