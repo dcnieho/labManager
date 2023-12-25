@@ -7,7 +7,7 @@ import threading
 from dataclasses import dataclass, field
 
 from labManager.common import async_thread, config, eye_tracker, message, share, task
-from labManager.common.network import comms, ifs, keepalive, ssdp
+from labManager.common.network import comms, ifs, keepalive, net_names, ssdp
 
 
 # main function for independently running client
@@ -48,6 +48,8 @@ class Client:
         self._if_ips:                       list[str]                   = None
         self._if_macs:                      list[str]                   = None
 
+        self._poll_for_netnames_task:       asyncio.Task                = None
+        self._net_names:                    dict[str,str]               = {}
         self._poll_for_eyetrackers_task:    asyncio.Task                = None
         self.connected_eye_tracker:         eye_tracker.ET_class        = None
         self._next_master_id:               int                         = 0
@@ -71,10 +73,13 @@ class Client:
                 else:
                     raise RuntimeError(f'No interfaces found that are connected to the configured network {self.network}')
 
-        # 2. start eye tracker poller
+        # 2. start network name poller
+        self._poll_for_netnames_task = asyncio.create_task(self._poll_for_netnames())
+
+        # 3. start eye tracker poller
         self._poll_for_eyetrackers_task = asyncio.create_task(self._poll_for_eyetrackers())
 
-        # 3. discover master, if needed
+        # 4. discover master, if needed
         if not server_addr:
             # start SSDP client
             self._ssdp_client = ssdp.Client(
@@ -133,6 +138,7 @@ class Client:
         # stop and cancel everything
         self._stop_sync()
         await asyncio.sleep(0)  # give cancellation a chance to be sent and processed
+        self._poll_for_netnames_task.cancel()
         self._poll_for_eyetrackers_task.cancel()
 
         # wait till everything is stopped and cancelled
@@ -142,6 +148,7 @@ class Client:
             master_handlers = [self.masters[m].handler_task for m in self.masters]
         await asyncio.wait(
             running_tasks +
+            self._poll_for_netnames_task +
             self._poll_for_eyetrackers_task +
             ([asyncio.create_task(self._ssdp_client.stop())] if self._ssdp_client else []) +
             close_waiters +
@@ -150,6 +157,8 @@ class Client:
         )
 
         # clear out state
+        self._poll_for_netnames_task = None
+        self._net_names = {}
         self._poll_for_eyetrackers_task = None
         self.connected_eye_tracker = None
         self.masters = []
@@ -282,6 +291,16 @@ class Client:
         with self.master_lock:
             if m in self.masters:
                 del self.masters[m]
+
+    async def _poll_for_netnames(self):
+        try:
+            while True:
+                self._net_names = await net_names.get_network_computers(self.network)
+
+                # rate-limit to every x seconds
+                await asyncio.sleep(30)
+        except (asyncio.CancelledError, KeyboardInterrupt):
+            pass    # we broke out of the loop: cancellation processed
 
     async def _poll_for_eyetrackers(self):
         try:

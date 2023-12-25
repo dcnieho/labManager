@@ -1,6 +1,6 @@
 import pkg_resources
 import asyncio
-import aiofile
+import aiopath
 import traceback
 import sys
 import threading
@@ -498,8 +498,7 @@ class Master:
             case 'text':
                 pass    # nothing to do, payload already in payload variable
             case 'file':
-                async with aiofile.async_open(payload, 'rt') as afp:
-                    payload = await afp.read()
+                payload = await aiopath.AsyncPath(payload).read_text()
 
         # make task group
         task_group, launch_group = task.create_group(type, payload, known_clients, cwd=cwd, env=env, interactive=interactive, python_unbuf=python_unbuf)

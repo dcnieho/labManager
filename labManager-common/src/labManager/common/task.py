@@ -1,5 +1,6 @@
 import asyncio
-import aiofile
+import aiopath
+import aioshutil
 import shlex
 import shutil
 import pathlib
@@ -232,11 +233,11 @@ class Executor:
 
         # write payload to file if needed
         if filename:
-            if folder.is_dir():
-                shutil.rmtree(folder,ignore_errors=True)
-            folder.mkdir()
-            async with aiofile.async_open(filename, 'wt') as afp:
-                await afp.write(payload)
+            folder = aiopath.AsyncPath(folder)
+            if await folder.is_dir():
+                await aioshutil.rmtree(folder,ignore_errors=True)
+            await folder.mkdir()
+            await aiopath.AsyncPath(filename).write_text(payload)
 
         # prep for input stream, if needed
         if interactive:

@@ -24,7 +24,10 @@ classifiers = [
     "Topic :: Utilities",
 ]
 dependencies = [
-    "aiofile",
+    "aiopath",
+    "aioshutil",
+    "aiosmb",
+    "icmplib",
     "jsonpickle",
     "psutil ; sys_platform != 'win32'",
     "strictyaml"
