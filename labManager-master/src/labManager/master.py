@@ -351,9 +351,9 @@ class Master:
                     del self.clients[id]
 
 
-    async def broadcast(self, type: message.Message, message: str=''):
+    async def broadcast(self, type: message.Message, msg: str=''):
         with self.clients_lock:
-            coros = [comms.typed_send(self.clients[c].online.writer, type, message) for c in self.clients if self.clients[c].online]
+            coros = [comms.typed_send(self.clients[c].online.writer, type, msg) for c in self.clients if self.clients[c].online]
         await asyncio.gather(*coros)
 
     def unmount_client_shares(self, client: ConnectedClient = None, drives: list[str] = None):
