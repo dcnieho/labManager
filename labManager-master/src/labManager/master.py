@@ -401,8 +401,8 @@ class Master:
                             me.image_info = msg['image_info']
                         self._find_or_add_known_client(me)
 
-                        # if wanted, tell client to mount drive
-                        if config.master['SMB']['mount_share_on_client']:
+                        # if wanted and available, tell client to mount project share as drive
+                        if config.master['SMB']['mount_share_on_client'] and self.has_share_access:
                             # check if we're allowed to issue mount command to this client
                             if (config.master['SMB']['mount_only_known_clients'] and me.known_client.configured) or not config.master['SMB']['mount_only_known_clients']:
                                 domain, user = smb.get_domain_username(self.admin.user['full_name'], config.master["SMB"]["domain"])
