@@ -12,7 +12,7 @@ from imgui_bundle.demos_python import demo_utils
 import glfw
 
 from labManager.common import async_thread, config, eye_tracker, structs, task
-from labManager.master import Master
+from labManager.master import Master, ConnectedClient
 from ._impl import computer_list, msgbox, utils
 
 # Struct that holds the application's state
@@ -40,7 +40,7 @@ class MainGUI:
         self.master = Master()
         self.master.load_known_clients()
         # install hooks
-        self.master.remove_client_hook = self._lost_client
+        self.master.client_disconnected_hook = self._lost_client
         self.master.task_state_change_hook = self._task_status_changed
 
         self.username         = ''
@@ -56,8 +56,8 @@ class MainGUI:
         self._to_dock         = []
         self._main_dock_node_id = None
 
-        self.selected_computers: dict[int, bool] = {k:False for k in self.master.known_clients}
-        self.computer_lister  = computer_list.ComputerList(self.master.known_clients, self.selected_computers, info_callback=self._open_computer_detail)
+        self.selected_computers: dict[int, bool] = {k:False for k in self.master.clients}
+        self.computer_lister  = computer_list.ComputerList(self.master.clients, self.selected_computers, info_callback=self._open_computer_detail)
 
         # task GUI
         self._task_prep: TaskDef = TaskDef()
@@ -335,8 +335,8 @@ class MainGUI:
     def _unload_project(self):
         self.master.unset_project()
         self.selected_computers.clear()
-        with self.master.known_clients_lock:
-            self.selected_computers |= {k:False for k in self.master.known_clients}
+        with self.master.clients_lock:
+            self.selected_computers |= {k:False for k in self.master.clients}
         self._selected_image_id = None
         self._active_imaging_tasks_updater_should_stop = True
         self._images_list       = []
@@ -455,27 +455,26 @@ class MainGUI:
         tb = utils.get_traceback(type(exc), exc, exc.__traceback__)
         utils.push_popup(self, msgbox.msgbox, "Login error", f"Something went wrong when {'logging in' if stage=='login' else 'selecting project'}...", msgbox.MsgBox.error, more=tb)
 
-    def _lost_client(self, client: structs.Client):
+    def _lost_client(self, client: ConnectedClient, id: int):
         # we lost this client. Clear out all state related to it
-        if client.known_client:
-            self._computer_GUI_tasks[client.known_client.id] = None
+        self._computer_GUI_tasks[id] = None
 
-            to_del = []
-            for t in self._computer_GUI_interactive_tasks:
-                if t[0]==client.known_client.id:
-                    to_del.append(t)
-            for t in to_del:
-                del self._computer_GUI_interactive_tasks[t]
+        to_del = []
+        for t in self._computer_GUI_interactive_tasks:
+            if t[0]==id:
+                to_del.append(t)
+        for t in to_del:
+            del self._computer_GUI_interactive_tasks[t]
 
-            to_del = []
-            for t in self._computer_GUI_interactive_sent_finish:
-                if t[0]==client.known_client.id:
-                    to_del.append(t)
-            for t in to_del:
-                del self._computer_GUI_interactive_sent_finish[t]
+        to_del = []
+        for t in self._computer_GUI_interactive_sent_finish:
+            if t[0]==id:
+                to_del.append(t)
+        for t in to_del:
+            del self._computer_GUI_interactive_sent_finish[t]
 
-    def _task_status_changed(self, client: structs.Client, tsk: task.Task):
-        key = (client.known_client.id, tsk.id)
+    def _task_status_changed(self, client: structs.Client, id: int, tsk: task.Task):
+        key = (id, tsk.id)
         if tsk.status in [task.Status.Finished, task.Status.Errored]:
             if key in self._computer_GUI_interactive_tasks:
                 del self._computer_GUI_interactive_tasks[key]
@@ -902,10 +901,10 @@ class MainGUI:
                 if (disabled := not selected_clients or im['DiskSize']=='N/A'):
                     utils.push_disabled()
                 if imgui.button('Deploy'):
-                    async_thread.run(self.master.deploy_image(im['Name'], im['PartOfProject'], [self.master.known_clients[i].name for i in selected_clients]),
+                    async_thread.run(self.master.deploy_image(im['Name'], im['PartOfProject'], [self.master.clients[i].name for i in selected_clients]),
                                      lambda fut: self._image_action_result('deploy',fut))
                 if not disabled and imgui.is_item_hovered():
-                    stations_txt = '\n  '.join((self.master.known_clients[i].name for i in selected_clients))
+                    stations_txt = '\n  '.join((self.master.clients[i].name for i in selected_clients))
                     utils.draw_tooltip(f"Deploy image '{im['UserFacingName']}' to selected stations:\n  "+stations_txt)
                 if disabled:
                     if im['DiskSize']=='N/A':
@@ -914,11 +913,11 @@ class MainGUI:
 
                 if im['PartOfProject']:
                     if selected_clients:
-                        station_txt = next((self.master.known_clients[i].name for i in selected_clients))
+                        station_txt = next((self.master.clients[i].name for i in selected_clients))
                     if (disabled := len(selected_clients)!=1 or station_txt in self._active_upload_tasks):
                         utils.push_disabled()
                     if imgui.button('Upload'):
-                        async_thread.run(self.master.upload_computer_to_image(next((self.master.known_clients[i].name for i in selected_clients)), im['Name']),
+                        async_thread.run(self.master.upload_computer_to_image(next((self.master.clients[i].name for i in selected_clients)), im['Name']),
                                         lambda fut: self._image_action_result('upload',fut))
                     if not disabled and imgui.is_item_hovered():
                         utils.draw_tooltip(f"Upload station {station_txt} to image '{im['UserFacingName']}'")
@@ -1024,7 +1023,7 @@ class MainGUI:
         utils.push_popup(self, msgbox.msgbox, f"Image {action}", f"Something went wrong with the image {action} action...", msgbox.MsgBox.error, more=tb)
 
 
-    def _open_computer_detail(self, item: structs.KnownClient):
+    def _open_computer_detail(self, item: structs.Client):
         win_name = f'{item.name}##computer_view'
         win = next((x for x in hello_imgui.get_runner_params().docking_params.dockable_windows if x.label==win_name), None)
         if win:
@@ -1037,8 +1036,8 @@ class MainGUI:
             self._to_dock = [win_name]
             self._computer_GUI_tasks[item.id] = None
 
-    def _computer_detail_GUI(self, item: structs.KnownClient):
-        if not item.client:
+    def _computer_detail_GUI(self, item: structs.Client):
+        if not item.online:
             # clear state about this computer
             self._computer_GUI_tasks[item.id] = None
         dock_space_id = imgui.get_id(f"ComputerDockSpace_{item.id}")
@@ -1063,18 +1062,18 @@ class MainGUI:
         imgui.dock_space(dock_space_id, (0.,0.), imgui.DockNodeFlags_.no_docking_split|imgui.internal.DockNodeFlagsPrivate_.no_tab_bar)
 
         if imgui.begin(f'task_list_pane_{item.id}'):
-            if item.client:
-                if item.client.tasks:
+            if item.online:
+                if item.online.tasks:
                     show = True
-                    if self.master.client_et_events[item.client.id]:
+                    if item.online.et_events:
                         show = imgui.collapsing_header('Tasks:')
                     else:
                         imgui.text('Tasks:')
                     if show:
                         imgui.push_font(imgui_md.get_code_font())
                         nchar = int((imgui.get_content_region_max().x)//imgui.calc_text_size('x').x)-1
-                        for id in item.client.tasks:
-                            tsk = item.client.tasks[id]
+                        for id in item.online.tasks:
+                            tsk = item.online.tasks[id]
                             if tsk.type==task.Type.Wake_on_LAN:
                                 lbl = tsk.type.value
                                 hover_text = tsk.type.value
@@ -1106,26 +1105,26 @@ class MainGUI:
                                     to_show += '\n...'
                                 utils.draw_tooltip(to_show)
                         imgui.pop_font()
-                if self.master.client_et_events[item.client.id]:
+                if item.online.et_events:
                     show = True
-                    if item.client.tasks:
+                    if item.online.tasks:
                         show = imgui.collapsing_header('Eye-tracker events:')
                     else:
                         imgui.text('Eye-tracker events:')
                     if show:
-                        for i,evt in enumerate(self.master.client_et_events[item.client.id]):
+                        for i,evt in enumerate(item.online.et_events):
                             str,full_info,_ = eye_tracker.format_event(evt)
                             lbl = utils.trim_str(str, length=12, newline_ellipsis=True)
                             if imgui.button(f'{lbl}##et_{i}'):
                                 self._computer_GUI_tasks[item.id] = ['ET',i,0]
                             utils.draw_hover_text(hover_text=full_info,text='')
-                if not item.client.tasks and not self.master.client_et_events[item.client.id]:
+                if not item.online.tasks and not item.online.et_events:
                     imgui.text_wrapped('no tasks or eye tracker events available')
         imgui.end()
         if imgui.begin(f'task_result_pane_{item.id}'):
-            if item.client and (tid := self._computer_GUI_tasks[item.id]) is not None:
+            if item.online and (tid := self._computer_GUI_tasks[item.id]) is not None:
                 if tid[0]=='task':
-                    tsk = item.client.tasks[tid[1]]
+                    tsk = item.online.tasks[tid[1]]
                     if tsk.type==task.Type.Wake_on_LAN:
                         imgui.text(tsk.type.value)
                     else:
@@ -1192,18 +1191,18 @@ class MainGUI:
                             if tsk.interactive:
                                 self._computer_GUI_interactive_sent_finish[(item.id, tid[1])] = True
                 elif tid[0]=='ET':
-                    evt = self.master.client_et_events[item.client.id][tid[1]]
+                    evt = item.online.et_events[tid[1]]
                     _,_,evt_info = eye_tracker.format_event(evt)
                     imgui.text(f'Timestamp: {evt_info[0]}')
                     imgui.text(f'Event: {evt_info[1]}')
                     if len(evt_info)>2:
                         imgui.text(f'Info: {evt_info[2]}')
-            elif item.client:
+            elif item.online:
                 imgui.text('select a task or eye tracker event on the left')
         imgui.end()
         if imgui.begin(f'task_log_pane_{item.id}'):
-            if item.client and (tid := self._computer_GUI_tasks[item.id]) is not None:
-                if tid[0]=='task' and (tsk:=item.client.tasks[tid[1]]).type!=task.Type.Wake_on_LAN:
+            if item.online and (tid := self._computer_GUI_tasks[item.id]) is not None:
+                if tid[0]=='task' and (tsk:=item.online.tasks[tid[1]]).type!=task.Type.Wake_on_LAN:
                     imgui.push_font(imgui_md.get_code_font())
                     imgui.input_text_multiline(f"##output_content", tsk.output, size=(imgui.get_content_region_avail().x,-imgui.get_frame_height_with_spacing()), flags=imgui.InputTextFlags_.read_only | imgui.InputTextFlags_.no_horizontal_scroll)
                     # scroll to bottom if output has changed
@@ -1266,12 +1265,12 @@ class MainGUI:
         imgui.same_line()
         if imgui.button('On'):
             utils.set_all(self.selected_computers, False)
-            utils.set_all(self.selected_computers, True, predicate=lambda id: self.master.known_clients[id].client)
+            utils.set_all(self.selected_computers, True, predicate=lambda id: self.master.clients[id].online)
         utils.draw_hover_text('Select all running computers',text='')
         imgui.same_line()
         if imgui.button('Off'):
             utils.set_all(self.selected_computers, False)
-            utils.set_all(self.selected_computers, True, predicate=lambda id: not self.master.known_clients[id].client)
+            utils.set_all(self.selected_computers, True, predicate=lambda id: not self.master.clients[id].online)
         utils.draw_hover_text('Select all computers that are shut down',text='')
         imgui.same_line()
         if imgui.button('Invert'):
@@ -1280,12 +1279,12 @@ class MainGUI:
             self.selected_computers |= new_vals
         utils.draw_hover_text('Invert selection of computers',text='')
 
-        with self.master.known_clients_lock:
-            if len(self.selected_computers)!=len(self.master.known_clients):
+        with self.master.clients_lock:
+            if len(self.selected_computers)!=len(self.master.clients):
                 # update: remove or add to selected as needed
                 # NB: slightly complicated as we cannot replace the dict. A ref to it is
                 # held by self.computer_lister, and that reffed object needs to be updated
-                new_vals = {k:(self.selected_computers[k] if k in self.selected_computers else False) for k in self.master.known_clients}
+                new_vals = {k:(self.selected_computers[k] if k in self.selected_computers else False) for k in self.master.clients}
                 self.selected_computers.clear()
                 self.selected_computers |= new_vals
             imgui.begin_child("##computer_list_frame", size=(0,-imgui.get_frame_height_with_spacing()), window_flags=imgui.WindowFlags_.horizontal_scrollbar)

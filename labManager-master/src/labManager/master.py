@@ -8,39 +8,66 @@ import json
 import pathlib
 import unicodedata
 from typing import Callable
+from dataclasses import dataclass, field
 
 from labManager.common import async_thread, config, eye_tracker, message, structs, task
 from labManager.common.network import admin_conn, comms, ifs, keepalive, smb, ssdp, toems
+
+
+@dataclass
+class ConnectedClient:
+    writer          : asyncio.streams.StreamWriter
+
+    host            : str                   = None
+    port            : int                   = None
+    image_info      : dict[str,str]         = None
+    eye_tracker     : eye_tracker           = None
+
+    tasks           : dict[int, task.Task]  = field(default_factory=lambda: {})
+    et_events       : list[dict]            = field(default_factory=lambda: [])
+    mounted_shares  : dict[str,str]         = field(default_factory=lambda: {})
+
+    def __post_init__(self):
+        self.host,self.port = self.writer.get_extra_info('peername')
+
+    def __repr__(self):
+        return f'{self.name}@{self.host}:{self.port}'
+
+    def cleanup(self):
+        # clear all project-specific state
+        self.tasks          = {}
+        self.et_events      = []
+        self.mounted_shares = {}
 
 class Master:
     def __init__(self):
         ### user interface
         # credentials
-        self.username: str              = None
-        self.password: str              = None
+        self.username           : str                           = None
+        self.password           : str                           = None
         # all projects user has access to and selected project
-        self.projects: dict[str, str]   = {}
-        self.project:  str              = None
-        self.has_share_access           = False
+        self.projects           : dict[str, str]                = {}
+        self.project            : str                           = None
+        self.has_share_access   : bool                          = False
 
         # connections to servers
-        self.admin:    admin_conn.Client= None
-        self.toems:    toems.Client     = None
+        self.admin              : admin_conn.Client             = None
+        self.toems              : toems.Client                  = None
 
         # servers
-        self.address:  str              = None
-        self.server:   str              = None
-        self.ssdp_server: ssdp.Server   = None
+        self.address            : str                           = None
+        self.server             : str                           = None
+        self.ssdp_server        : ssdp.Server                   = None
 
-        self.clients: dict[int, structs.Client] = {}
-        self.clients_lock = threading.Lock()
-        self.known_clients: dict[int, structs.KnownClient] = {}
-        self.known_clients_lock = threading.Lock()
-        self.client_et_events: dict[int, list[dict]] = {}
-        self.remove_client_hook: Callable = None
+        self.clients            : dict[int, structs.Client]     = {}
+        self.clients_lock       : threading.Lock                = threading.Lock()
+        self.client_disconnected_hook: \
+                                  Callable[[ConnectedClient, int], None] = None
+        self._known_clients     : list[dict[str,str|list[str]]] = []
 
-        self.task_groups: dict[int, task.TaskGroup] = {}
-        self.task_state_change_hook: Callable = None
+        self.task_groups        : dict[int, task.TaskGroup]     = {}
+        self.task_state_change_hook: \
+                                  Callable[[ConnectedClient, int, task.Task], None] = None
 
         self._file_action_id_provider = structs.CounterContext()
 
@@ -119,13 +146,14 @@ class Master:
         self.toems = None
         self.project = None
         self.has_share_access = False
-        self.unmount_client_shares()
+        self.unmount_client_shares(drives=[config.master['SMB']['mount_share_on_client']])
         if self.admin is not None:
             self.admin.unset_project()
         self.task_groups.clear()
-        self.client_et_events.clear()
         with self.clients_lock:
-            self.clients.clear()
+            for c in self.clients:
+                if self.clients[c].online:
+                    self.clients[c].online.cleanup()
 
 
     async def start_server(self, local_addr: tuple[str,int]=None, start_ssdp_advertise=True):
@@ -151,7 +179,8 @@ class Master:
                 address=local_addr[0],
                 host_ip_port=self.address[0],
                 usn="humlab-b055-master::"+config.master['SSDP']['device_type'],
-                device_type=config.master['SSDP']['device_type'])
+                device_type=config.master['SSDP']['device_type'],
+                allow_loopback=True)
             await self.ssdp_server.start()  # start listening to requests and respond with info about where we are
             await self.ssdp_server.send_notification()  # send one notification upon startup
 
@@ -164,11 +193,12 @@ class Master:
 
         with self.clients_lock:
             for c in self.clients:
-                try:
-                    self.clients[c].writer.close()
-                except:
-                    pass
-            close_waiters = [asyncio.create_task(self.clients[c].writer.wait_closed()) for c in self.clients]
+                if self.clients[c].online:
+                    try:
+                        self.clients[c].online.writer.close()
+                    except:
+                        pass
+                close_waiters = [asyncio.create_task(self.clients[c].online.writer.wait_closed()) for c in self.clients if self.clients[c].online]
         if close_waiters:
             await asyncio.wait(close_waiters)
 
@@ -180,8 +210,8 @@ class Master:
     async def _handle_client(self, reader: asyncio.streams.StreamReader, writer: asyncio.streams.StreamWriter):
         keepalive.set(writer.get_extra_info('socket'))
 
-        me = structs.Client(writer)
-        self._add_client(me)
+        me = ConnectedClient(writer)
+        id = None
 
         # request info about client
         await comms.typed_send(writer, message.Message.IDENTIFY)
@@ -200,16 +230,14 @@ class Master:
                     case message.Message.QUIT:
                         break
                     case message.Message.IDENTIFY:
-                        me.name = msg['name']
-                        me.MACs = msg['MACs']
                         if 'image_info' in msg:
                             me.image_info = msg['image_info']
-                        self._find_or_add_known_client(me)
+                        id = self._client_connected(me, msg['name'], msg['MACs'])
 
                         # if wanted and available, tell client to mount project share as drive
                         if self.has_share_access and config.master['SMB']['mount_share_on_client']:
                             # check if we're allowed to issue mount command to this client
-                            if (config.master['SMB']['mount_only_known_clients'] and me.known_client.configured) or not config.master['SMB']['mount_only_known_clients']:
+                            if (config.master['SMB']['mount_only_known_clients'] and self.clients[id].known) or not config.master['SMB']['mount_only_known_clients']:
                                 domain, user = smb.get_domain_username(self.admin.user['full_name'], config.master["SMB"]["domain"])
                                 request = {
                                     'drive': config.master['SMB']['mount_drive_letter'],
@@ -218,6 +246,7 @@ class Master:
                                     'password': self.password
                                     }
                                 await comms.typed_send(writer, message.Message.SHARE_MOUNT, request)
+                                me.mounted_shares[request['drive']] = request['share_path']
 
                     case message.Message.ET_STATUS_INFORM:
                         if not me.eye_tracker:
@@ -231,13 +260,13 @@ class Master:
                             await comms.typed_send(writer, message.Message.ET_ATTR_REQUEST, '*')
                         # if timestamped, store as event
                         if 'timestamp' in msg:
-                            self.client_et_events[me.id].append(msg)
+                            me.et_events.append(msg)
                     case message.Message.ET_EVENT:
                         if not me.eye_tracker:
                             continue
                         # if timestamped, store as event
                         if 'timestamp' in msg:
-                            self.client_et_events[me.id].append(msg)
+                            me.et_events.append(msg)
                     case message.Message.ET_ATTR_UPDATE:
                         if not me.eye_tracker or not msg:
                             continue
@@ -246,7 +275,7 @@ class Master:
                             eye_tracker.update_attributes(me.eye_tracker, msg['attributes'])
                         # if timestamped, store as event
                         if 'timestamp' in msg:
-                            self.client_et_events[me.id].append(msg)
+                            me.et_events.append(msg)
 
                     case message.Message.TASK_OUTPUT:
                         mytask = me.tasks[msg['task_id']]
@@ -259,7 +288,7 @@ class Master:
                         if 'return_code' in msg:
                             mytask.return_code = msg['return_code']
                         if status_change and self.task_state_change_hook:
-                            self.task_state_change_hook(me, mytask)
+                            self.task_state_change_hook(me, id, mytask)
 
                     case _:
                         print(f'got unhandled type {msg_type.value}, message: {msg}')
@@ -269,93 +298,95 @@ class Master:
                 print("".join(tb_lines))
                 continue
 
-        self.unmount_client_shares(me.writer)
+        self.unmount_client_shares(client=me)
         writer.close()
         me.writer = None
 
-        # remove from client list
-        self._remove_client(me)
+        # remove online client instance
+        self._client_disconnected(me, id)
 
-
-    def _add_client(self, client: structs.Client):
-        with self.clients_lock:
-            self.clients[client.id] = client
-            self.client_et_events[client.id] = []
-
-    def _remove_client(self, client: structs.Client):
-        if self.remove_client_hook:
-            self.remove_client_hook(client)
-        self._remove_known_client(client)
-        with self.clients_lock:
-            if client.id in self.clients:
-                del self.clients[client.id]
-            if client.id in self.client_et_events:
-                del self.client_et_events[client.id]
 
     def load_known_clients(self, known_clients: list[dict[str,str|list[str]]] = None):
         if not known_clients:
             known_clients = config.master['clients']
-        with self.known_clients_lock:
-            for client in known_clients:
-                kc = structs.KnownClient(client['name'], client['MAC'], configured=True)
-                self.known_clients[kc.id] = kc
+        self._known_clients = known_clients
 
-    def _find_or_add_known_client(self, client: structs.Client):
-        with self.known_clients_lock:
-            for id in self.known_clients:
-                for m in self.known_clients[id].MAC:
-                    if m in client.MACs:
-                        client.known_client = self.known_clients[id]
-                        self.known_clients[id].client = client
-                        return True # known client
+        with self.clients_lock:
+            # first remove clients that are not online and not in the new known_clients
+            names = [client['name'] for client in self._known_clients]
+            self.clients = {c:v for c,v in self.clients if v.name in names}
+
+            # add clients that we don't know yet (assume unique names)
+            names = [self.clients[c].name for c in self.clients]
+            for client in self._known_clients:
+                if client['name'] in names:
+                    continue
+                client = structs.Client(client['name'], client['MAC'], known=True)
+                self.clients[client.id] = client
+
+    def _client_connected(self, client: ConnectedClient, name, MACs):
+        with self.clients_lock:
+            for c in self.clients:
+                if self.clients[c].name != name:
+                    continue
+                for m in self.clients[c].MACs:
+                    if m in MACs:
+                        # known client, registrer online instance to it
+                        self.clients[c].online = client
+                        return self.clients[c].id # we're done
 
             # client not known, add
-            kc = structs.KnownClient(client.name, client.MACs, client=client)
-            self.known_clients[kc.id] = kc
-            client.known_client = self.known_clients[kc.id]
-            return False    # unknown client
+            c = structs.Client(name, MACs, online=client)
+            self.clients[c.id] = c
+            return c.id
 
-    def _remove_known_client(self, client: structs.Client):
-        if client.known_client:
-            client.known_client.client = None
-            # if not a preconfigured known client, remove from list so that if this one reconnects, its not falsely listed as known
-            if not client.known_client.configured:
-                with self.known_clients_lock:
-                    if client.known_client.id in self.known_clients:
-                        del self.known_clients[client.known_client.id]
-        client.known_client = None
+    def _client_disconnected(self, client: ConnectedClient, id: int):
+        if self.client_disconnected_hook:
+            self.client_disconnected_hook(client, id)
+        if id in self.clients:
+            self.clients[id].online = None
+            # if not a known client, remove from self.clients
+            if not self.clients[id].known:
+                with self.clients_lock:
+                    del self.clients[id]
 
 
     async def broadcast(self, type: message.Message, message: str=''):
         with self.clients_lock:
-            coros = [comms.typed_send(self.clients[c].writer, type, message) for c in self.clients]
+            coros = [comms.typed_send(self.clients[c].online.writer, type, message) for c in self.clients if self.clients[c].online]
         await asyncio.gather(*coros)
 
-    def unmount_client_shares(self, writer: asyncio.streams.StreamWriter=None):
-        if not writer or not writer.is_closing() or not async_thread.loop or not async_thread.loop.is_running:
+    def unmount_client_shares(self, client: ConnectedClient = None, drives: list[str] = None):
+        if (client and (not client.writer or not client.writer.is_closing())) or not async_thread.loop or not async_thread.loop.is_running:
             return
-        if config.master['SMB']['mount_share_on_client']:
-            request = {'drive': config.master['SMB']['mount_drive_letter']}
-            if writer is not None:
-                coro = comms.typed_send(writer, message.Message.SHARE_UNMOUNT, request)
+        all_drives = set()
+        if drives:
+            all_drives.update(drives)
+        if client:
+            all_drives.update(client.mounted_shares.keys())
+        coros = []
+        for drive in all_drives:
+            request = {'drive': drive}
+            if client and client.writer:
+                coros.append(comms.typed_send(client.writer, message.Message.SHARE_UNMOUNT, request))
             else:
-                coro = self.broadcast(message.Message.SHARE_UNMOUNT, request)
-            async_thread.run(coro)
+                coros.append(self.broadcast(message.Message.SHARE_UNMOUNT, request))
+        async_thread.run(asyncio.wait(coros))
 
     async def run_task(self,
                        type: task.Type,
                        payload: str,
-                       known_clients: list[int] | str,
+                       clients: list[int] | str,
                        payload_type='text',
                        cwd: str=None,
                        env: dict=None,
                        interactive=False,
                        python_unbuf=False):
         # clients has a special value '*' which means all clients
-        if known_clients=='*':
-            with self.known_clients_lock:
-                known_clients = [c for c in self.known_clients]
-        if not known_clients:
+        if clients=='*':
+            with self.clients_lock:
+                clients = [c for c in self.clients]
+        if not clients:
             # nothing to do
             return
 
@@ -367,7 +398,7 @@ class Master:
                 payload = await aiopath.AsyncPath(payload).read_text()
 
         # make task group
-        task_group, launch_group = task.create_group(type, payload, known_clients, cwd=cwd, env=env, interactive=interactive, python_unbuf=python_unbuf)
+        task_group, launch_group = task.create_group(type, payload, clients, cwd=cwd, env=env, interactive=interactive, python_unbuf=python_unbuf)
         self.task_groups[task_group.id] = task_group
 
         # start tasks
@@ -375,13 +406,13 @@ class Master:
         for c in task_group.task_refs:  # NB: index is client ID
             mytask = task_group.task_refs[c]
             # add to client task list
-            if self.known_clients[c].client:
-                self.known_clients[c].client.tasks[mytask.id] = mytask
+            if self.clients[c].online:
+                self.clients[c].online.tasks[mytask.id] = mytask
             if not launch_group:
                 # send
-                coros.append(task.send(mytask, self.known_clients[c]))
+                coros.append(task.send(mytask, self.clients[c]))
         if launch_group:
-            coros.append(task.send(task_group, self.known_clients))
+            coros.append(task.send(task_group, self.clients))
 
         await asyncio.gather(*coros)
 
@@ -390,15 +421,15 @@ class Master:
 
 
     async def get_client_drives(self, client: structs.Client):
-        await comms.typed_send(client.writer, message.Message.FILE_GET_DRIVES)
+        await comms.typed_send(client.online.writer, message.Message.FILE_GET_DRIVES)
 
     async def get_client_file_listing(self, client: structs.Client, path: str|pathlib.Path):
-        await comms.typed_send(client.writer, message.Message.FILE_GET_LISTING,
+        await comms.typed_send(client.online.writer, message.Message.FILE_GET_LISTING,
                                {'path': path})
 
     async def get_client_remote_shares(self, client: structs.Client, net_name: str, user: str = 'Guest', password: str = '', domain: str = '', access_level: smb.AccessLevel = smb.AccessLevel.READ):
         # list shares on specified target machine that are accessible from this client
-        await comms.typed_send(client.writer, message.Message.FILE_GET_SHARES,
+        await comms.typed_send(client.online.writer, message.Message.FILE_GET_SHARES,
                                {'net_name': net_name,
                                 'user': user,
                                 'password': password,
@@ -407,7 +438,7 @@ class Master:
 
     async def _make_client_file_folder(self, client: structs.Client, path: str|pathlib.Path, is_dir: bool):
         id = self._file_action_id_provider.get_next()
-        await comms.typed_send(client.writer, message.Message.FILE_MAKE,
+        await comms.typed_send(client.online.writer, message.Message.FILE_MAKE,
                                {'path': path,
                                 'is_dir': is_dir,
                                 'action_id': id})
@@ -419,7 +450,7 @@ class Master:
 
     async def rename_client_file_folder(self, client: structs.Client, old_path: str|pathlib.Path, new_path: str|pathlib.Path):
         id = self._file_action_id_provider.get_next()
-        await comms.typed_send(client.writer, message.Message.FILE_RENAME,
+        await comms.typed_send(client.online.writer, message.Message.FILE_RENAME,
                                {'old_path': old_path,
                                 'new_path': new_path,
                                 'action_id': id})
@@ -427,7 +458,7 @@ class Master:
 
     async def _copy_move_client_file_folder(self, client: structs.Client, source_path: str|pathlib.Path, dest_path: str|pathlib.Path, is_move: bool):
         id = self._file_action_id_provider.get_next()
-        await comms.typed_send(client.writer, message.Message.FILE_COPY_MOVE,
+        await comms.typed_send(client.online.writer, message.Message.FILE_COPY_MOVE,
                                {'source_path': source_path,
                                 'dest_path': dest_path,
                                 'is_move': is_move,
@@ -440,7 +471,7 @@ class Master:
 
     async def delete_client_file_folder(self, client: structs.Client, path: str|pathlib.Path):
         id = self._file_action_id_provider.get_next()
-        await comms.typed_send(client.writer, message.Message.FILE_DELETE,
+        await comms.typed_send(client.online.writer, message.Message.FILE_DELETE,
                                {'path': path,
                                 'action_id': id})
         return id

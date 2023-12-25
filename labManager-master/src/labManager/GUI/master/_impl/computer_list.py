@@ -6,7 +6,7 @@ from . import utils
 
 class ComputerList():
     def __init__(self,
-                 items: dict[int, structs.KnownClient],
+                 items: dict[int, structs.Client],
         selected_items: dict[int, bool],
         info_callback: Callable = None):
 
@@ -222,9 +222,9 @@ class ComputerList():
             imgui.end_popup()
         return right_clicked
 
-    def _draw_computer_info(self, client: structs.KnownClient):
-        is_online = client.client is not None
-        et_is_on  = is_online and client.client.eye_tracker is not None and client.client.eye_tracker.online
+    def _draw_computer_info(self, client: structs.Client):
+        is_online = client.online is not None
+        et_is_on  = is_online and client.online.eye_tracker is not None and client.online.eye_tracker.online
         prepend = icons_fontawesome.ICON_FA_EYE
         clrs = []
         if is_online:
@@ -239,7 +239,7 @@ class ComputerList():
         # eye tracker
         imgui.text_colored(clrs[0], prepend[0]+' ')
         if et_is_on and imgui.is_item_hovered():
-            et = client.client.eye_tracker
+            et = client.online.eye_tracker
             info = f'{et.model} @ {et.frequency:.0f}Hz\n({et.firmware_version}, {et.serial})'
             utils.draw_tooltip(info)
         imgui.same_line()
@@ -250,9 +250,9 @@ class ComputerList():
         # name
         imgui.text(client.name)
         imgui.end_group()
-        if client.client and imgui.is_item_hovered():
-            info = f'{client.client.host}:{client.client.port}'
-            image_info = client.client.image_info
+        if client.online and imgui.is_item_hovered():
+            info = f'{client.online.host}:{client.online.port}'
+            image_info = client.online.image_info
             if not image_info:
                 info += '\nimage: unknown'
             else:
@@ -285,7 +285,7 @@ class ComputerList():
             for sort_spec in reversed(sort_specs):
                 match sort_spec.column_index:
                     case 2:     # IP
-                        key = lambda id: self.items[id].client.host if self.items[id].client else "zzz" # sort last if not found
+                        key = lambda id: self.items[id].online.host if self.items[id].online else "zzz" # sort last if not online
                     case _:     # Name and all others
                         key = lambda id: self.items[id].name.lower()
                 ids.sort(key=key, reverse=bool(sort_spec.get_sort_direction() - 1))

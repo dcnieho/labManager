@@ -8,7 +8,6 @@ import traceback
 import sys
 from enum import auto
 from dataclasses import dataclass, field
-from typing import Dict, List
 
 from . import enum_helper, message, structs
 from .network import comms, wol
@@ -54,7 +53,7 @@ class Task:
     id          : int = None
     status      : Status = Status.Not_started
 
-    known_client: int = None
+    client      : int = None
     task_group_id: int = None
 
     # when running, client starts sending back stdout and stderr as they become available. Buffer to store them in:
@@ -88,7 +87,7 @@ class TaskGroup:
     id          : int = None
 
     # references to tasks belonging to this group, indexed by client name
-    task_refs   : Dict[int, Task]  = field(default_factory=lambda: {})
+    task_refs   : dict[int, Task]  = field(default_factory=lambda: {})
 
     num_finished: int = 0
     status      : Status = Status.Not_started   # running when any task has started, error when any has errored, finished when all finished successfully
@@ -278,11 +277,11 @@ class Executor:
                 {'task_id': id, 'status': Status.Errored}
             )
 
-async def send(task: Task|TaskGroup, known_client):
+async def send(task: Task|TaskGroup, client: list[structs.Client]|structs.Client):
     if isinstance(task, TaskGroup):
         if task.type==Type.Wake_on_LAN:
             if task.task_refs:
-                MACs = [known_client[task.task_refs[i].known_client].MAC for i in task.task_refs if task.task_refs[i].known_client in known_client]
+                MACs = [client[task.task_refs[i].client].MACs for i in task.task_refs if task.task_refs[i].client in client]
                 MACs = [m for mac in MACs for m in mac]
                 await wol.send_magic_packet(*MACs)
                 for _,t in task.task_refs.items():
@@ -291,11 +290,11 @@ async def send(task: Task|TaskGroup, known_client):
             raise RuntimeError(f'API usage error: Task type {task.Type.value} cannot be launched as a group at once. Do this only if the second return argument of task.create_group() is True')
     else:
         if task.type==Type.Wake_on_LAN:
-            await wol.send_magic_packet(*known_client.MAC)
+            await wol.send_magic_packet(*client.MACs)
             task.status = Status.Finished   # This task is finished once its sent
-        elif known_client.client:
+        elif client.online:
             await comms.typed_send(
-                known_client.client.writer,
+                client.online.writer,
                 message.Message.TASK_CREATE,
                 {
                     'task_id': task.id,
@@ -308,10 +307,10 @@ async def send(task: Task|TaskGroup, known_client):
                 }
             )
 
-async def send_input(payload, known_client, task: Task):
-    if known_client.client:
+async def send_input(payload, client, task: Task):
+    if client.online:
         await comms.typed_send(
-            known_client.client.writer,
+            client.online.writer,
             message.Message.TASK_INPUT,
             {
                 'task_id': task.id,
@@ -319,23 +318,23 @@ async def send_input(payload, known_client, task: Task):
             }
         )
 
-async def send_cancel(known_client, task: Task):
-    if known_client.client:
+async def send_cancel(client, task: Task):
+    if client.online:
         await comms.typed_send(
-            known_client.client.writer,
+            client.online.writer,
             message.Message.TASK_CANCEL,
             {
                 'task_id': task.id,
             }
         )
 
-def create_group(type: Type, payload: str, known_clients: List[int], cwd: str=None, env: dict=None, interactive=False, python_unbuf=False) -> TaskGroup:
+def create_group(type: Type, payload: str, clients: list[int], cwd: str=None, env: dict=None, interactive=False, python_unbuf=False) -> TaskGroup:
     task_group = TaskGroup(type, payload)
 
     # make individual tasks
-    for c in known_clients:
+    for c in clients:
         # create task
-        task = Task(type, payload, cwd=cwd, env=env, interactive=interactive, python_unbuf=python_unbuf, known_client=c, task_group_id=task_group.id)
+        task = Task(type, payload, cwd=cwd, env=env, interactive=interactive, python_unbuf=python_unbuf, client=c, task_group_id=task_group.id)
         # add to task group
         task_group.task_refs[c] = task
 

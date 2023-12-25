@@ -1,7 +1,5 @@
-import asyncio
 import pathlib
-from dataclasses import dataclass, field
-from typing import Dict, List
+from dataclasses import dataclass
 
 
 class CounterContext:
@@ -24,51 +22,24 @@ class CounterContext:
         return self.count
 
 
+
 _client_id_provider = CounterContext()
 @dataclass
 class Client:
-    writer  : asyncio.streams.StreamWriter
+    name        : str
+    MACs        : list[str]
+    id          : int = None
+    known       : bool = False
 
-    id      : int = None
-    host    : str = None
-    port    : int = None
-    MACs    : List[str] = None
-    name    : str = None
-    image_info: Dict[str,str] = None
-    eye_tracker : 'labManager.common.eye_tracker.EyeTracker' = None
-
-    known_client: 'KnownClient' = None
-
-    tasks   : Dict[int, 'labManager.common.task.Task'] = field(default_factory=lambda: {})
+    online      : 'labManager.master.ConnectedClient' = None
 
     def __post_init__(self):
         global _client_id_provider
         with _client_id_provider:
             self.id = _client_id_provider.count
 
-        self.host,self.port = self.writer.get_extra_info('peername')
-
     def __repr__(self):
-        return f'{self.name}@{self.host}:{self.port}'
-
-
-_known_client_id_provider = CounterContext()
-@dataclass
-class KnownClient:
-    name        : str
-    MAC         : List[str]
-    id          : int = None
-    configured  : bool = False
-
-    client      : Client = None
-
-    def __post_init__(self):
-        global _known_client_id_provider
-        with _known_client_id_provider:
-            self.id = _known_client_id_provider.count
-
-    def __repr__(self):
-        return f'{self.name}@{self.MAC}, {"" if self.client else "not "}connected'
+        return f'{self.name}@{self.MACs}, {"" if self.online else "not "}connected'
 
 @dataclass
 class DirEntry:

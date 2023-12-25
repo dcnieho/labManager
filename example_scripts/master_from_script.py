@@ -19,9 +19,9 @@ async def run():
     # print some info about each client
     with master.clients_lock:
         for c in master.clients:
-            print(master.clients[c].host)
-            if master.clients[c].eye_tracker and master.clients[c].eye_tracker.online:
-                print(f'  eye tracker: {master.clients[c].eye_tracker.model}')
+            print(master.clients[c].online.host)
+            if master.clients[c].online.eye_tracker and master.clients[c].online.eye_tracker.online:
+                print(f'  eye tracker: {master.clients[c].online.eye_tracker.model}')
 
     # start a task on all clients
     tg_id, _ = await master.run_task(labManager.common.task.Type.Shell_command, 'ping 8.8.8.8', '*')
@@ -32,7 +32,7 @@ async def run():
         await asyncio.sleep(.5)
 
     # print output of first task
-    print(f'ran "{tasks[0].payload}" on {master.clients[c].host} which finished with exit code {tasks[0].return_code}, got:')
+    print(f'ran "{tasks[0].payload}" on {master.clients[c].online.host} which finished with exit code {tasks[0].return_code}, got:')
     print(tasks[0].output)
 
     # clean up
