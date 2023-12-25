@@ -22,6 +22,7 @@ class SMBHandler:
         self.domain = domain
         # NB: don't store password
 
+        self.smb_client = None  # so field exists if below line fails (e.g. host cannot be found)
         self.smb_client = smbconnection.SMBConnection(remoteName='*SMBSERVER', remoteHost=self.server)
         self.smb_client.login(self.username, password, self.domain)
 
