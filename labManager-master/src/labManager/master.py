@@ -95,9 +95,10 @@ class Master:
         self.admin.set_project(project)
 
         # check SMB access
-        shares = smb.get_shares(config.master["SMB"]["server"],
-                                self.admin.user['full_name'], self.password, config.master["SMB"]["domain"],
-                                check_access=True, matching=config.master["SMB"]["projects"]["format"], remove_trailing=config.master["SMB"]["projects"]["remove_trailing"], contains=project)
+        shares = await smb.get_shares(config.master["SMB"]["server"],
+                                      self.admin.user['full_name'], self.password, config.master["SMB"]["domain"],
+                                      check_access_level=smb.AccessLevel.READ|smb.AccessLevel.WRITE|smb.AccessLevel.DELETE, matching=config.master["SMB"]["projects"]["format"], contains=project,
+                                      remove_trailing=config.master["SMB"]["projects"]["remove_trailing"])
         self.has_share_access = project in shares
 
         # log into toems server

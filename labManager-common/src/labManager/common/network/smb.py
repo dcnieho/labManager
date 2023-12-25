@@ -1,92 +1,86 @@
-from ..impacket import smbconnection  as smbconnection
-from ..impacket.dcerpc.v5 import srvs as dcerpc_v5_srvs
-from ..impacket import smb3structs    as smb3structs
-# provide labManager.common.network.smb.SessionError:
-from ..impacket.smbconnection import SessionError as SessionError
+import enum
+
+from aiosmb.commons.connection.factory import SMBConnectionFactory
+from aiosmb.commons.interfaces.machine import SMBMachine
+from aiosmb.commons.connection.target import SMBTarget
+from aiosmb.wintypes.access_mask import FileAccessMask
+
+class AccessLevel(enum.IntFlag):
+    READ = enum.auto()
+    WRITE = enum.auto()
+    DELETE = enum.auto()
 
 
-def _check_access(flags: int):
-    # flags is a FilePipePrinterAccessMask
-    return bool(
-        # these flags are a bit arbitrary, but this seems like pretty complete access, good enough
-        (flags & smb3structs.DELETE) and
-        (flags & smb3structs.FILE_READ_DATA) and
-        (flags & smb3structs.FILE_WRITE_DATA) and
-        (flags & smb3structs.FILE_EXECUTE)
-    )
+def _check_access(flags: FileAccessMask, level: AccessLevel):
+    if not flags:
+        return False
 
-class SMBHandler:
-    def __init__(self, server, username, domain, password):
-        self.server = server
-        self.username = username
-        self.domain = domain
-        # NB: don't store password
-
-        self.smb_client = None  # so field exists if below line fails (e.g. host cannot be found)
-        self.smb_client = smbconnection.SMBConnection(remoteName='*SMBSERVER', remoteHost=self.server)
-        self.smb_client.login(self.username, password, self.domain)
-
-    def list_shares(self, check_access=True, matching='', remove_trailing='', contains=None):
-        # get all shares on the server
-        all_shares = self.smb_client.listShares()
-
-        # prep regex for selecting shares of interest
-        if matching:
-            import re
-            r = re.compile(matching)
-
-        out = []
-        for i in range(len(all_shares)):
-            share = all_shares[i]['shi1_netname'][:-1]  # remove NULL string terminator
-            if all_shares[i]['shi1_type'] & dcerpc_v5_srvs.STYPE_SPECIAL:
-                # skip administrative shares such as ADMIN$, IPC$, C$, etc
-                continue
-
-            # check if share name matches format we're interested in
-            if matching:
-                if not r.match(share):
-                    continue
-
-            if contains and contains not in share:
-                continue
-
-            if check_access:
-                # connect to the share so we can read the user's access rights
-                tid = self.smb_client.connectTree(share)
-                access_flags = self.smb_client._SMBConnection._Session['TreeConnectTable'][share]['MaximalAccess']
-                self.smb_client.disconnectTree(tid)
-
-                # check if we have access
-                if _check_access(access_flags):
-                    out.append(share)
-            else:
-                out.append(share)
-
-            # remove trailing stuff from share name
-            if remove_trailing:
-                for i,s in enumerate(out):
-                    if s.endswith(remove_trailing):
-                        out[i] = out[i][:-len(remove_trailing)]
-
-        return out
-
-    def close(self):
-        if self.smb_client:
-            self.smb_client.close()
-
-    def __del__(self):
-        self.close()
+    access = True
+    if AccessLevel.READ in level:
+        access &= (
+        FileAccessMask.FILE_READ_DATA in flags and
+        FileAccessMask.FILE_READ_ATTRIBUTES in flags and
+        FileAccessMask.FILE_READ_EA in flags and
+        FileAccessMask.READ_CONTROL in flags
+        )
+    if AccessLevel.WRITE in level:
+        access &= (
+        FileAccessMask.FILE_WRITE_DATA in flags and
+        FileAccessMask.FILE_APPEND_DATA in flags and
+        FileAccessMask.FILE_WRITE_ATTRIBUTES in flags and
+        FileAccessMask.FILE_WRITE_EA in flags and
+        FileAccessMask.READ_CONTROL in flags
+        )
+    if AccessLevel.DELETE in level:
+        access &= (
+        FileAccessMask.DELETE  in flags
+        )
+    return access
 
 # convenience wrapper
-def get_shares(server: str, user: str, password: str, domain='', check_access=True, matching='', remove_trailing='', contains=None):
+async def get_shares(server: str, user: str, password: str, domain='', check_access_level=None, matching='', contains=None, remove_trailing=''):
+    shares = []
+
     domain, user = get_domain_username(user, domain)
     try:
-        smb_hndl = SMBHandler(server, user, domain, password)
-    except (OSError, SessionError) as exc:
-        print(f'Error connecting using domain "{domain}", user "{user}" to {server}: {exc}')
-        shares = []
-    else:
-        shares = smb_hndl.list_shares(check_access=check_access, matching=matching, remove_trailing=remove_trailing, contains=contains)
+        smb_mgr = SMBConnectionFactory.from_components(server,username=user,secret=password, domain=domain, dialect='smb2')
+        if isinstance(smb_mgr.credential, SMBTarget):
+            # there are versions of aiosmb where these two fields were accidentally reversed, fix
+            smb_mgr.target, smb_mgr.credential = smb_mgr.credential, smb_mgr.target
+        async with (connection:=smb_mgr.get_connection()):
+            _, err = await connection.login()
+            if err is not None:
+                raise err
+
+            # prep regex for selecting shares of interest
+            if matching:
+                import re
+                r = re.compile(matching)
+
+            check_access = check_access_level is not None
+            async for share, err in SMBMachine(connection).list_shares(check_access):
+                # check if share name matches format we're interested in
+                share_name = share.name
+                if matching:
+                    if not r.match(share_name):
+                        continue
+
+                if contains and contains not in share_name:
+                    continue
+
+                # remove trailing stuff from share name
+                if remove_trailing:
+                    if share_name.endswith(remove_trailing):
+                        share_name = share_name[:-len(remove_trailing)]
+
+                if check_access:
+                    # check if we have access
+                    if _check_access(share.maximal_access, check_access_level):
+                        shares.append(share_name)
+                else:
+                    shares.append(share_name)
+    except Exception as exc:
+        print(f'SMB: Error connecting using domain "{domain}", user "{user}" to {server}: {exc}')
 
     return shares
 
