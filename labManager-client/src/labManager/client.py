@@ -329,11 +329,12 @@ class Client:
                         out['action'] = msg_type
 
                         try:
-                            await aiopath.AsyncPath(msg['old_path']).rename(msg['new_path'])
+                            return_path = await aiopath.AsyncPath(msg['old_path']).rename(msg['new_path'])
                         except Exception as exc:
                             out['error'] = exc
                             out['status'] = 'error'
                         else:
+                            out['return_path'] = pathlib.Path(return_path)
                             out['status'] = 'ok'
 
                         await comms.typed_send(writer,
@@ -358,7 +359,7 @@ class Client:
                             out['error'] = exc
                             out['status'] = 'error'
                         else:
-                            out['return_path'] = return_path
+                            out['return_path'] = pathlib.Path(return_path)
                             out['status'] = 'ok'
 
                         await comms.typed_send(writer,
