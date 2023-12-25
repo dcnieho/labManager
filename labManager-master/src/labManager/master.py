@@ -5,6 +5,7 @@ import traceback
 import sys
 import threading
 import json
+import pathlib
 from typing import Callable
 
 from labManager.common import async_thread, config, eye_tracker, message, structs, task
@@ -39,6 +40,8 @@ class Master:
 
         self.task_groups: dict[int, task.TaskGroup] = {}
         self.task_state_change_hook: Callable = None
+
+        self._file_action_id_provider = structs.CounterContext()
 
     def __del__(self):
         # cleanup: logout() takes care of all teardown
@@ -379,6 +382,63 @@ class Master:
 
         # return TaskGroup.id and [Task.id, ...] for all constituent tasks
         return task_group.id, [task_group.task_refs[c].id for c in task_group.task_refs]
+
+
+    async def get_client_drives(self, client: structs.Client):
+        await comms.typed_send(client.writer, message.Message.FILE_GET_DRIVES)
+
+    async def get_client_file_listing(self, client: structs.Client, path: str|pathlib.Path):
+        await comms.typed_send(client.writer, message.Message.FILE_GET_LISTING,
+                               {'path': path})
+
+    async def get_client_remote_shares(self, client: structs.Client, net_name: str, user: str = 'Guest', password: str = '', domain: str = '', access_level: smb.AccessLevel = smb.AccessLevel.READ):
+        # list shares on specified target machine that are accessible from this client
+        await comms.typed_send(client.writer, message.Message.FILE_GET_SHARES,
+                               {'net_name': net_name,
+                                'user': user,
+                                'password': password,
+                                'domain': domain,
+                                'access_level': access_level})
+
+    async def _make_client_file_folder(self, client: structs.Client, path: str|pathlib.Path, is_dir: bool):
+        id = self._file_action_id_provider.get_next()
+        await comms.typed_send(client.writer, message.Message.FILE_MAKE,
+                               {'path': path,
+                                'is_dir': is_dir,
+                                'action_id': id})
+        return id
+    async def make_client_file  (self, client: structs.Client, path: str|pathlib.Path):
+        return await self._make_client_file_folder(client, path, False)
+    async def make_client_folder(self, client: structs.Client, path: str|pathlib.Path):
+        return await self._make_client_file_folder(client, path, True)
+
+    async def rename_client_file_folder(self, client: structs.Client, old_path: str|pathlib.Path, new_path: str|pathlib.Path):
+        id = self._file_action_id_provider.get_next()
+        await comms.typed_send(client.writer, message.Message.FILE_RENAME,
+                               {'old_path': old_path,
+                                'new_path': new_path,
+                                'action_id': id})
+        return id
+
+    async def _copy_move_client_file_folder(self, client: structs.Client, source_path: str|pathlib.Path, dest_path: str|pathlib.Path, is_move: bool):
+        id = self._file_action_id_provider.get_next()
+        await comms.typed_send(client.writer, message.Message.FILE_COPY_MOVE,
+                               {'source_path': source_path,
+                                'dest_path': dest_path,
+                                'is_move': is_move,
+                                'action_id': id})
+        return id
+    async def copy_client_file_folder(self, client: structs.Client, source_path: str|pathlib.Path, dest_path: str|pathlib.Path):
+        return await self._copy_move_client_file_folder(client, source_path, dest_path, False)
+    async def move_client_file_folder(self, client: structs.Client, source_path: str|pathlib.Path, dest_path: str|pathlib.Path):
+        return await self._copy_move_client_file_folder(client, source_path, dest_path, True)
+
+    async def delete_client_file_folder(self, client: structs.Client, path: str|pathlib.Path):
+        id = self._file_action_id_provider.get_next()
+        await comms.typed_send(client.writer, message.Message.FILE_DELETE,
+                               {'path': path,
+                                'action_id': id})
+        return id
 
 
     async def get_computers(self):
