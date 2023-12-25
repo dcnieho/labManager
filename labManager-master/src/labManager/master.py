@@ -384,12 +384,12 @@ class Master:
         # process incoming messages
         while True:
             try:
-                type, msg = await comms.typed_receive(reader)
-                if not type:
+                msg_type, msg = await comms.typed_receive(reader)
+                if not msg_type:
                     # connection broken, close
                     break
 
-                match type:
+                match msg_type:
                     case message.Message.QUIT:
                         break
                     case message.Message.IDENTIFY:
@@ -455,7 +455,7 @@ class Master:
                             self.task_state_change_hook(me, mytask)
 
                     case _:
-                        print(f'got unhandled type {type.value}, message: {msg}')
+                        print(f'got unhandled type {msg_type.value}, message: {msg}')
 
             except Exception as exc:
                 tb_lines = traceback.format_exception(exc)
