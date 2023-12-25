@@ -381,8 +381,7 @@ class Master:
         await comms.typed_send(writer, message.Message.ET_STATUS_REQUEST)
 
         # process incoming messages
-        type = None
-        while type != message.Message.QUIT:
+        while True:
             try:
                 type, msg = await comms.typed_receive(reader)
                 if not type:
@@ -390,6 +389,8 @@ class Master:
                     break
 
                 match type:
+                    case message.Message.QUIT:
+                        break
                     case message.Message.IDENTIFY:
                         me.name = msg['name']
                         me.MACs = msg['MACs']
@@ -438,7 +439,6 @@ class Master:
                         # if timestamped, store as event
                         if 'timestamp' in msg:
                             self.client_et_events[me.id].append(msg)
-
 
                     case message.Message.TASK_OUTPUT:
                         mytask = me.tasks[msg['task_id']]
