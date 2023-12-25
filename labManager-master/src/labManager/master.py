@@ -146,7 +146,7 @@ class Master:
         self.toems = None
         self.project = None
         self.has_share_access = False
-        self.unmount_client_shares(drives=[config.master['SMB']['mount_share_on_client']])
+        self.unmount_client_shares(drives=[config.master['SMB']['mount_drive_letter']])
         if self.admin is not None:
             self.admin.unset_project()
         self.task_groups.clear()
