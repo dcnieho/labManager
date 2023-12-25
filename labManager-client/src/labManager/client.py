@@ -180,6 +180,8 @@ class Client:
         await asyncio.gather(*coros)
 
     def _remove_finished_task(self, m: int, my_task: asyncio.Task):
+        if m not in self.masters:
+            return
         for i,t in enumerate(self.masters[m].task_list):
             if t.async_task.get_name()==my_task.get_name():
                 del self.masters[m].task_list[i]
