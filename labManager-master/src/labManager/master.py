@@ -120,207 +120,6 @@ class Master:
             self.clients.clear()
 
 
-    async def get_computers(self):
-        return await self.toems.computer_get(filter_list=[c['name'] for c in config.master['clients']])
-
-    async def get_images(self):
-        return await self.toems.image_get(project=self.project, project_format=config.master['toems']['images']['format'], name_mapping=config.master['base_image_name_table'] if 'base_image_name_table' in config.master else None)
-
-    async def get_image_size(self, name_or_id: int|str):
-        return await self.toems.image_get_server_size(name_or_id)
-
-    async def get_image_info(self, name_or_id: int|str):
-        image = (await self.toems.image_get(name_or_id))
-
-        # get timestamp last time image was updated
-        im_logs = await self.toems.image_get_audit_log(image['Id'])
-        for l in im_logs:   # NB: logs are sorted newest-first
-            if l['AuditType'] in ['Upload','OndUpload']:
-                upload_info = json.loads(l['ObjectJson'])
-                computer = await self.toems.computer_get(upload_info['ComputerId'])
-                return {
-                    'TimeStamp': l['DateTime'],
-                    'SourceComputer': computer['Name']
-                }
-        return None     # no info found
-
-    async def create_image(self, name: str, description: str|None = None):
-        return await self.admin.create_image(name, description)
-
-    async def update_image(self, name: str, updates):
-        image_id = (await self.toems.image_get(name))['Id']
-        return await self.admin.update_image(image_id, updates)
-
-    async def delete_image(self, name: str):
-        image_id = (await self.toems.image_get(name))['Id']
-        return await self.admin.delete_image(image_id)
-
-    async def deploy_image(self, image: str, part_of_project: bool, computers: list[str]):
-        image_id = (await self.toems.image_get(image))['Id']
-
-        # update image info script
-        if 'image_info_script' in config.master['toems']:
-            im_info = await self.get_image_info(image_id)
-            info = {"name": image}
-            if im_info is None:
-                info['timestamp'] = None
-                info['source_computer'] = None
-            else:
-                info['timestamp'] = im_info['TimeStamp']
-                info['source_computer'] = im_info['SourceComputer']
-            if part_of_project:
-                info['project'] = self.project
-            script = toems.make_info_script(info, config.master['toems']['image_info_script_partition'])
-            resp = await self.admin.image_set_script(image_id, config.master['toems']['image_info_script'], script, priority=1, run_when=3)
-            if not resp['Success']:
-                raise RuntimeError(f"can't deploy: failed to set image info script ({resp['ErrorMessage']})")
-        if 'pre_upload_script' in config.master['toems']:
-            # if there is a pre-upload script, disable it
-            resp = await self.admin.image_set_script(image_id, config.master['toems']['pre_upload_script'], '', priority=0, run_when=0)
-            if not resp['Success']:
-                raise RuntimeError(f"can't deploy: failed to disable image cleanup script ({resp['ErrorMessage']})")
-
-        if isinstance(computers,str):
-            computers = [computers]
-        comps = await asyncio.gather(*[self.toems.computer_get(c) for c in computers])
-        comp_ids = [c['Id'] for c in comps if c is not None]
-        if not comp_ids:
-            raise RuntimeError(f"can't deploy: the selected computers are not found or not known to Toems")
-        for c in comp_ids:
-            resp = await self.admin.apply_image(image_id, c)
-            if not resp['Success']:
-                raise RuntimeError(f"can't deploy: failed to apply image to computer ({resp['ErrorMessage']})")
-
-        resp = await self.toems.computer_deploy(image_id, comp_ids)
-        if not resp['Success']:
-            raise RuntimeError(f"can't deploy: failed to start task ({resp['ErrorMessage']})")
-
-    async def upload_computer_to_image(self, computer: str, image: str):
-        # we can only ever upload to an image belonging to this project, so check it is a project image
-        if not image.startswith(self.project+'_'):
-            image = self.project+'_'+image
-        im = await self.toems.image_get(image)
-        if im is None:
-            raise RuntimeError(f"can't upload: image with name '{image}' not found")
-        image_id = im['Id']
-
-        comp = await self.toems.computer_get(computer)
-        if comp is None:
-            raise RuntimeError(f"can't upload: computer with name '{computer}' not found or not known to Toems")
-        comp_id  = comp['Id']
-        resp = await self.admin.apply_image(image_id, comp_id)
-        if not resp['Success']:
-            raise RuntimeError(f"can't upload: failed to apply image to computer ({resp['ErrorMessage']})")
-
-        # handle scripts
-        if 'pre_upload_script' in config.master['toems']:
-            # if there is a pre-upload script, enable it
-            resp = await self.admin.image_set_script(image_id, config.master['toems']['pre_upload_script'], '', priority=0, run_when=1)
-            if not resp['Success']:
-                raise RuntimeError(f"can't upload: failed to set image cleanup script ({resp['ErrorMessage']})")
-        if 'image_info_script' in config.master['toems']:
-            # if there is a post-deploy script, disable it
-            resp = await self.admin.image_set_script(image_id, config.master['toems']['image_info_script'], '', priority=1, run_when=0)
-            if not resp['Success']:
-                raise RuntimeError(f"can't upload: failed to unset image info script ({resp['ErrorMessage']})")
-
-        resp = await self.admin.update_image(image_id, {"Protected": False})
-        if resp['Protected']:   # check it worked
-            raise RuntimeError(f"can't upload: failed to unprotect image ({resp['ErrorMessage']})")
-
-        resp = await self.toems.computer_upload(comp_id, image_id)
-        if not resp['Success']:
-            raise RuntimeError(f"can't upload: failed to start task ({resp['ErrorMessage']})")
-
-    async def get_active_imaging_tasks(self, image_id: int|None = None):
-        resp = await self.toems.imaging_tasks_get_active()
-        # info about what image the task concerns is contained in the Computer dict under ImageId
-
-        out = []
-        for r in resp:
-            item = {}
-            item['TaskId'] = r['Id']    # needed for cancelling
-            item['ImageId'] = r['Computer']['ImageId']
-            if image_id is not None and item['ImageId']!=image_id:
-                continue
-            item['ComputerName'] = r['Computer']['Name']
-            item['ComputerId'] = r['ComputerId']
-            item['Type'] = r['Type']
-            item['Status'] = r['Status']
-            item['Partition'] = r['Partition'] if r['Partition'] is not None else ''
-            item['Elapsed'] = r['Elapsed'] if r['Elapsed'] is not None else ''
-            item['Remaining'] = r['Remaining'] if r['Remaining'] is not None else ''
-            item['Completed'] = r['Completed'] if r['Completed'] is not None else ''
-            item['Rate'] = r['Rate'] if r['Rate'] is not None else ''
-            out.append(item)
-
-        return out
-
-    async def delete_active_imaging_task(self, task_id: int):
-        resp = await self.toems.imaging_tasks_delete_active(task_id)
-        if not 'Success' in resp or not resp['Success']:
-            raise RuntimeError(f"can't delete active image task: failed because: {resp['ErrorMessage']}")
-
-
-    def _add_client(self, client: structs.Client):
-        with self.clients_lock:
-            self.clients[client.id] = client
-            self.client_et_events[client.id] = []
-
-    def _remove_client(self, client: structs.Client):
-        if self.remove_client_hook:
-            self.remove_client_hook(client)
-        self._remove_known_client(client)
-        with self.clients_lock:
-            if client.id in self.clients:
-                del self.clients[client.id]
-            if client.id in self.client_et_events:
-                del self.client_et_events[client.id]
-
-    def load_known_clients(self, known_clients: list[dict[str,str|list[str]]] = None):
-        if not known_clients:
-            known_clients = config.master['clients']
-        with self.known_clients_lock:
-            for client in known_clients:
-                kc = structs.KnownClient(client['name'], client['MAC'], configured=True)
-                self.known_clients[kc.id] = kc
-
-    def _find_or_add_known_client(self, client: structs.Client):
-        with self.known_clients_lock:
-            for id in self.known_clients:
-                for m in self.known_clients[id].MAC:
-                    if m in client.MACs:
-                        client.known_client = self.known_clients[id]
-                        self.known_clients[id].client = client
-                        return True # known client
-
-            # client not known, add
-            kc = structs.KnownClient(client.name, client.MACs, client=client)
-            self.known_clients[kc.id] = kc
-            client.known_client = self.known_clients[kc.id]
-            return False    # unknown client
-
-    def _remove_known_client(self, client: structs.Client):
-        if client.known_client:
-            client.known_client.client = None
-            # if not a preconfigured known client, remove from list so that if this one reconnects, its not falsely listed as known
-            if not client.known_client.configured:
-                with self.known_clients_lock:
-                    if client.known_client.id in self.known_clients:
-                        del self.known_clients[client.known_client.id]
-        client.known_client = None
-
-    def unmount_client_shares(self, writer: asyncio.streams.StreamWriter=None):
-        if not writer or not writer.is_closing() or not async_thread.loop or not async_thread.loop.is_running:
-            return
-        if config.master['SMB']['mount_share_on_client']:
-            request = {'drive': config.master['SMB']['mount_drive_letter']}
-            if writer is not None:
-                coro = comms.typed_send(writer, message.Message.SHARE_UNMOUNT, request)
-            else:
-                coro = self.broadcast(message.Message.SHARE_UNMOUNT, request)
-            async_thread.run(coro)
-
     async def start_server(self, local_addr: tuple[str,int]=None, start_ssdp_advertise=True):
         if local_addr is None:
             if_ips,_ = ifs.get_ifaces(config.master['network'])
@@ -469,10 +268,71 @@ class Master:
         # remove from client list
         self._remove_client(me)
 
+
+    def _add_client(self, client: structs.Client):
+        with self.clients_lock:
+            self.clients[client.id] = client
+            self.client_et_events[client.id] = []
+
+    def _remove_client(self, client: structs.Client):
+        if self.remove_client_hook:
+            self.remove_client_hook(client)
+        self._remove_known_client(client)
+        with self.clients_lock:
+            if client.id in self.clients:
+                del self.clients[client.id]
+            if client.id in self.client_et_events:
+                del self.client_et_events[client.id]
+
+    def load_known_clients(self, known_clients: list[dict[str,str|list[str]]] = None):
+        if not known_clients:
+            known_clients = config.master['clients']
+        with self.known_clients_lock:
+            for client in known_clients:
+                kc = structs.KnownClient(client['name'], client['MAC'], configured=True)
+                self.known_clients[kc.id] = kc
+
+    def _find_or_add_known_client(self, client: structs.Client):
+        with self.known_clients_lock:
+            for id in self.known_clients:
+                for m in self.known_clients[id].MAC:
+                    if m in client.MACs:
+                        client.known_client = self.known_clients[id]
+                        self.known_clients[id].client = client
+                        return True # known client
+
+            # client not known, add
+            kc = structs.KnownClient(client.name, client.MACs, client=client)
+            self.known_clients[kc.id] = kc
+            client.known_client = self.known_clients[kc.id]
+            return False    # unknown client
+
+    def _remove_known_client(self, client: structs.Client):
+        if client.known_client:
+            client.known_client.client = None
+            # if not a preconfigured known client, remove from list so that if this one reconnects, its not falsely listed as known
+            if not client.known_client.configured:
+                with self.known_clients_lock:
+                    if client.known_client.id in self.known_clients:
+                        del self.known_clients[client.known_client.id]
+        client.known_client = None
+
+
     async def broadcast(self, type: message.Message, message: str=''):
         with self.clients_lock:
             coros = [comms.typed_send(self.clients[c].writer, type, message) for c in self.clients]
         await asyncio.gather(*coros)
+
+    def unmount_client_shares(self, writer: asyncio.streams.StreamWriter=None):
+        if not writer or not writer.is_closing() or not async_thread.loop or not async_thread.loop.is_running:
+            return
+        if config.master['SMB']['mount_share_on_client']:
+            request = {'drive': config.master['SMB']['mount_drive_letter']}
+            if writer is not None:
+                coro = comms.typed_send(writer, message.Message.SHARE_UNMOUNT, request)
+            else:
+                coro = self.broadcast(message.Message.SHARE_UNMOUNT, request)
+            async_thread.run(coro)
 
     async def run_task(self,
                        type: task.Type,
@@ -519,6 +379,149 @@ class Master:
 
         # return TaskGroup.id and [Task.id, ...] for all constituent tasks
         return task_group.id, [task_group.task_refs[c].id for c in task_group.task_refs]
+
+
+    async def get_computers(self):
+        return await self.toems.computer_get(filter_list=[c['name'] for c in config.master['clients']])
+
+    async def get_images(self):
+        return await self.toems.image_get(project=self.project, project_format=config.master['toems']['images']['format'], name_mapping=config.master['base_image_name_table'] if 'base_image_name_table' in config.master else None)
+
+    async def get_image_size(self, name_or_id: int|str):
+        return await self.toems.image_get_server_size(name_or_id)
+
+    async def get_image_info(self, name_or_id: int|str):
+        image = (await self.toems.image_get(name_or_id))
+
+        # get timestamp last time image was updated
+        im_logs = await self.toems.image_get_audit_log(image['Id'])
+        for l in im_logs:   # NB: logs are sorted newest-first
+            if l['AuditType'] in ['Upload','OndUpload']:
+                upload_info = json.loads(l['ObjectJson'])
+                computer = await self.toems.computer_get(upload_info['ComputerId'])
+                return {
+                    'TimeStamp': l['DateTime'],
+                    'SourceComputer': computer['Name']
+                }
+        return None     # no info found
+
+    async def create_image(self, name: str, description: str|None = None):
+        return await self.admin.create_image(name, description)
+
+    async def update_image(self, name: str, updates):
+        image_id = (await self.toems.image_get(name))['Id']
+        return await self.admin.update_image(image_id, updates)
+
+    async def delete_image(self, name: str):
+        image_id = (await self.toems.image_get(name))['Id']
+        return await self.admin.delete_image(image_id)
+
+    async def deploy_image(self, image: str, part_of_project: bool, computers: list[str]):
+        image_id = (await self.toems.image_get(image))['Id']
+
+        # update image info script
+        if 'image_info_script' in config.master['toems']:
+            im_info = await self.get_image_info(image_id)
+            info = {"name": image}
+            if im_info is None:
+                info['timestamp'] = None
+                info['source_computer'] = None
+            else:
+                info['timestamp'] = im_info['TimeStamp']
+                info['source_computer'] = im_info['SourceComputer']
+            if part_of_project:
+                info['project'] = self.project
+            script = toems.make_info_script(info, config.master['toems']['image_info_script_partition'])
+            resp = await self.admin.image_set_script(image_id, config.master['toems']['image_info_script'], script, priority=1, run_when=3)
+            if not resp['Success']:
+                raise RuntimeError(f"can't deploy: failed to set image info script ({resp['ErrorMessage']})")
+        if 'pre_upload_script' in config.master['toems']:
+            # if there is a pre-upload script, disable it
+            resp = await self.admin.image_set_script(image_id, config.master['toems']['pre_upload_script'], '', priority=0, run_when=0)
+            if not resp['Success']:
+                raise RuntimeError(f"can't deploy: failed to disable image cleanup script ({resp['ErrorMessage']})")
+
+        if isinstance(computers,str):
+            computers = [computers]
+        comps = await asyncio.gather(*[self.toems.computer_get(c) for c in computers])
+        comp_ids = [c['Id'] for c in comps if c is not None]
+        if not comp_ids:
+            raise RuntimeError(f"can't deploy: the selected computers are not found or not known to Toems")
+        for c in comp_ids:
+            resp = await self.admin.apply_image(image_id, c)
+            if not resp['Success']:
+                raise RuntimeError(f"can't deploy: failed to apply image to computer ({resp['ErrorMessage']})")
+
+        resp = await self.toems.computer_deploy(image_id, comp_ids)
+        if not resp['Success']:
+            raise RuntimeError(f"can't deploy: failed to start task ({resp['ErrorMessage']})")
+
+    async def upload_computer_to_image(self, computer: str, image: str):
+        # we can only ever upload to an image belonging to this project, so check it is a project image
+        if not image.startswith(self.project+'_'):
+            image = self.project+'_'+image
+        im = await self.toems.image_get(image)
+        if im is None:
+            raise RuntimeError(f"can't upload: image with name '{image}' not found")
+        image_id = im['Id']
+
+        comp = await self.toems.computer_get(computer)
+        if comp is None:
+            raise RuntimeError(f"can't upload: computer with name '{computer}' not found or not known to Toems")
+        comp_id  = comp['Id']
+        resp = await self.admin.apply_image(image_id, comp_id)
+        if not resp['Success']:
+            raise RuntimeError(f"can't upload: failed to apply image to computer ({resp['ErrorMessage']})")
+
+        # handle scripts
+        if 'pre_upload_script' in config.master['toems']:
+            # if there is a pre-upload script, enable it
+            resp = await self.admin.image_set_script(image_id, config.master['toems']['pre_upload_script'], '', priority=0, run_when=1)
+            if not resp['Success']:
+                raise RuntimeError(f"can't upload: failed to set image cleanup script ({resp['ErrorMessage']})")
+        if 'image_info_script' in config.master['toems']:
+            # if there is a post-deploy script, disable it
+            resp = await self.admin.image_set_script(image_id, config.master['toems']['image_info_script'], '', priority=1, run_when=0)
+            if not resp['Success']:
+                raise RuntimeError(f"can't upload: failed to unset image info script ({resp['ErrorMessage']})")
+
+        resp = await self.admin.update_image(image_id, {"Protected": False})
+        if resp['Protected']:   # check it worked
+            raise RuntimeError(f"can't upload: failed to unprotect image ({resp['ErrorMessage']})")
+
+        resp = await self.toems.computer_upload(comp_id, image_id)
+        if not resp['Success']:
+            raise RuntimeError(f"can't upload: failed to start task ({resp['ErrorMessage']})")
+
+    async def get_active_imaging_tasks(self, image_id: int|None = None):
+        resp = await self.toems.imaging_tasks_get_active()
+        # info about what image the task concerns is contained in the Computer dict under ImageId
+
+        out = []
+        for r in resp:
+            item = {}
+            item['TaskId'] = r['Id']    # needed for cancelling
+            item['ImageId'] = r['Computer']['ImageId']
+            if image_id is not None and item['ImageId']!=image_id:
+                continue
+            item['ComputerName'] = r['Computer']['Name']
+            item['ComputerId'] = r['ComputerId']
+            item['Type'] = r['Type']
+            item['Status'] = r['Status']
+            item['Partition'] = r['Partition'] if r['Partition'] is not None else ''
+            item['Elapsed'] = r['Elapsed'] if r['Elapsed'] is not None else ''
+            item['Remaining'] = r['Remaining'] if r['Remaining'] is not None else ''
+            item['Completed'] = r['Completed'] if r['Completed'] is not None else ''
+            item['Rate'] = r['Rate'] if r['Rate'] is not None else ''
+            out.append(item)
+
+        return out
+
+    async def delete_active_imaging_task(self, task_id: int):
+        resp = await self.toems.imaging_tasks_delete_active(task_id)
+        if not 'Success' in resp or not resp['Success']:
+            raise RuntimeError(f"can't delete active image task: failed because: {resp['ErrorMessage']}")
+
 
 
 def _check_has_GUI():
