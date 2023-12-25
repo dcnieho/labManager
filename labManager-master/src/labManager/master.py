@@ -6,6 +6,7 @@ import sys
 import threading
 import json
 import pathlib
+import unicodedata
 from typing import Callable
 
 from labManager.common import async_thread, config, eye_tracker, message, structs, task
@@ -50,6 +51,10 @@ class Master:
     async def login(self, username: str, password: str):
         # clean up old session, if any
         self.logout()
+
+        # sanitize username and password, control characters mess with ldap
+        username = "".join(ch for ch in username if unicodedata.category(ch)[0]!="C")
+        password = "".join(ch for ch in password if unicodedata.category(ch)[0]!="C")
 
         # check user credentials, and list projects they have access to
         self.admin = admin_conn.Client(config.master['admin']['server'], config.master['admin']['port'])
