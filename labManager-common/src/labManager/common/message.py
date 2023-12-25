@@ -41,6 +41,7 @@ class Message(enum_helper.AutoNameDash):
 class Type(enum_helper.AutoNameDash):
     SIMPLE      = auto()
     JSON        = auto()
+    BINARY      = auto()    # binary message, don't encode() or decode()
 
 type_map = {
     Message.QUIT                : Type.SIMPLE,
