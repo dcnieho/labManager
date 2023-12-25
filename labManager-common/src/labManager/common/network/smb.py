@@ -38,10 +38,11 @@ def _check_access(flags: FileAccessMask, level: AccessLevel):
     return access
 
 # convenience wrapper
-async def get_shares(server: str, user: str, password: str, domain='', check_access_level=None, matching='', contains=None, remove_trailing=''):
+async def get_shares(server: str, user: str, password: str, domain='', check_access_level=None, matching='', contains=None, remove_trailing='', ignored:list[str]=['IPC$']):
     shares = []
 
     domain, user = get_domain_username(user, domain)
+    stage = 1
     try:
         smb_mgr = SMBConnectionFactory.from_components(server,username=user,secret=password, domain=domain, dialect='smb2')
         if isinstance(smb_mgr.credential, SMBTarget):
@@ -58,15 +59,22 @@ async def get_shares(server: str, user: str, password: str, domain='', check_acc
                 r = re.compile(matching)
 
             check_access = check_access_level is not None
-            async for share, err in SMBMachine(connection).list_shares(check_access):
-                # check if share name matches format we're interested in
+            stage = 2
+            async for share, err in SMBMachine(connection).list_shares():
                 share_name = share.name
+
+                # check if share is excluded
+                if share_name in ignored:
+                    continue
+
+                # check if share name contains expected string
+                if contains and contains not in share_name:
+                    continue
+
+                # check if share name matches format we're interested in
                 if matching:
                     if not r.match(share_name):
                         continue
-
-                if contains and contains not in share_name:
-                    continue
 
                 # remove trailing stuff from share name
                 if remove_trailing:
@@ -74,13 +82,21 @@ async def get_shares(server: str, user: str, password: str, domain='', check_acc
                         share_name = share_name[:-len(remove_trailing)]
 
                 if check_access:
+                    _, err = await share.connect(connection)     # connect so the maximal_access field gets filled
+                    if err is not None:
+                        continue    # no access at all
+                    if share.tree_id is not None:
+                        await connection.tree_disconnect(share.tree_id)
                     # check if we have access
                     if _check_access(share.maximal_access, check_access_level):
                         shares.append(share_name)
                 else:
                     shares.append(share_name)
     except Exception as exc:
-        print(f'SMB: Error connecting using domain "{domain}", user "{user}" to {server}: {exc}')
+        if stage==1:
+            print(f'SMB: Error connecting using domain "{domain}", user "{user}" to {server}: {exc}')
+        elif stage==2:
+            print(f'SMB: Error listing shares on server using {server} when connected using domain "{domain}", user "{user}": {exc}')
 
     return shares
 
