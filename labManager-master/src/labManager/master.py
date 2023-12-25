@@ -311,8 +311,8 @@ class Master:
                         del self.known_clients[client.known_client.id]
         client.known_client = None
 
-    def unmount_client_shares(self, writer=None):
-        if not async_thread.loop or not async_thread.loop.is_running:
+    def unmount_client_shares(self, writer: asyncio.streams.StreamWriter=None):
+        if not writer or not writer.is_closing() or not async_thread.loop or not async_thread.loop.is_running:
             return
         if config.master['SMB']['mount_share_on_client']:
             request = {'drive': config.master['SMB']['mount_drive_letter']}
