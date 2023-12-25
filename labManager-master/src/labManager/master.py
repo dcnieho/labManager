@@ -71,7 +71,7 @@ class Master:
 
     async def login(self, username: str, password: str):
         # clean up old session, if any
-        self.logout()
+        await self._logout_async()
 
         # sanitize username and password, control characters mess with ldap
         username = "".join(ch for ch in username if unicodedata.category(ch)[0]!="C")
@@ -86,7 +86,11 @@ class Master:
         self.load_projects()
 
     def logout(self):
-        self.unset_project()
+        if async_thread.loop and async_thread.loop.is_running:
+            async_thread.run(self._logout_async())
+
+    async def _logout_async(self):
+        await self._unset_project_async()
         self.username, self.password = None, None
         self.projects = {}
         self.admin = None
@@ -136,7 +140,10 @@ class Master:
 
     def unset_project(self):
         if async_thread.loop and async_thread.loop.is_running:
-            async_thread.run(self.stop_server())
+            async_thread.run(self._unset_project_async())
+
+    async def _unset_project_async(self):
+        await self.stop_server()
         self.toems = None
         self.project = None
         self.has_share_access = False
