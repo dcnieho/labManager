@@ -35,14 +35,6 @@ Type.Python_module   .doc = 'Call client''s active python.exe (sys.executable) w
 Type.Python_script   .doc = 'Execute Python script with the client''s active python.exe (sys.executable)'
 Type.Wake_on_LAN     .doc = 'Send Wake on LAN command'
 
-@enum_helper.get
-class Status(enum_helper.AutoNameSpace):
-    Not_started     = auto()
-    Running         = auto()
-    Finished        = auto()
-    Errored         = auto()
-statuses = [x.value for x in Status]
-
 _task_id_provider = counter.CounterContext()
 @dataclass
 class Task:
@@ -54,8 +46,8 @@ class Task:
     python_unbuf: bool= False   # if task.Type is Python_module or Python_script, specify whether the -u flag should be passed to run in unbuffered mode
 
     id          : int = None
-    status      : Status    # after https://stackoverflow.com/a/61480946/3103767
-    _status     : Status = field(init=False, repr=False, default=Status.Not_started)
+    status      : structs.Status    # after https://stackoverflow.com/a/61480946/3103767
+    _status     : structs.Status = field(init=False, repr=False, default=structs.Status.Pending)
 
     client      : int = None
     task_group_id: int = None
@@ -73,11 +65,11 @@ class Task:
             self.id = _task_id_provider.count
 
     @property
-    def status(self) -> Status:
+    def status(self) -> structs.Status:
         return self._status
 
     @status.setter
-    def status(self, value: Status) -> None:
+    def status(self, value: structs.Status) -> None:
         if isinstance(value, property):
             # initial value not specified, use default
             self._status = Task._status
@@ -100,7 +92,7 @@ class Task:
         self._listeners.append(callback)
 
     def is_done(self):
-        return self.status in [Status.Finished, Status.Errored]
+        return self.status in [structs.Status.Finished, structs.Status.Errored]
 
 @dataclass
 class RunningTask:
@@ -123,8 +115,8 @@ class TaskGroup:
 
     num_finished: int = 0
     # status: running when any task has started, error when any has errored, finished when all finished successfully
-    status      : Status    # after https://stackoverflow.com/a/61480946/3103767
-    _status     : Status = field(init=False, repr=False, default=Status.Not_started)
+    status      : structs.Status    # after https://stackoverflow.com/a/61480946/3103767
+    _status     : structs.Status = field(init=False, repr=False, default=structs.Status.Pending)
 
     _listeners: list[Callable[[TaskGroup], None]] = field(default_factory=list)
 
@@ -141,26 +133,26 @@ class TaskGroup:
         if tsk.id not in [self.tasks[c].id for c in self.tasks]:
             # task not a part of this task group (shouldn't occur?), nothing to do
             return
-        if tsk.status==Status.Running and self.status!=Status.Running:
-            self.status = Status.Running
+        if tsk.status==structs.Status.Running and self.status!=structs.Status.Running:
+            self.status = structs.Status.Running
 
         # rest of logic is for when the task is finished
         if not tsk.is_done():
             return
         self.num_finished += 1
-        if tsk.status==Status.Errored:
+        if tsk.status==structs.Status.Errored:
             # task group status is errored when any task has errored
-            self.status = Status.Errored
+            self.status = structs.Status.Errored
         elif self.num_finished==len(self.tasks):
             # task group status is finished when all tasks have finished
-            self.status = Status.Finished
+            self.status = structs.Status.Finished
 
     @property
-    def status(self) -> Status:
+    def status(self) -> structs.Status:
         return self._status
 
     @status.setter
-    def status(self, value: Status) -> None:
+    def status(self, value: structs.Status) -> None:
         if isinstance(value, property):
             # initial value not specified, use default
             self._status = TaskGroup._status
@@ -183,7 +175,7 @@ class TaskGroup:
         self._listeners.append(callback)
 
     def is_done(self):
-        return self.status in [Status.Finished, Status.Errored]
+        return self.status in [structs.Status.Finished, structs.Status.Errored]
 
 
 @enum_helper.get
@@ -266,7 +258,7 @@ class Executor:
         await comms.typed_send(
             writer,
             message.Message.TASK_UPDATE,
-            {'task_id': id, 'status': Status.Running}
+            {'task_id': id, 'status': structs.Status.Running}
         )
 
         # listen to output streams and forward to master
@@ -285,7 +277,7 @@ class Executor:
             message.Message.TASK_UPDATE,
             {
                 'task_id': id,
-                'status': Status.Finished if return_code==0 else Status.Errored,
+                'status': structs.Status.Finished if return_code==0 else structs.Status.Errored,
                 'return_code': return_code
             }
         )
@@ -377,7 +369,7 @@ class Executor:
             await comms.typed_send(
                 writer,
                 message.Message.TASK_UPDATE,
-                {'task_id': id, 'status': Status.Errored}
+                {'task_id': id, 'status': structs.Status.Errored}
             )
 
 async def send(task: Task|TaskGroup, client: list[structs.Client]|structs.Client):
@@ -388,13 +380,13 @@ async def send(task: Task|TaskGroup, client: list[structs.Client]|structs.Client
                 MACs = [m for mac in MACs for m in mac]
                 await wol.send_magic_packet(*MACs)
                 for _,t in task.tasks.items():
-                    t.status = Status.Finished  # This task is finished once its sent
+                    t.status = structs.Status.Finished  # This task is finished once its sent
         else:
             raise RuntimeError(f'API usage error: Task type {task.Type.value} cannot be launched as a group at once. Do this only if the second return argument of task.create_group() is True')
     else:
         if task.type==Type.Wake_on_LAN:
             await wol.send_magic_packet(*client.MACs)
-            task.status = Status.Finished   # This task is finished once its sent
+            task.status = structs.Status.Finished   # This task is finished once its sent
         elif client.online:
             await comms.typed_send(
                 client.online.writer,

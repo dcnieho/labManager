@@ -485,7 +485,7 @@ class MainGUI:
 
     def _task_status_changed(self, _, client_id: int, tsk: task.Task):
         key = (client_id, tsk.id)
-        if tsk.status in [task.Status.Finished, task.Status.Errored]:
+        if tsk.status in [structs.Status.Finished, structs.Status.Errored]:
             if key in self._computer_GUI_interactive_tasks:
                 del self._computer_GUI_interactive_tasks[key]
             if key in self._computer_GUI_interactive_sent_finish:
@@ -1092,13 +1092,13 @@ class MainGUI:
                                 hover_text = tsk.type.value+':\n'+tsk.payload
                             # decide button color
                             match tsk.status:
-                                case task.Status.Not_started:
+                                case structs.Status.Pending:
                                     clr = (.5,.5,.5,1.)
-                                case task.Status.Running:
+                                case structs.Status.Running:
                                     clr = (1.,1.,0.,1.)
-                                case task.Status.Finished:
+                                case structs.Status.Finished:
                                     clr = (.0,1.,0.,1.)
-                                case task.Status.Errored:
+                                case structs.Status.Errored:
                                     clr = (1.,.0,.0,1.)
                             alpha = 0.3
                             imgui.push_style_color(imgui.Col_.button,[x*alpha+y*(1-alpha) for x,y in zip(clr,imgui.get_style_color_vec4(imgui.Col_.button))])
@@ -1187,9 +1187,9 @@ class MainGUI:
                     imgui.text(tsk.status.value)
                     if tsk.return_code:
                         imgui.text(f'return code: {tsk.return_code}')
-                    if tsk.status in [task.Status.Not_started, task.Status.Running]:
+                    if tsk.status in [structs.Status.Pending, structs.Status.Running]:
                         imgui.same_line()
-                        if tsk.status==task.Status.Not_started:
+                        if tsk.status==structs.Status.Pending:
                             button_txt = 'Cancel'
                         else:
                             if tsk.interactive and (item.id, tid[1]) not in self._computer_GUI_interactive_sent_finish:
@@ -1228,7 +1228,7 @@ class MainGUI:
                             tid[2] = output_length
                     imgui.pop_font()
                     # if interactive task, add text box for input
-                    if tsk.interactive and tsk.status==task.Status.Running and ((item.id, tid[1]) not in self._computer_GUI_interactive_sent_finish or not self._computer_GUI_interactive_sent_finish[(item.id, tid[1])]):
+                    if tsk.interactive and tsk.status==structs.Status.Running and ((item.id, tid[1]) not in self._computer_GUI_interactive_sent_finish or not self._computer_GUI_interactive_sent_finish[(item.id, tid[1])]):
                         if (item.id, tid[1]) not in self._computer_GUI_interactive_tasks:
                             self._computer_GUI_interactive_tasks[(item.id, tid[1])] = ''
                         _, self._computer_GUI_interactive_tasks[(item.id, tid[1])] = \

@@ -23,6 +23,16 @@ class Waiter:
     fut         : asyncio.Future
 
 
+# generic status for task or file action
+@enum_helper.get
+class Status(enum_helper.AutoNameSpace):
+    Pending     = auto()
+    Running     = auto()
+    Finished    = auto()
+    Errored     = auto()
+statuses = [x.value for x in Status]
+
+
 @dataclass
 class ConnectedClient:
     reader          : asyncio.streams.StreamReader
