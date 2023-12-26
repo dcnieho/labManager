@@ -414,7 +414,7 @@ class Client:
 
                 # rate-limit to every x seconds
                 await asyncio.sleep(30)
-        except (asyncio.CancelledError, KeyboardInterrupt):
+        except asyncio.CancelledError:
             pass    # we broke out of the loop: cancellation processed
 
     async def _poll_for_eyetrackers(self):
@@ -432,7 +432,7 @@ class Client:
 
                 # rate-limit to every x seconds
                 await asyncio.sleep(5)
-        except (asyncio.CancelledError, KeyboardInterrupt):
+        except asyncio.CancelledError:
             pass    # we broke out of the loop: cancellation processed
 
 
