@@ -304,6 +304,9 @@ class Master:
                         path = msg.pop('path')
                         msg['age'] = time.time()
                         me.file_listings[path] = msg
+                    case message.Message.FILE_ACTION_STATUS:
+                        action_id = msg.pop('action_id')
+                        me.file_actions[action_id] = msg
 
                     case _:
                         print(f'got unhandled type {msg_type.value}, message: {msg}')

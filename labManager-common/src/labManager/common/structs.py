@@ -19,6 +19,7 @@ class ConnectedClient:
     tasks           : dict[int, task.Task]  = field(default_factory=lambda: {})
     et_events       : list[dict]            = field(default_factory=lambda: [])
     file_listings   : dict[str,dict]        = field(default_factory=lambda: {})
+    file_actions    : dict[int,dict]        = field(default_factory=lambda: {})
     mounted_shares  : dict[str,str]         = field(default_factory=lambda: {})
 
     def __post_init__(self):
