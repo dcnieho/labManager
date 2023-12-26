@@ -3,7 +3,6 @@ from dataclasses import dataclass
 from typing import Dict, List
 
 from . import async_thread, enum_helper, message
-from .network import comms
 
 HAS_TOBII_RESEARCH = False
 ET_class = None
