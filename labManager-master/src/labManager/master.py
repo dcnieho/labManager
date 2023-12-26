@@ -43,6 +43,8 @@ class Master:
         # all projects user has access to and selected project
         self.projects           : dict[str, str]                = {}
         self.project            : str                           = None
+
+        self._share_access_task : asyncio.Task                  = None
         self.has_share_access   : bool                          = False
 
         # connections to servers
@@ -128,16 +130,31 @@ class Master:
         # set new project
         self.admin.set_project(project)
 
-        # check SMB access
-        self.has_share_access = await smb.check_share(config.master["SMB"]["server"],
-                                      self.admin.user['full_name'], self.password, project+config.master["SMB"]["projects"]["remove_trailing"],
-                                      config.master["SMB"]["domain"], check_access_level=smb.AccessLevel.READ|smb.AccessLevel.WRITE|smb.AccessLevel.DELETE)
-
         # log into toems server
         await self.admin.prep_toems()
         self.toems = toems.Client(config.master['toems']['server'], config.master['toems']['port'], protocol='http')
         await self.toems.connect(self.username, self.password)
         self.project = project
+
+    async def _determine_share_access(self, project: str):
+        try:
+            # check if we have access to the SMB share for this project
+            self.has_share_access = await smb.check_share(config.master["SMB"]["server"],
+                                        self.admin.user['full_name'], self.password, project+config.master["SMB"]["projects"]["remove_trailing"],
+                                        config.master["SMB"]["domain"], check_access_level=smb.AccessLevel.READ|smb.AccessLevel.WRITE|smb.AccessLevel.DELETE)
+
+            # if we have access, check if any clients have come online yet
+            # if so, tell them to mount the share
+            if self.has_share_access:
+                coros = []
+                with self.clients_lock:
+                    for c in self.clients:
+                        if self.clients[c].online:
+                            coros.append(self.client_mount_project_share(self.clients[c].online, self.clients[c].id))
+                await asyncio.gather(*coros)
+        except (asyncio.CancelledError, KeyboardInterrupt):
+            pass    # cancellation processed, don't propagate
+
 
     def unset_project(self):
         if async_thread.loop and async_thread.loop.is_running:
@@ -181,12 +198,22 @@ class Master:
             await self.ssdp_server.start()  # start listening to requests and respond with info about where we are
             await self.ssdp_server.send_notification()  # send one notification upon startup
 
+        # check SMB access
+        self._share_access_task = asyncio.create_task(self._determine_share_access(self.project))
+        self._share_access_task.add_done_callback(lambda _: setattr(self, '_share_access_task', None))
+
     def is_serving(self):
         return self.server is not None
 
     async def stop_server(self):
         if self.ssdp_server is not None:
             await self.ssdp_server.stop()
+
+        if self._share_access_task and not self._share_access_task.done():
+            self._share_access_task.cancel()
+            # we want this to cancel before we stop any of the clients, so that
+            # no shares can get mounted just as we're shutting down
+            await self._share_access_task
 
         with self.clients_lock:
             for c in self.clients:
@@ -236,19 +263,9 @@ class Master:
                             me.image_info = msg['image_info']
                         id = self._client_connected(me, msg['name'], msg['MACs'])
 
-                        # if wanted and available, tell client to mount project share as drive
-                        if self.has_share_access and config.master['SMB']['mount_share_on_client']:
-                            # check if we're allowed to issue mount command to this client
-                            if (config.master['SMB']['mount_only_known_clients'] and self.clients[id].known) or not config.master['SMB']['mount_only_known_clients']:
-                                domain, user = smb.get_domain_username(self.admin.user['full_name'], config.master["SMB"]["domain"])
-                                request = {
-                                    'drive': config.master['SMB']['mount_drive_letter'],
-                                    'share_path': f'\\\\{config.master["SMB"]["server"]}\{self.project}{config.master["SMB"]["projects"]["remove_trailing"]}',
-                                    'user': f'{domain}\{user}',
-                                    'password': self.password
-                                    }
-                                await comms.typed_send(writer, message.Message.SHARE_MOUNT, request)
-                                me.mounted_shares[request['drive']] = request['share_path']
+                        # if available, tell client to mount project share as drive
+                        if self.has_share_access:
+                            await self.client_mount_project_share(me, id)
 
                     case message.Message.ET_STATUS_INFORM:
                         if not me.eye_tracker:
@@ -300,7 +317,7 @@ class Master:
                 print("".join(tb_lines))
                 continue
 
-        await self.unmount_client_shares(me)
+        await self.client_unmount_shares(me)
         writer.close()
         me.writer = None
 
@@ -358,7 +375,21 @@ class Master:
             coros = [comms.typed_send(self.clients[c].online.writer, type, msg) for c in self.clients if self.clients[c].online]
         await asyncio.gather(*coros)
 
-    async def unmount_client_shares(self, client: ConnectedClient):
+    async def client_mount_project_share(self, client: ConnectedClient, client_id: int):
+        if self.has_share_access and config.master['SMB']['mount_share_on_client']:
+            # check if we're allowed to issue mount command to this client
+            if (config.master['SMB']['mount_only_known_clients'] and self.clients[client_id].known) or not config.master['SMB']['mount_only_known_clients']:
+                domain, user = smb.get_domain_username(self.admin.user['full_name'], config.master["SMB"]["domain"])
+                request = {
+                    'drive': config.master['SMB']['mount_drive_letter'],
+                    'share_path': f'\\\\{config.master["SMB"]["server"]}\{self.project}{config.master["SMB"]["projects"]["remove_trailing"]}',
+                    'user': f'{domain}\{user}',
+                    'password': self.password
+                    }
+                await comms.typed_send(client.writer, message.Message.SHARE_MOUNT, request)
+                client.mounted_shares[request['drive']] = request['share_path']
+
+    async def client_unmount_shares(self, client: ConnectedClient):
         if not client.writer or client.writer.is_closing():
             return
         coros = []
