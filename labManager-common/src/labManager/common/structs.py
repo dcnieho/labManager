@@ -16,11 +16,11 @@ class ConnectedClient:
     image_info      : dict[str,str]         = None
     eye_tracker     : eye_tracker           = None
 
-    tasks           : dict[int, task.Task]  = field(default_factory=lambda: {})
-    et_events       : list[dict]            = field(default_factory=lambda: [])
-    file_listings   : dict[str,dict]        = field(default_factory=lambda: {})
-    file_actions    : dict[int,dict]        = field(default_factory=lambda: {})
-    mounted_shares  : dict[str,str]         = field(default_factory=lambda: {})
+    tasks           : dict[int, task.Task]  = field(default_factory=dict)
+    et_events       : list[dict]            = field(default_factory=list)
+    file_listings   : dict[str,dict]        = field(default_factory=dict)
+    file_actions    : dict[int,dict]        = field(default_factory=dict)
+    mounted_shares  : dict[str,str]         = field(default_factory=dict)
 
     def __post_init__(self):
         self.host,self.port = self.writer.get_extra_info('peername')

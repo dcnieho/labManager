@@ -42,8 +42,8 @@ class ConnectedMaster:
 
     handler:        asyncio.Task            = None
 
-    task_list:      list[task.RunningTask]  = field(default_factory=lambda: [])
-    mounted_drives: set[str]                = field(default_factory=lambda: set())
+    task_list:      list[task.RunningTask]  = field(default_factory=list)
+    mounted_drives: set[str]                = field(default_factory=set)
 
 class Client:
     def __init__(self, network):
