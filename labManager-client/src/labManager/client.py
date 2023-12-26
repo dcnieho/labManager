@@ -280,20 +280,9 @@ class Client:
                                 t.handler.cancel()
 
                     case message.Message.FILE_GET_DRIVES:
-                        drives = []
-                        for letter in string.ascii_uppercase:
-                            drive = f"{letter}:\\"
-                            if await aiopath.AsyncPath(drive).exists():
-                                drives.append(pathlib.Path(drive))
-                        out = {'path': 'root', 'drives': drives, 'net_names': self._net_names}
-                        out['listing'] = []
-                        for d in out['drives']:
-                            out['listing'].append(dir_list.DirEntry(str(d),True,d,0.,0.,0,'labManager/drive'))
-                        for n in out['net_names']:
-                            out['listing'].append(dir_list.DirEntry(n,True,pathlib.Path(f'\\\\{n}'),0.,0.,0,'labManager/net_name'))
                         await comms.typed_send(writer,
                                                message.Message.FILE_LISTING,
-                                               out
+                                               await _format_drives_file_listing_msg(self._net_names)
                                               )
                     case message.Message.FILE_GET_SHARES:
                         out = msg
@@ -420,6 +409,10 @@ class Client:
             while True:
                 self._net_names = await net_names.get_network_computers(self.network)
 
+                # when done, broadcast to any connected clients so they stay up to date
+                await self.broadcast(message.Message.FILE_LISTING,
+                                     await _format_drives_file_listing_msg(self._net_names))
+
                 # rate-limit to every x seconds
                 await asyncio.sleep(30)
         except (asyncio.CancelledError, KeyboardInterrupt):
@@ -442,3 +435,24 @@ class Client:
                 await asyncio.sleep(5)
         except (asyncio.CancelledError, KeyboardInterrupt):
             pass    # we broke out of the loop: cancellation processed
+
+
+async def _format_drives_file_listing_msg(net_names: list[str]):
+    # get drives of this computer to add to the information
+    drives = []
+    for letter in string.ascii_uppercase:
+        drive = f"{letter}:\\"
+        if await aiopath.AsyncPath(drive).exists():
+            drives.append(pathlib.Path(drive))
+
+    out = {'path': 'root', 'drives': drives, 'net_names': net_names}
+
+    # format as a standard listing so its uniform for the receiver
+    # use special mime-types to flag that the content is drives and net work computers
+    out['listing'] = []
+    for d in out['drives']:
+        out['listing'].append(dir_list.DirEntry(str(d),True,d,0.,0.,0,'labManager/drive'))
+    for n in out['net_names']:
+        out['listing'].append(dir_list.DirEntry(n,True,pathlib.Path(f'\\\\{n}'),0.,0.,0,'labManager/net_name'))
+
+    return out
