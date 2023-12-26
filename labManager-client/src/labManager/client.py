@@ -43,7 +43,7 @@ class ConnectedMaster:
     handler:        asyncio.Task            = None
 
     task_list:      list[task.RunningTask]  = field(default_factory=lambda: [])
-    mounted_drives: list[str]               = field(default_factory=lambda: [])
+    mounted_drives: set[str]                = field(default_factory=lambda: set())
 
 class Client:
     def __init__(self, network):
@@ -240,11 +240,10 @@ class Client:
 
                     case message.Message.SHARE_MOUNT:
                         share.mount_share(**msg)
-                        self.masters[m].mounted_drives.append(msg['drive'])
+                        self.masters[m].mounted_drives.add(msg['drive'])
                     case message.Message.SHARE_UNMOUNT:
                         share.unmount_share(**msg)
-                        if msg['drive'] in self.masters[m].mounted_drives:
-                            self.masters[m].mounted_drives.remove(msg['drive'])
+                        self.masters[m].mounted_drives.discard(msg['drive'])
 
                     case message.Message.TASK_CREATE:
                         new_task = task.RunningTask(msg['task_id'], )
