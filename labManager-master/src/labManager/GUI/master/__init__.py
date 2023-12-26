@@ -308,28 +308,38 @@ class MainGUI:
         async_thread.run(self.master.start_server())
 
     async def _get_project_images(self):
-        temp_list = await self.master.get_images()
-        # get extra info about disk images
-        coros = []
-        for im in temp_list:
-            coros.append(self.master.get_image_info(im['Id']))
-            coros.append(self.master.get_image_size(im['Id']))
-        res   = await asyncio.gather(*coros)
-        infos = res[0::2]
-        dss   = res[1::2]
-        # add to output
-        for im,info,ds in zip(temp_list,infos,dss):
-            im['DiskSize'] = ds
-            im['TimeStamp'] = info['TimeStamp'] if info is not None else 'Unknown'
-            im['SourceComputer'] = info['SourceComputer'] if info is not None else 'Unknown'
-        # atomic update so we can't read incomplete state elsewhere
-        self._images_list = temp_list
-        # also dump potentially stale image description cache
-        for im in self._images_list:
-            if im['Id'] in self._image_description_cache:
-                if not self._image_description_cache[im['Id']][0] or self._image_description_cache[im['Id']][1]==im['Description']:
-                    # was not edited or current description matches cache, dump
-                    del self._image_description_cache[im['Id']]
+        n_tries = 0
+        max_tries = 3
+        while n_tries<max_tries:
+            n_tries += 1
+            try:
+                temp_list = await self.master.get_images()
+                # get extra info about disk images
+                coros = []
+                for im in temp_list:
+                    coros.append(self.master.get_image_info(im['Id']))
+                    coros.append(self.master.get_image_size(im['Id']))
+                res   = await asyncio.gather(*coros)
+                infos = res[0::2]
+                dss   = res[1::2]
+                # add to output
+                for im,info,ds in zip(temp_list,infos,dss):
+                    im['DiskSize'] = ds
+                    im['TimeStamp'] = info['TimeStamp'] if info is not None else 'Unknown'
+                    im['SourceComputer'] = info['SourceComputer'] if info is not None else 'Unknown'
+                # atomic update so we can't read incomplete state elsewhere
+                self._images_list = temp_list
+                # also dump potentially stale image description cache
+                for im in self._images_list:
+                    if im['Id'] in self._image_description_cache:
+                        if not self._image_description_cache[im['Id']][0] or self._image_description_cache[im['Id']][1]==im['Description']:
+                            # was not edited or current description matches cache, dump
+                            del self._image_description_cache[im['Id']]
+                # succeeded successfully, break out of the try-loop
+                break
+            except Exception as exc:
+                if n_tries>=max_tries:
+                    raise exc
 
 
     def _unload_project(self):
