@@ -620,7 +620,7 @@ class Master:
     async def get_client_remote_shares(self, client: structs.Client, net_name: str, user: str = 'Guest', password: str = '', domain: str = '', access_level: smb.AccessLevel = smb.AccessLevel.READ):
         # list shares on specified target machine that are accessible from this client
         await comms.typed_send(client.online.writer, message.Message.FILE_GET_SHARES,
-                               {'net_name': net_name.lstrip('\\'),
+                               {'net_name': net_name.lstrip('\\'),  # support both \\SERVER and SERVER
                                 'user': user,
                                 'password': password,
                                 'domain': domain,
