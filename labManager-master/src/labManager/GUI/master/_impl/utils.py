@@ -3,7 +3,7 @@ import functools
 import traceback
 from imgui_bundle import imgui, icons_fontawesome
 import sys
-import typing
+from typing import Any, Callable
 
 from . import msgbox
 
@@ -39,14 +39,14 @@ def trim_str(text: str, length=None, till_newline=True, newline_ellipsis=False):
     return text
 
 
-def set_all(input: dict[int, bool], value, subset: list[int] = None, predicate: typing.Callable = None):
+def set_all(input: dict[int, bool], value, subset: list[int] = None, predicate: Callable = None):
     if subset is None:
         subset = (r for r in input)
     for r in subset:
         if not predicate or predicate(r):
             input[r] = value
 
-def selectable_item_logic(id: int, selected: dict[int,typing.Any], last_clicked_id: int, sorted_ids: list[int],
+def selectable_item_logic(id: int, selected: dict[int,Any], last_clicked_id: int, sorted_ids: list[int],
                           selectable_clicked: bool, new_selectable_state: bool,
                           allow_multiple=True, overlayed_hovered=False, overlayed_clicked=False, new_overlayed_state=False):
     if overlayed_clicked:
@@ -120,7 +120,7 @@ popup_flags: int = (
     imgui.WindowFlags_.always_auto_resize
 )
 
-def popup(label: str, popup_content: typing.Callable, buttons: dict[str, typing.Callable] = None, closable=True, outside=True):
+def popup(label: str, popup_content: Callable, buttons: dict[str, Callable] = None, closable=True, outside=True):
     if buttons is True:
         buttons = {
             icons_fontawesome.ICON_FA_CHECK + " Ok": None

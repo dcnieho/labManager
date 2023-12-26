@@ -1,6 +1,5 @@
 from enum import auto
 from dataclasses import dataclass
-from typing import Dict, List
 
 from . import async_thread, enum_helper, message
 
@@ -118,7 +117,7 @@ def unsubscribe_from_notifications(eye_tracker: ET_class):
     for notification in _get_notifications():
         eye_tracker.unsubscribe_from(notification)
 
-def get_attribute(eye_tracker: ET_class, attributes: List[Attribute]|str):
+def get_attribute(eye_tracker: ET_class, attributes: list[Attribute]|str):
     if attributes=='*':
         attributes = [a for a in Attribute]
 
@@ -153,7 +152,7 @@ def get_attribute(eye_tracker: ET_class, attributes: List[Attribute]|str):
 
     return out if out else None
 
-def update_attributes(eye_tracker: EyeTracker, attributes: Dict[Attribute,bool|str|int]):
+def update_attributes(eye_tracker: EyeTracker, attributes: dict[Attribute,bool|str|int]):
     if not attributes:
         return
     for attr, value in attributes.items():
@@ -173,7 +172,7 @@ def update_attributes(eye_tracker: EyeTracker, attributes: Dict[Attribute,bool|s
             case Attribute.Tracking_mode:
                 eye_tracker.tracking_mode = value
 
-def get_attribute_message(eye_tracker: ET_class, attributes: List[Attribute]|str):
+def get_attribute_message(eye_tracker: ET_class, attributes: list[Attribute]|str):
     msg = {'serial': eye_tracker.serial_number}
     msg['attributes'] = get_attribute(eye_tracker, attributes)
     return msg

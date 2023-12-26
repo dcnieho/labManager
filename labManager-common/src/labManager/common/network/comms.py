@@ -1,6 +1,5 @@
 import asyncio
 import struct
-from typing import Tuple
 
 from .. import message
 
@@ -59,7 +58,7 @@ async def send_with_length(writer: asyncio.streams.StreamWriter, msg: str|bytes)
         return False
 
 
-async def typed_receive(reader: asyncio.streams.StreamReader) -> Tuple[message.Message,str]:
+async def typed_receive(reader: asyncio.streams.StreamReader) -> tuple[message.Message,str]:
     # get message type
     msg_type = await _read_with_length(reader, True)
     if not msg_type:

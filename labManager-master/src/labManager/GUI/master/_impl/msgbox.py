@@ -1,4 +1,4 @@
-import typing
+from typing import Callable
 from imgui_bundle import hello_imgui, imgui, icons_fontawesome
 from enum import Enum, auto
 
@@ -12,7 +12,7 @@ class MsgBox(Enum):
     warn    = auto()
     error   = auto()
 
-def msgbox(title: str, msg: str, type: MsgBox = None, buttons: dict[str, typing.Callable] = True, more: str = None):
+def msgbox(title: str, msg: str, type: MsgBox = None, buttons: dict[str, Callable] = True, more: str = None):
     def popup_content():
         spacing = 2 * imgui.get_style().item_spacing.x
         if type is MsgBox.question:
@@ -59,7 +59,7 @@ def msgbox(title: str, msg: str, type: MsgBox = None, buttons: dict[str, typing.
 
 
 class Exc(Exception):
-    def __init__(self, title:str, msg: str, type: MsgBox = None, buttons: dict[str, typing.Callable] = True, more: str = None):
+    def __init__(self, title:str, msg: str, type: MsgBox = None, buttons: dict[str, Callable] = True, more: str = None):
         self.title = title
         self.msg = msg
         self.popup = utils.push_popup(msgbox, title, msg, type, buttons, more)

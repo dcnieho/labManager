@@ -1,5 +1,5 @@
 from imgui_bundle import icons_fontawesome, imgui
-from typing import Callable, Tuple
+from typing import Callable
 
 from ....common import structs
 from . import utils
@@ -293,7 +293,7 @@ class ComputerList():
             sort_specs_in.specs_dirty = False
             self._require_sort = False
 
-def my_checkbox(label: str, state: bool, frame_size: Tuple=None, do_vertical_align=True):
+def my_checkbox(label: str, state: bool, frame_size: tuple=None, do_vertical_align=True):
     style = imgui.get_style()
     if state:
         imgui.push_style_color(imgui.Col_.frame_bg_hovered, style.color_(imgui.Col_.button_hovered))
