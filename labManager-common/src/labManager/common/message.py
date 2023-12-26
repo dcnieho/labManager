@@ -1,7 +1,6 @@
 import struct
 import jsonpickle
 from enum import auto
-from typing import Dict
 
 from . import enum_helper
 
@@ -93,13 +92,13 @@ type_map = {
     }
 
 
-def parse(type: Type, msg: str) -> str | Dict:
+def parse(type: Type, msg: str) -> str | dict:
     # load from JSON if needed
     if type_map[type]==Type.JSON:
         msg = jsonpickle.decode(msg, keys=True)
     return msg
 
-def prepare(type: Type, payload: str | bytes | Dict) -> str:
+def prepare(type: Type, payload: str | bytes | dict) -> str:
     # dump to JSON if needed
     if type_map[type]==Type.JSON:
         payload = jsonpickle.encode(payload, keys=True)
