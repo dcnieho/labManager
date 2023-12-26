@@ -36,10 +36,13 @@ async def run(duration: float = None):
 @dataclass
 class ConnectedMaster:
     writer:         asyncio.streams.StreamWriter
+    handler_task:   asyncio.Task = None
+
     remote_addr:    tuple[str,int]
     local_addr:     tuple[str,int]
+
     task_list:      list[task.RunningTask]  = field(default_factory=lambda: [])
-    handler_task:   asyncio.Task = None
+    mounted_drives: list[str]
 
 class Client:
     def __init__(self, network):
@@ -58,8 +61,6 @@ class Client:
         self._next_master_id:               int                         = 0
         self.masters:                       dict[int,ConnectedMaster]   = {}
         self.master_lock                                                = threading.Lock()
-
-        self._mounted_drives:               list[str]                   = []
 
     def __del__(self):
         self._stop_sync()
@@ -168,8 +169,6 @@ class Client:
 
     def _stop_sync(self):
         # sync part of stopping
-        for d in self._mounted_drives:
-            share.unmount_share(d)
         if self._ssdp_discovery_task:
             self._ssdp_discovery_task.cancel()
         with self.master_lock:
@@ -240,11 +239,11 @@ class Client:
 
                     case message.Message.SHARE_MOUNT:
                         share.mount_share(**msg)
-                        self._mounted_drives.append(msg['drive'])
+                        self.masters[m].mounted_drives.append(msg['drive'])
                     case message.Message.SHARE_UNMOUNT:
                         share.unmount_share(**msg)
-                        if msg['drive'] in self._mounted_drives:
-                            self._mounted_drives.remove(msg['drive'])
+                        if msg['drive'] in self.masters[m].mounted_drives:
+                            self.masters[m].mounted_drives.remove(msg['drive'])
 
                     case message.Message.TASK_CREATE:
                         new_task = task.RunningTask(msg['task_id'], )
@@ -395,6 +394,10 @@ class Client:
 
         # remote connection closed, we're done
         writer.close()
+
+        # clean up any drives mounted by this master
+        for drive in self.masters[m].mounted_drives:
+            share.unmount_share(drive)
 
         # remove self from state
         with self.master_lock:
