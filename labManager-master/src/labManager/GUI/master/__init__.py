@@ -455,26 +455,26 @@ class MainGUI:
         tb = utils.get_traceback(type(exc), exc, exc.__traceback__)
         utils.push_popup(self, msgbox.msgbox, "Login error", f"Something went wrong when {'logging in' if stage=='login' else 'selecting project'}...", msgbox.MsgBox.error, more=tb)
 
-    def _lost_client(self, client: structs.ConnectedClient, id: int):
+    def _lost_client(self, client: structs.ConnectedClient, client_id: int):
         # we lost this client. Clear out all state related to it
-        self._computer_GUI_tasks[id] = None
+        self._computer_GUI_tasks[client_id] = None
 
         to_del = []
         for t in self._computer_GUI_interactive_tasks:
-            if t[0]==id:
+            if t[0]==client_id:
                 to_del.append(t)
         for t in to_del:
             del self._computer_GUI_interactive_tasks[t]
 
         to_del = []
         for t in self._computer_GUI_interactive_sent_finish:
-            if t[0]==id:
+            if t[0]==client_id:
                 to_del.append(t)
         for t in to_del:
             del self._computer_GUI_interactive_sent_finish[t]
 
-    def _task_status_changed(self, client: structs.Client, id: int, tsk: task.Task):
-        key = (id, tsk.id)
+    def _task_status_changed(self, _, client_id: int, tsk: task.Task):
+        key = (client_id, tsk.id)
         if tsk.status in [task.Status.Finished, task.Status.Errored]:
             if key in self._computer_GUI_interactive_tasks:
                 del self._computer_GUI_interactive_tasks[key]
