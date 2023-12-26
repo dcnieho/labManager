@@ -628,6 +628,7 @@ def run_GUI():
 
     gui = master_GUI.MainGUI()
     gui.run()
+    async_thread.wait(gui.master.stop_server())
 # GUI (and master in general) requires some setup, call these functions
 def set_up():
     async_thread.setup()
