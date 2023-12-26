@@ -333,7 +333,6 @@ class Base:
     def _get_socket(self, which):
         raise NotImplementedError
 
-    
 
     async def start(self):
         if self._is_started:
@@ -395,7 +394,7 @@ class Server(Base):
             verbose=self.verbose
         )
 
-    def _get_socket(self, which):
+    def _get_socket(self, _):
         return _get_multicast_socket(self.address, self.allow_loopback)
 
     async def send_notification(self):
@@ -527,7 +526,7 @@ class Client(Base):
         # we have a response, stop discovery and return it
         discovery_task.cancel()
         return self.get_responses()
-    
+
 def _get_multicast_socket(address, allow_loopback):
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
