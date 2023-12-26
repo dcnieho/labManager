@@ -36,19 +36,22 @@ async def _read_with_length(reader: asyncio.streams.StreamReader, decode: bool) 
         if e.errno in [113, 121]:   # 113: No route to host; 121: The semaphore timeout period has expired
             return ''
 
-async def _send_with_length(writer: asyncio.streams.StreamWriter, msg: str|bytes, encode: bool) -> bool:
+def prepare_transmission(msg: str|bytes) -> bytes:
+    # notification of message length
+    length = struct.pack(message.SIZE_FMT, len(msg))
+
+    # msg itself
+    if isinstance(msg, str):
+        msg = msg.encode('utf8')
+
+    return length + msg
+
+async def send_with_length(writer: asyncio.streams.StreamWriter, msg: str|bytes) -> bool:
     if writer.is_closing():
         return False
     try:
-        if encode:
-            msg = msg.encode('utf8')
-
-        # first notify end point of message length
-        writer.write(struct.pack(message.SIZE_FMT, len(msg)))
-
-        # then send message, if anything
-        if msg:
-            writer.write(msg)
+        # get data to put on the line and send
+        writer.write(prepare_transmission(msg))
 
         await writer.drain()
         return True
@@ -57,18 +60,22 @@ async def _send_with_length(writer: asyncio.streams.StreamWriter, msg: str|bytes
 
 
 async def typed_receive(reader: asyncio.streams.StreamReader) -> Tuple[message.Message,str]:
-    type = await _read_with_length(reader, True)
-    if not type:
+    # get message type
+    msg_type = await _read_with_length(reader, True)
+    if not msg_type:
         return None,''
-    type = message.Message.get(type)
+    msg_type = message.Message.get(msg_type)
 
-    msg = await _read_with_length(reader, message.type_map[type]!=message.Type.BINARY)
-    msg = message.parse(type, msg)
+    # get associated data, if any
+    msg = await _read_with_length(reader, message.type_map[msg_type]!=message.Type.BINARY)
+    msg = message.parse(msg_type, msg)
 
-    return type, msg
+    return msg_type, msg
 
-async def typed_send(writer: asyncio.streams.StreamWriter, type: message.Message, msg: str=''):
-    await _send_with_length(writer, type.value, True)
+async def typed_send(writer: asyncio.streams.StreamWriter, msg_type: message.Message, msg: str=''):
+    # send message type
+    await send_with_length(writer, msg_type.value)
 
-    msg = message.prepare(type, msg)
-    await _send_with_length(writer, msg, message.type_map[type]!=message.Type.BINARY)
+    # send associated data, if any
+    msg = message.prepare(msg_type, msg)
+    await send_with_length(writer, msg)
