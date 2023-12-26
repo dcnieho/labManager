@@ -34,19 +34,22 @@ class Master:
 
         # servers
         self.address            : str                           = None
-        self.server             : str                           = None
-        self.ssdp_server        : ssdp.Server                   = None
+        self._server            : str                           = None
+        self._ssdp_server       : ssdp.Server                   = None
 
+        # clients
         self.clients            : dict[int, structs.Client]     = {}
         self.clients_lock       : threading.Lock                = threading.Lock()
-        self.client_disconnected_hook: \
-                                  Callable[[structs.ConnectedClient, int], None] = None
+        self.client_disconnected_hooks: \
+            list[Callable[[structs.ConnectedClient, int], None]]= []
         self._known_clients     : list[dict[str,str|list[str]]] = []
 
+        # tasks
         self.task_groups        : dict[int, task.TaskGroup]     = {}
-        self.task_state_change_hook: \
-                                  Callable[[structs.ConnectedClient, int, task.Task], None] = None
+        self.task_state_change_hooks: \
+            list[Callable[[structs.ConnectedClient, int, task.Task], None]] = []
 
+        # file actions
         self._file_action_id_provider = counter.CounterContext()
 
     def __del__(self):
@@ -158,37 +161,37 @@ class Master:
             if not if_ips:
                 raise RuntimeError(f'No interfaces found that are connected to the configured network {config.master["network"]}')
             local_addr = (if_ips[0], 0)
-        self.server = await asyncio.start_server(self._handle_client, *local_addr)
+        self._server = await asyncio.start_server(self._handle_client, *local_addr)
 
-        addr = [sock.getsockname() for sock in self.server.sockets]
+        addr = [sock.getsockname() for sock in self._server.sockets]
         if len(addr[0])!=2:
             addr[0], addr[1] = addr[1], addr[0]
         self.address = addr
 
         # should already have started serving in asyncio.start_server, but to be save and sure:
-        await self.server.start_serving()
+        await self._server.start_serving()
 
         # start SSDP server if wanted
         if start_ssdp_advertise:
             # start SSDP server to advertise this server
-            self.ssdp_server = ssdp.Server(
+            self._ssdp_server = ssdp.Server(
                 address=local_addr[0],
                 host_ip_port=self.address[0],
                 usn="humlab-b055-master::"+config.master['SSDP']['device_type'],
                 device_type=config.master['SSDP']['device_type'])
-            await self.ssdp_server.start()  # start listening to requests and respond with info about where we are
-            await self.ssdp_server.send_notification()  # send one notification upon startup
+            await self._ssdp_server.start()  # start listening to requests and respond with info about where we are
+            await self._ssdp_server.send_notification()  # send one notification upon startup
 
         # check SMB access
         self._share_access_task = asyncio.create_task(self._determine_share_access(self.project))
         self._share_access_task.add_done_callback(lambda _: setattr(self, '_share_access_task', None))
 
     def is_serving(self):
-        return self.server is not None
+        return self._server is not None
 
     async def stop_server(self):
-        if self.ssdp_server is not None:
-            await self.ssdp_server.stop()
+        if self._ssdp_server is not None:
+            await self._ssdp_server.stop()
 
         if self._share_access_task and not self._share_access_task.done():
             self._share_access_task.cancel()
@@ -222,10 +225,10 @@ class Master:
                             pass
                 await asyncio.wait(not_finished)
 
-        if self.server:
-            self.server.close()
-            await self.server.wait_closed()
-        self.server = None
+        if self._server:
+            self._server.close()
+            await self._server.wait_closed()
+        self._server = None
 
     async def _handle_client(self, reader: asyncio.streams.StreamReader, writer: asyncio.streams.StreamWriter):
         keepalive.set(writer.get_extra_info('socket'))
@@ -297,8 +300,17 @@ class Master:
                         mytask.status = msg['status']
                         if 'return_code' in msg:
                             mytask.return_code = msg['return_code']
-                        if status_change and self.task_state_change_hook:
-                            self.task_state_change_hook(me, client_id, mytask)
+                        if status_change and self.task_state_change_hooks:
+                            to_del = []
+                            for i,h in enumerate(self.task_state_change_hooks):
+                                try:
+                                    h(me, client_id, mytask)
+                                except:
+                                    to_del.append(i)
+                            # remove crashing hooks so they are not called again
+                            for i in to_del[::-1]:
+                                del self.task_state_change_hooks[i]
+
 
                     case message.Message.FILE_LISTING:
                         path = msg.pop('path')
@@ -358,15 +370,29 @@ class Master:
             self.clients[c.id] = c
             return c.id
 
-    def _client_disconnected(self, client: structs.ConnectedClient, id: int):
-        if self.client_disconnected_hook:
-            self.client_disconnected_hook(client, id)
-        if id in self.clients:
-            self.clients[id].online = None
+    def _client_disconnected(self, client: structs.ConnectedClient, client_id: int):
+        # call hooks, if any
+        if self.client_disconnected_hooks:
+            to_del = []
+            for i,h in enumerate(self.client_disconnected_hooks):
+                try:
+                    h(client, client_id)
+                except:
+                    to_del.append(i)
+            # remove crashing hooks so they are not called again
+            for i in to_del[::-1]:
+                del self.task_state_change_hooks[i]
+
+        # clean up ConnectedClient
+        if client_id in self.clients:
+            self.clients[client_id].online = None
             # if not a known client, remove from self.clients
-            if not self.clients[id].known:
+            if not self.clients[client_id].known:
                 with self.clients_lock:
-                    del self.clients[id]
+                    del self.clients[client_id]
+
+    def add_client_disconnected_hook(self, fun: Callable[[structs.ConnectedClient, int], None]):
+        self.client_disconnected_hooks.append(fun)
 
 
     async def broadcast(self, type: message.Message, msg: str=''):
@@ -441,6 +467,9 @@ class Master:
 
         # return TaskGroup.id and [Task.id, ...] for all constituent tasks
         return task_group.id, [task_group.task_refs[c].id for c in task_group.task_refs]
+
+    def add_task_state_change_hook(self, fun: Callable[[structs.ConnectedClient, int, task.Task], None]):
+        self.task_state_change_hooks.append(fun)
 
 
     async def get_client_drives(self, client: structs.Client):
