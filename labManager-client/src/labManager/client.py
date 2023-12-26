@@ -299,7 +299,7 @@ class Client:
                         listing = await dir_list.get_dir_list(msg['path'])
                         await comms.typed_send(writer,
                                                message.Message.FILE_LISTING,
-                                               {'path': msg['path'], 'listing': listing}
+                                               {'path': str(msg['path']), 'listing': listing}
                                               )
 
                     case message.Message.FILE_MAKE:
