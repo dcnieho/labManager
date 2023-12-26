@@ -1,29 +1,33 @@
-import pathlib
-from dataclasses import dataclass
+from __future__ import annotations
+
+import asyncio
+from dataclasses import dataclass, field
+
+from . import counter, task
 
 
-class CounterContext:
-    count = -1      # so that first number is 0
+@dataclass
+class ConnectedClient:
+    reader          : asyncio.streams.StreamReader
+    writer          : asyncio.streams.StreamWriter
 
-    def __enter__(self):
-        self._increment()
-    async def __aenter__(self):
-        self.__enter__()
+    host            : str                   = None
+    port            : int                   = None
+    image_info      : dict[str,str]         = None
+    eye_tracker     : eye_tracker           = None
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        pass
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
-        self.__exit__(exc_type, exc_val, exc_tb)
+    tasks           : dict[int, task.Task]  = field(default_factory=lambda: {})
+    et_events       : list[dict]            = field(default_factory=lambda: [])
+    mounted_shares  : dict[str,str]         = field(default_factory=lambda: {})
 
-    def _increment(self):
-        self.count += 1
-    def get_next(self):
-        self._increment()
-        return self.count
+    def __post_init__(self):
+        self.host,self.port = self.writer.get_extra_info('peername')
 
+    def __repr__(self):
+        return f'{self.name}@{self.host}:{self.port}'
 
 
-_client_id_provider = CounterContext()
+_client_id_provider = counter.CounterContext()
 @dataclass
 class Client:
     name        : str
@@ -31,7 +35,7 @@ class Client:
     id          : int = None
     known       : bool = False
 
-    online      : 'labManager.master.ConnectedClient' = None
+    online      : ConnectedClient = None
 
     def __post_init__(self):
         global _client_id_provider
@@ -40,13 +44,3 @@ class Client:
 
     def __repr__(self):
         return f'{self.name}@{self.MACs}, {"" if self.online else "not "}connected'
-
-@dataclass
-class DirEntry:
-    name: str
-    is_dir: bool
-    full_path: pathlib.Path
-    ctime: float
-    mtime: float
-    size: int
-    mime_type: str

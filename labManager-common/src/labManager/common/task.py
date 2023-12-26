@@ -9,7 +9,7 @@ import sys
 from enum import auto
 from dataclasses import dataclass, field
 
-from . import enum_helper, message, structs
+from . import counter, enum_helper, message, structs
 from .network import comms, wol
 
 # TODO: env is a dict and should support either adding or overriding specific variables
@@ -40,7 +40,7 @@ class Status(enum_helper.AutoNameSpace):
     Errored         = auto()
 statuses = [x.value for x in Status]
 
-_task_id_provider = structs.CounterContext()
+_task_id_provider = counter.CounterContext()
 @dataclass
 class Task:
     type        : Type
@@ -79,7 +79,7 @@ class RunningTask:
     tried_stdin_close   : bool = False
 
 
-_task_group_id_provider = structs.CounterContext()
+_task_group_id_provider = counter.CounterContext()
 @dataclass
 class TaskGroup:
     type        : Type

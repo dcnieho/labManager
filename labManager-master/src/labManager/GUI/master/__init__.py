@@ -12,7 +12,7 @@ from imgui_bundle.demos_python import demo_utils
 import glfw
 
 from labManager.common import async_thread, config, eye_tracker, structs, task
-from labManager.master import Master, ConnectedClient
+from ... import master
 from ._impl import computer_list, msgbox, utils
 
 # Struct that holds the application's state
@@ -37,7 +37,7 @@ class MainGUI:
         # Constants
         self.popup_stack = []
 
-        self.master = Master()
+        self.master = master.Master()
         self.master.load_known_clients()
         # install hooks
         self.master.client_disconnected_hook = self._lost_client
@@ -455,7 +455,7 @@ class MainGUI:
         tb = utils.get_traceback(type(exc), exc, exc.__traceback__)
         utils.push_popup(self, msgbox.msgbox, "Login error", f"Something went wrong when {'logging in' if stage=='login' else 'selecting project'}...", msgbox.MsgBox.error, more=tb)
 
-    def _lost_client(self, client: ConnectedClient, id: int):
+    def _lost_client(self, client: structs.ConnectedClient, id: int):
         # we lost this client. Clear out all state related to it
         self._computer_GUI_tasks[id] = None
 

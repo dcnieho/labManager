@@ -2,8 +2,18 @@ import pathlib
 import mimetypes
 import asyncio
 import aiopath
+from dataclasses import dataclass
 
-from .structs import DirEntry
+
+@dataclass
+class DirEntry:
+    name: str
+    is_dir: bool
+    full_path: pathlib.Path
+    ctime: float
+    mtime: float
+    size: int
+    mime_type: str
 
 
 async def get_dir_list(path: pathlib.Path) -> list[DirEntry] | None:

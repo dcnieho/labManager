@@ -2,7 +2,7 @@ import sys
 import ipaddress
 import socket
 
-def get_ifaces(ip_network):
+def get_ifaces(ip_network: str):
     network = ipaddress.IPv4Network(ip_network)
 
     macs= []

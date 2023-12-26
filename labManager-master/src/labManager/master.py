@@ -8,31 +8,11 @@ import json
 import pathlib
 import unicodedata
 from typing import Callable
-from dataclasses import dataclass, field
 
-from labManager.common import async_thread, config, eye_tracker, message, structs, task
+from labManager.common import async_thread, config, counter, eye_tracker, message, structs, task
 from labManager.common.network import admin_conn, comms, ifs, keepalive, smb, ssdp, toems
 
 
-@dataclass
-class ConnectedClient:
-    reader          : asyncio.streams.StreamReader
-    writer          : asyncio.streams.StreamWriter
-
-    host            : str                   = None
-    port            : int                   = None
-    image_info      : dict[str,str]         = None
-    eye_tracker     : eye_tracker           = None
-
-    tasks           : dict[int, task.Task]  = field(default_factory=lambda: {})
-    et_events       : list[dict]            = field(default_factory=lambda: [])
-    mounted_shares  : dict[str,str]         = field(default_factory=lambda: {})
-
-    def __post_init__(self):
-        self.host,self.port = self.writer.get_extra_info('peername')
-
-    def __repr__(self):
-        return f'{self.name}@{self.host}:{self.port}'
 
 class Master:
     def __init__(self):
@@ -59,14 +39,14 @@ class Master:
         self.clients            : dict[int, structs.Client]     = {}
         self.clients_lock       : threading.Lock                = threading.Lock()
         self.client_disconnected_hook: \
-                                  Callable[[ConnectedClient, int], None] = None
+                                  Callable[[structs.ConnectedClient, int], None] = None
         self._known_clients     : list[dict[str,str|list[str]]] = []
 
         self.task_groups        : dict[int, task.TaskGroup]     = {}
         self.task_state_change_hook: \
-                                  Callable[[ConnectedClient, int, task.Task], None] = None
+                                  Callable[[structs.ConnectedClient, int, task.Task], None] = None
 
-        self._file_action_id_provider = structs.CounterContext()
+        self._file_action_id_provider = counter.CounterContext()
 
     def __del__(self):
         # cleanup: logout() takes care of all teardown
@@ -239,7 +219,7 @@ class Master:
     async def _handle_client(self, reader: asyncio.streams.StreamReader, writer: asyncio.streams.StreamWriter):
         keepalive.set(writer.get_extra_info('socket'))
 
-        me = ConnectedClient(reader, writer)
+        me = structs.ConnectedClient(reader, writer)
         client_id = None
 
         # request info about client
@@ -343,7 +323,7 @@ class Master:
                 client = structs.Client(client['name'], client['MAC'], known=True)
                 self.clients[client.id] = client
 
-    def _client_connected(self, client: ConnectedClient, name, MACs):
+    def _client_connected(self, client: structs.ConnectedClient, name, MACs):
         with self.clients_lock:
             for c in self.clients:
                 if self.clients[c].name != name:
@@ -359,7 +339,7 @@ class Master:
             self.clients[c.id] = c
             return c.id
 
-    def _client_disconnected(self, client: ConnectedClient, id: int):
+    def _client_disconnected(self, client: structs.ConnectedClient, id: int):
         if self.client_disconnected_hook:
             self.client_disconnected_hook(client, id)
         if id in self.clients:
@@ -375,7 +355,7 @@ class Master:
             coros = [comms.typed_send(self.clients[c].online.writer, type, msg) for c in self.clients if self.clients[c].online]
         await asyncio.gather(*coros)
 
-    async def client_mount_project_share(self, client: ConnectedClient, client_id: int):
+    async def client_mount_project_share(self, client: structs.ConnectedClient, client_id: int):
         if self.has_share_access and config.master['SMB']['mount_share_on_client']:
             # check if we're allowed to issue mount command to this client
             if (config.master['SMB']['mount_only_known_clients'] and self.clients[client_id].known) or not config.master['SMB']['mount_only_known_clients']:
@@ -389,7 +369,7 @@ class Master:
                 await comms.typed_send(client.writer, message.Message.SHARE_MOUNT, request)
                 client.mounted_shares[request['drive']] = request['share_path']
 
-    async def client_unmount_shares(self, client: ConnectedClient):
+    async def client_unmount_shares(self, client: structs.ConnectedClient):
         if not client.writer or client.writer.is_closing():
             return
         coros = []
