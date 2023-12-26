@@ -52,10 +52,10 @@ _client_id_provider = counter.CounterContext()
 class Client:
     name        : str
     MACs        : list[str]
-    id          : int = None
-    known       : bool = False
+    id          : int               = None
+    known       : bool              = False
 
-    online      : ConnectedClient = None
+    online      : ConnectedClient   = None
 
     def __post_init__(self):
         global _client_id_provider
