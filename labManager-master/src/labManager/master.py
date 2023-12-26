@@ -324,7 +324,7 @@ class Master:
                 for c in self.clients:
                     if self.clients[c].online and parameter in self.clients[c].online.file_actions:
                         # found
-                        if self.clients[c].online.file_actions[parameter]['status'] in ['ok', 'error']:
+                        if self.clients[c].online.file_actions[parameter]['status'] in [structs.Status.Finished, structs.Status.Errored]:
                             # action is already finished
                             waiter.fut.set_result(None)
                         break
@@ -426,7 +426,7 @@ class Master:
                         action_id = msg.pop('action_id')
                         me.file_actions[action_id] = msg
                         # check if there are any waiters for this action, notify them
-                        if msg['status'] in ['ok', 'error']:
+                        if msg['status'] in [structs.Status.Finished, structs.Status.Errored]:
                             for w in self._waiters:
                                 if w.waiter_type==structs.WaiterType.File_Action and w.parameter==action_id:
                                     # NB: no need for lock as callback is not called
@@ -633,7 +633,7 @@ class Master:
         await comms.typed_send(client.online.writer, action, msg)
         # store locally as a pending action
         action_id = msg.pop('action_id')
-        msg['status'] = 'pending'
+        msg['status'] = structs.Status.Pending
         client.online.file_actions[action_id] = msg
         # return action's id
         return action_id

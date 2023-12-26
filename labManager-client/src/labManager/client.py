@@ -9,7 +9,7 @@ import string
 import threading
 from dataclasses import dataclass, field
 
-from labManager.common import async_thread, config, dir_list, eye_tracker, message, share, task
+from labManager.common import async_thread, config, dir_list, eye_tracker, message, share, structs, task
 from labManager.common.network import comms, ifs, keepalive, net_names, smb, ssdp
 
 
@@ -314,9 +314,9 @@ class Client:
                                 await path.touch()
                         except Exception as exc:
                             out['error'] = exc
-                            out['status'] = 'error'
+                            out['status'] = structs.Status.Errored
                         else:
-                            out['status'] = 'ok'
+                            out['status'] = structs.Status.Finished
 
                         await comms.typed_send(writer,
                                                message.Message.FILE_ACTION_STATUS,
@@ -330,10 +330,10 @@ class Client:
                             return_path = await aiopath.AsyncPath(msg['old_path']).rename(msg['new_path'])
                         except Exception as exc:
                             out['error'] = exc
-                            out['status'] = 'error'
+                            out['status'] = structs.Status.Errored
                         else:
                             out['return_path'] = pathlib.Path(return_path)
-                            out['status'] = 'ok'
+                            out['status'] = structs.Status.Finished
 
                         await comms.typed_send(writer,
                                                message.Message.FILE_ACTION_STATUS,
@@ -355,10 +355,10 @@ class Client:
                                     return_path = await aioshutil.copy2(source_path, dest_path)
                         except Exception as exc:
                             out['error'] = exc
-                            out['status'] = 'error'
+                            out['status'] = structs.Status.Errored
                         else:
                             out['return_path'] = pathlib.Path(return_path)
-                            out['status'] = 'ok'
+                            out['status'] = structs.Status.Finished
 
                         await comms.typed_send(writer,
                                                message.Message.FILE_ACTION_STATUS,
@@ -376,9 +376,9 @@ class Client:
                                 await path.unlink()
                         except Exception as exc:
                             out['error'] = exc
-                            out['status'] = 'error'
+                            out['status'] = structs.Status.Errored
                         else:
-                            out['status'] = 'ok'
+                            out['status'] = structs.Status.Finished
 
                         await comms.typed_send(writer,
                                                message.Message.FILE_ACTION_STATUS,
