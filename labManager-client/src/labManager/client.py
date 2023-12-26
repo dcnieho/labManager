@@ -51,7 +51,7 @@ class Client:
         self.name     = platform.node()
 
         self._ssdp_discovery_task:          asyncio.Task                = None
-        self._ssdp_client:                  network.ssdp.Client         = None
+        self._ssdp_client:                  ssdp.Client                 = None
         self._if_ips:                       list[str]                   = None
         self._if_macs:                      list[str]                   = None
 
