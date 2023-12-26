@@ -43,8 +43,7 @@ class Message(enum_helper.AutoNameDash):
     FILE_GET_SHARES     = auto()    # {net_name, user, password, domain, access_level} request accessible shares at a network name (user Guest without password is used if not provided)
     FILE_GET_LISTING    = auto()    # {path} request contents of a local path
     # client -> master
-    FILE_DRIVES         = auto()    # {local_drives, network_names}: known drives and network names
-    FILE_LISTING        = auto()    # {path, dir_list}: listing of directories and files at path
+    FILE_LISTING        = auto()    # {path, dir_list}: listing of directories and files at path. path may be 'root' when listing accessible drives and net_names, or a \\net_name when listing shares for a network computer
 
     ## file actions (NB: local paths below includes network shares accessible by the client)
     # master -> client
@@ -84,7 +83,6 @@ type_map = {
     Message.FILE_GET_DRIVES     : Type.JSON,
     Message.FILE_GET_SHARES     : Type.JSON,
     Message.FILE_GET_LISTING    : Type.JSON,
-    Message.FILE_DRIVES         : Type.JSON,
     Message.FILE_LISTING        : Type.JSON,
 
     Message.FILE_MAKE           : Type.JSON,

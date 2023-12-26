@@ -285,14 +285,24 @@ class Client:
                             drive = f"{letter}:\\"
                             if await aiopath.AsyncPath(drive).exists():
                                 drives.append(pathlib.Path(drive))
+                        out = {'path': 'root', 'drives': drives, 'net_names': self._net_names}
+                        out['listing'] = []
+                        for d in out['drives']:
+                            out['listing'].append(dir_list.DirEntry(str(d),True,d,0.,0.,0,'labManager/drive'))
+                        for n in out['net_names']:
+                            out['listing'].append(dir_list.DirEntry(n,True,pathlib.Path(f'\\\\{n}'),0.,0.,0,'labManager/net_name'))
                         await comms.typed_send(writer,
-                                               message.Message.FILE_DRIVES,
-                                               {'drives': drives, 'net_names': self._net_names}
+                                               message.Message.FILE_LISTING,
+                                               out
                                               )
                     case message.Message.FILE_GET_SHARES:
                         out = msg
-                        out['listing'] = await smb.get_shares(msg['net_name'], msg['user'], msg['password'], msg['domain'], check_access_level=msg['access_level'])
+                        out['share_names'] = await smb.get_shares(msg['net_name'], msg['user'], msg['password'], msg['domain'], check_access_level=msg['access_level'])
                         del out['password']
+                        out['path'] = f'\\\\{out["net_name"]}'
+                        out['listing'] = []
+                        for n in out['share_names']:
+                            out['listing'].append(dir_list.DirEntry(n,True,pathlib.Path(f'\\\\{msg["net_name"]}') / n,0.,0.,0,None))
                         await comms.typed_send(writer,
                                                message.Message.FILE_LISTING,
                                                out

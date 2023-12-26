@@ -7,9 +7,10 @@ import threading
 import json
 import pathlib
 import unicodedata
+import time
 from typing import Callable
 
-from labManager.common import async_thread, config, counter, eye_tracker, message, structs, task
+from labManager.common import async_thread, config, counter, dir_list, eye_tracker, message, structs, task
 from labManager.common.network import admin_conn, comms, ifs, keepalive, smb, ssdp, toems
 
 
@@ -289,6 +290,11 @@ class Master:
                         if status_change and self.task_state_change_hook:
                             self.task_state_change_hook(me, client_id, mytask)
 
+                    case message.Message.FILE_LISTING:
+                        path = msg.pop('path')
+                        msg['age'] = time.time()
+                        me.file_listings[path] = msg
+
                     case _:
                         print(f'got unhandled type {msg_type.value}, message: {msg}')
 
@@ -434,7 +440,7 @@ class Master:
     async def get_client_remote_shares(self, client: structs.Client, net_name: str, user: str = 'Guest', password: str = '', domain: str = '', access_level: smb.AccessLevel = smb.AccessLevel.READ):
         # list shares on specified target machine that are accessible from this client
         await comms.typed_send(client.online.writer, message.Message.FILE_GET_SHARES,
-                               {'net_name': net_name,
+                               {'net_name': net_name.lstrip('\\'),
                                 'user': user,
                                 'password': password,
                                 'domain': domain,
