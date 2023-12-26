@@ -12,7 +12,7 @@ def get(cls):
             if name_value in [e.value for e in cls]:
                 return cls(name_value)
         else:
-            raise ValueError(f"The provided input should be a string identifying a known {cls.__module__.split('.')[-1]}.{cls.__name__}.\nUnderstood values: {[e.value for e in cls]}.\nGot: {name_value}")
+            raise ValueError(f"The provided input should be a string identifying a known {cls.__module__}.{cls.__name__}.\nUnderstood values: {[e.value for e in cls]}.\nGot: {name_value}")
 
     setattr(cls, 'get', getter)
     return cls
