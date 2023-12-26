@@ -531,7 +531,7 @@ class NetBIOS:
             raise NetBIOSError('Cannot bind to a good UDP port', ERRCLASS_OS, errno.EAGAIN)
         self.__sock = s
 
-    def send(self, request, destaddr, timeout):
+    def send(self, request, destaddr, timeout, tries = 3):
         self._setup_connection(destaddr)
 
         tries = 3
@@ -589,14 +589,14 @@ class NetBIOS:
     # If destaddr contains an IP address, then this will become an unicast query on the destaddr.
     # Raises NetBIOSTimeout if timeout (in secs) is reached.
     # Raises NetBIOSError for other errors
-    def getnodestatus(self, nbname, destaddr = None, type = TYPE_WORKSTATION, scope = None, timeout = 1):
+    def getnodestatus(self, nbname, destaddr = None, type = TYPE_WORKSTATION, scope = None, timeout = 1, tries = 3):
         if destaddr:
-            return self.node_status_request(nbname, destaddr, type, scope, timeout)
+            return self.node_status_request(nbname, destaddr, type, scope, timeout, tries)
         else:
-            return self.node_status_request(nbname, self.__nameserver, type, scope, timeout)
+            return self.node_status_request(nbname, self.__nameserver, type, scope, timeout, tries)
 
-    def getnetbiosname(self, ip):
-        entries = self.getnodestatus('*',ip)
+    def getnetbiosname(self, ip, timeout = 1, tries = 3):
+        entries = self.getnodestatus('*',ip, timeout=timeout, tries=tries)
         entries = [x for x in entries if x['TYPE'] == TYPE_SERVER]
         return entries[0]['NAME'].strip().decode('latin-1')
 
@@ -637,7 +637,7 @@ class NetBIOS:
         res = self.send(p, destaddr, timeout)
         return NBPositiveNameQueryResponse(res['ANSWERS'])
 
-    def node_status_request(self, nbname, destaddr, type, scope, timeout):
+    def node_status_request(self, nbname, destaddr, type, scope, timeout, tries = 3):
         netbios_name = nbname.upper()
         qn_label = encode_name(netbios_name, type, scope)
         p = NODE_STATUS_REQUEST()
@@ -648,7 +648,7 @@ class NetBIOS:
             p['FLAGS'] = NM_FLAGS_BROADCAST
             destaddr = self.__broadcastaddr
 
-        res = self.send(p, destaddr, timeout)
+        res = self.send(p, destaddr, timeout, tries)
         answ = NBNodeStatusResponse(res['ANSWERS'])
         self.mac = answ.get_mac()
         return answ.entries

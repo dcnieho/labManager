@@ -9,14 +9,14 @@ async def get_network_computers(ip_network):
         raise ValueError(f'Too many addresses in network {ip_network}')
 
     # first see what potential hosts are up
-    hosts = await async_multiping([str(h) for h in network.hosts()], count=1, timeout=1, concurrent_tasks=network.num_addresses)
+    hosts = await async_multiping([str(h) for h in network.hosts()], count=1, timeout=1)
 
     # then get their names
     names = {}
     for h in (h for h in hosts if h.is_alive):
         N = nmb.NetBIOS()
         try:
-            name = N.getnetbiosname(h.address)
+            name = N.getnetbiosname(h.address, timeout=0.2, tries=2)
             if name not in names:
                 names[name] = h.address
         except nmb.NetBIOSTimeout:
