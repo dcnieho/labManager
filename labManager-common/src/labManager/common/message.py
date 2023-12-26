@@ -10,7 +10,7 @@ SIZE_BYTES  = struct.calcsize(SIZE_FMT)
 
 
 
-@enum_helper.get('messages')
+@enum_helper.get
 class Message(enum_helper.AutoNameDash):
     QUIT                = auto()    # tell client to kill its handler for this connection
 
@@ -55,7 +55,7 @@ class Message(enum_helper.AutoNameDash):
     FILE_ACTION_STATUS  = auto()    # {path, action_id, action, status...} status update for file actions
 
 
-@enum_helper.get('message types')
+@enum_helper.get
 class Type(enum_helper.AutoNameDash):
     SIMPLE      = auto()
     JSON        = auto()

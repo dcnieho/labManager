@@ -15,7 +15,7 @@ except ImportError:
     pass
 
 
-@enum_helper.get('eye tracker attributes')
+@enum_helper.get
 class Attribute(enum_helper.AutoNameSpace):
     Serial          = auto()
     Name            = auto()

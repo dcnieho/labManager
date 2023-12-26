@@ -1,23 +1,21 @@
 from enum import Enum
 
 # decorator providing Enum.get() function
-def get(name: str):
-    def decorator_get(cls):
-        def get(name_value: str):
-            if isinstance(name_value, cls):
-                return name_value
+def get(cls):
+    def getter(name_value: str):
+        if isinstance(name_value, cls):
+            return name_value
 
-            if isinstance(name_value, str):
-                if name_value in [e.name for e in cls]:
-                    return getattr(cls, name_value)
-                if name_value in [e.value for e in cls]:
-                    return cls(name_value)
-            else:
-                raise ValueError(f"The provided input should be a string identifying one of the known {name}.\nUnderstood values: {[e.value for e in cls]}.\nGot: {name_value}")
+        if isinstance(name_value, str):
+            if name_value in [e.name for e in cls]:
+                return getattr(cls, name_value)
+            if name_value in [e.value for e in cls]:
+                return cls(name_value)
+        else:
+            raise ValueError(f"The provided input should be a string identifying a known {cls.__module__.split('.')[-1]}.{cls.__name__}.\nUnderstood values: {[e.value for e in cls]}.\nGot: {name_value}")
 
-        setattr(cls, 'get', get)
-        return cls
-    return decorator_get
+    setattr(cls, 'get', getter)
+    return cls
 
 
 class AutoNameSpace(Enum):

@@ -15,7 +15,7 @@ from .network import comms, wol
 # TODO: env is a dict and should support either adding or overriding specific variables
 # https://stackoverflow.com/questions/2231227/python-subprocess-popen-with-a-modified-environment
 
-@enum_helper.get('task types')
+@enum_helper.get
 class Type(enum_helper.AutoNameSpace):
     Shell_command   = auto()    # run command in shell
     Process_exec    = auto()    # run executable
@@ -32,7 +32,7 @@ Type.Python_module   .doc = 'Call client''s active python.exe (sys.executable) w
 Type.Python_script   .doc = 'Execute Python script with the client''s active python.exe (sys.executable)'
 Type.Wake_on_LAN     .doc = 'Send Wake on LAN command'
 
-@enum_helper.get('task statuses')
+@enum_helper.get
 class Status(enum_helper.AutoNameSpace):
     Not_started     = auto()
     Running         = auto()
@@ -99,7 +99,7 @@ class TaskGroup:
         with _task_group_id_provider:
             self.id = _task_group_id_provider.count
 
-@enum_helper.get('stream types')
+@enum_helper.get
 class StreamType(enum_helper.AutoNameDash):
     STDOUT      = auto()
     STDERR      = auto()
