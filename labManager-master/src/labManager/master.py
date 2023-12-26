@@ -459,45 +459,44 @@ class Master:
                                 'domain': domain,
                                 'access_level': access_level})
 
+    async def _send_file_action(self, client: structs.Client, action: message.Message, msg: dict[str, str]):
+        # add action id to message
+        msg['action_id'] = self._file_action_id_provider.get_next()
+        # send
+        await comms.typed_send(client.online.writer, action, msg)
+        # store locally as a pending action
+        action_id = msg.pop('action_id')
+        msg['status'] = 'pending'
+        client.online.file_actions[action_id] = msg
+        # return action's id
+        return action_id
     async def _make_client_file_folder(self, client: structs.Client, path: str|pathlib.Path, is_dir: bool):
-        id = self._file_action_id_provider.get_next()
-        await comms.typed_send(client.online.writer, message.Message.FILE_MAKE,
-                               {'path': path,
-                                'is_dir': is_dir,
-                                'action_id': id})
-        return id
+        return await self._send_file_action(client, message.Message.FILE_MAKE,
+                                            {'path': path,
+                                             'is_dir': is_dir})
     async def make_client_file  (self, client: structs.Client, path: str|pathlib.Path):
         return await self._make_client_file_folder(client, path, False)
     async def make_client_folder(self, client: structs.Client, path: str|pathlib.Path):
         return await self._make_client_file_folder(client, path, True)
 
     async def rename_client_file_folder(self, client: structs.Client, old_path: str|pathlib.Path, new_path: str|pathlib.Path):
-        id = self._file_action_id_provider.get_next()
-        await comms.typed_send(client.online.writer, message.Message.FILE_RENAME,
-                               {'old_path': old_path,
-                                'new_path': new_path,
-                                'action_id': id})
-        return id
+        return await self._send_file_action(client, message.Message.FILE_RENAME,
+                                            {'old_path': old_path,
+                                             'new_path': new_path})
 
     async def _copy_move_client_file_folder(self, client: structs.Client, source_path: str|pathlib.Path, dest_path: str|pathlib.Path, is_move: bool):
-        id = self._file_action_id_provider.get_next()
-        await comms.typed_send(client.online.writer, message.Message.FILE_COPY_MOVE,
-                               {'source_path': source_path,
-                                'dest_path': dest_path,
-                                'is_move': is_move,
-                                'action_id': id})
-        return id
+        return await self._send_file_action(client, message.Message.FILE_COPY_MOVE,
+                                            {'source_path': source_path,
+                                             'dest_path': dest_path,
+                                             'is_move': is_move})
     async def copy_client_file_folder(self, client: structs.Client, source_path: str|pathlib.Path, dest_path: str|pathlib.Path):
         return await self._copy_move_client_file_folder(client, source_path, dest_path, False)
     async def move_client_file_folder(self, client: structs.Client, source_path: str|pathlib.Path, dest_path: str|pathlib.Path):
         return await self._copy_move_client_file_folder(client, source_path, dest_path, True)
 
     async def delete_client_file_folder(self, client: structs.Client, path: str|pathlib.Path):
-        id = self._file_action_id_provider.get_next()
-        await comms.typed_send(client.online.writer, message.Message.FILE_DELETE,
-                               {'path': path,
-                                'action_id': id})
-        return id
+        return await self._send_file_action(client, message.Message.FILE_DELETE,
+                                            {'path': path})
 
 
     async def get_computers(self):
