@@ -497,7 +497,7 @@ class Client:
                     r['Status'] = 'Imaging'
         return resp
 
-    async def imaging_tasks_delete_active(self, task_id: int):
+    async def imaging_tasks_cancel_active(self, task_id: int):
         return await self.request(f'ActiveImagingTask/Delete/{task_id}', req_type='delete')
 
 

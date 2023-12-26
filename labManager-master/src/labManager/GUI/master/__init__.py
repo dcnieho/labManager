@@ -313,12 +313,12 @@ class MainGUI:
         while n_tries<max_tries:
             n_tries += 1
             try:
-                temp_list = await self.master.get_images()
+                temp_list = await self.master.toems_get_disk_images()
                 # get extra info about disk images
                 coros = []
                 for im in temp_list:
-                    coros.append(self.master.get_image_info(im['Id']))
-                    coros.append(self.master.get_image_size(im['Id']))
+                    coros.append(self.master.toems_get_disk_image_info(im['Id']))
+                    coros.append(self.master.toems_get_disk_image_size(im['Id']))
                 res   = await asyncio.gather(*coros)
                 infos = res[0::2]
                 dss   = res[1::2]
@@ -749,7 +749,7 @@ class MainGUI:
                     return 0 if enter_pressed else None
 
                 buttons = {
-                    icons_fontawesome.ICON_FA_CHECK+" Add image": lambda: async_thread.run(self.master.create_image(new_image_name),
+                    icons_fontawesome.ICON_FA_CHECK+" Add image": lambda: async_thread.run(self.master.toems_create_disk_image(new_image_name),
                                                                         lambda fut: self._image_action_result('create',fut)),
                     icons_fontawesome.ICON_FA_BAN+" Cancel": None
                 }
@@ -809,7 +809,7 @@ class MainGUI:
                                     return 0 if enter_pressed else None
 
                                 buttons = {
-                                    icons_fontawesome.ICON_FA_CHECK+" Rename image": lambda: async_thread.run(self.master.update_image(im['Name'],{'Name':self.master.project + '_' + new_image_name}),
+                                    icons_fontawesome.ICON_FA_CHECK+" Rename image": lambda: async_thread.run(self.master.toems_update_disk_image(im['Name'],{'Name':self.master.project + '_' + new_image_name}),
                                                                                         lambda fut: self._image_action_result('update',fut)),
                                     icons_fontawesome.ICON_FA_BAN+" Cancel": None
                                 }
@@ -835,7 +835,7 @@ class MainGUI:
                                 self._image_description_cache[im['Id']] = [False, im['Description']]
                             imgui.end_group()
                         if do_update:
-                            async_thread.run(self.master.update_image(im['Name'],{'Description': self._image_description_cache[im['Id']][1]}),
+                            async_thread.run(self.master.toems_update_disk_image(im['Name'],{'Description': self._image_description_cache[im['Id']][1]}),
                                              lambda fut: self._image_action_result('update',fut))
                         imgui.table_next_row()
                         imgui.table_next_column()
@@ -894,14 +894,14 @@ class MainGUI:
                                 imgui.text(t['Rate'])
                                 imgui.table_next_column()
                                 if imgui.button(f'Cancel##{t["ComputerName"]}'):
-                                    async_thread.run(self.master.delete_active_imaging_task(t['TaskId']),
+                                    async_thread.run(self.master.toems_cancel_active_imaging_task(t['TaskId']),
                                                      lambda fut: self._image_action_result('cancel active task',fut))
                             imgui.end_table()
                         if imgui.button('Cancel all'):
                             # NB: cannot use the /ActiveImagingTask/CancelAllImagingTasks toems action, thats only for admins
                             # so issue cancels one by one
                             for t in active_imaging_tasks:
-                                async_thread.run(self.master.delete_active_imaging_task(t['TaskId']),
+                                async_thread.run(self.master.toems_cancel_active_imaging_task(t['TaskId']),
                                                  lambda fut: self._image_action_result('cancel active task',fut))
 
         imgui.end()
@@ -911,7 +911,7 @@ class MainGUI:
                 if (disabled := not selected_clients or im['DiskSize']=='N/A'):
                     utils.push_disabled()
                 if imgui.button('Deploy'):
-                    async_thread.run(self.master.deploy_image(im['Name'], im['PartOfProject'], [self.master.clients[i].name for i in selected_clients]),
+                    async_thread.run(self.master.toems_deploy_disk_image(im['Name'], im['PartOfProject'], selected_clients),
                                      lambda fut: self._image_action_result('deploy',fut))
                 if not disabled and imgui.is_item_hovered():
                     stations_txt = '\n  '.join((self.master.clients[i].name for i in selected_clients))
@@ -927,7 +927,7 @@ class MainGUI:
                     if (disabled := len(selected_clients)!=1 or station_txt in self._active_upload_tasks):
                         utils.push_disabled()
                     if imgui.button('Upload'):
-                        async_thread.run(self.master.upload_computer_to_image(next((self.master.clients[i].name for i in selected_clients)), im['Name']),
+                        async_thread.run(self.master.toems_upload_to_disk_image(selected_clients[0], im['Name']),
                                         lambda fut: self._image_action_result('upload',fut))
                     if not disabled and imgui.is_item_hovered():
                         utils.draw_tooltip(f"Upload station {station_txt} to image '{im['UserFacingName']}'")
@@ -940,7 +940,7 @@ class MainGUI:
                     imgui.push_style_color(imgui.Col_.button_hovered, imgui.ImVec4(*imgui.ImColor.hsv(0.9667,.88,.64)))
                     imgui.push_style_color(imgui.Col_.button_active, imgui.ImVec4(*imgui.ImColor.hsv(0.9667,.88,.93)))
                     if imgui.button('Delete'):
-                        async_thread.run(self.master.delete_image(im['Name']),
+                        async_thread.run(self.master.toems_delete_disk_image(im['Name']),
                                         lambda fut: self._image_action_result('delete',fut))
                     imgui.pop_style_color(3)
         imgui.end()
@@ -949,7 +949,7 @@ class MainGUI:
         self._active_imaging_tasks_updater_should_stop = False
         while not self._active_imaging_tasks_updater_should_stop:
             # NB: this is and must remain an atomic update, so its not possible to read incomplete state elsewhere
-            self._active_imaging_tasks = await self.master.get_active_imaging_tasks()
+            self._active_imaging_tasks = await self.master.toems_get_active_imaging_tasks()
 
             # check if an upload task has just finished. If so, trigger image refresh
             to_del = []
