@@ -365,10 +365,12 @@ class Base:
         self.transport.close()
         if self._want_second:
             self.transport_multicast.close()
+        waiters = []
         if self.protocol:
             waiters = [self.protocol.done]
-            if self._want_second:
-                waiters.append(self.protocol_multicast.done)
+        if self._want_second:
+            waiters.append(self.protocol_multicast.done)
+        if waiters:
             await asyncio.wait(waiters)
         self._is_started = False
 
