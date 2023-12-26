@@ -40,10 +40,10 @@ class ConnectedMaster:
     remote_addr:    tuple[str,int]
     local_addr:     tuple[str,int]
 
-    handler_task:   asyncio.Task = None
+    handler_task:   asyncio.Task            = None
 
     task_list:      list[task.RunningTask]  = field(default_factory=lambda: [])
-    mounted_drives: list[str]
+    mounted_drives: list[str]               = field(default_factory=lambda: [])
 
 class Client:
     def __init__(self, network):
