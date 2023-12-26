@@ -240,7 +240,7 @@ class Master:
         keepalive.set(writer.get_extra_info('socket'))
 
         me = ConnectedClient(reader, writer)
-        id = None
+        client_id = None
 
         # request info about client
         await comms.typed_send(writer, message.Message.IDENTIFY)
@@ -261,11 +261,11 @@ class Master:
                     case message.Message.IDENTIFY:
                         if 'image_info' in msg:
                             me.image_info = msg['image_info']
-                        id = self._client_connected(me, msg['name'], msg['MACs'])
+                        client_id = self._client_connected(me, msg['name'], msg['MACs'])
 
                         # if available, tell client to mount project share as drive
                         if self.has_share_access:
-                            await self.client_mount_project_share(me, id)
+                            await self.client_mount_project_share(me, client_id)
 
                     case message.Message.ET_STATUS_INFORM:
                         if not me.eye_tracker:
@@ -307,7 +307,7 @@ class Master:
                         if 'return_code' in msg:
                             mytask.return_code = msg['return_code']
                         if status_change and self.task_state_change_hook:
-                            self.task_state_change_hook(me, id, mytask)
+                            self.task_state_change_hook(me, client_id, mytask)
 
                     case _:
                         print(f'got unhandled type {msg_type.value}, message: {msg}')
@@ -322,7 +322,7 @@ class Master:
         me.writer = None
 
         # remove online client instance
-        self._client_disconnected(me, id)
+        self._client_disconnected(me, client_id)
 
 
     def load_known_clients(self, known_clients: list[dict[str,str|list[str]]] = None):
