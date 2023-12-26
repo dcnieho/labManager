@@ -16,6 +16,7 @@ from labManager.common.network import admin_conn, comms, ifs, keepalive, smb, ss
 
 @dataclass
 class ConnectedClient:
+    reader          : asyncio.streams.StreamReader
     writer          : asyncio.streams.StreamWriter
 
     host            : str                   = None
@@ -147,7 +148,6 @@ class Master:
         self.toems = None
         self.project = None
         self.has_share_access = False
-        self.unmount_client_shares(drives=[config.master['SMB']['mount_drive_letter']])
         if self.admin is not None:
             self.admin.unset_project()
         self.task_groups.clear()
@@ -193,9 +193,14 @@ class Master:
             for c in self.clients:
                 if self.clients[c].online:
                     try:
-                        self.clients[c].online.writer.close()
-                    except:
-                        pass
+                        # break out of reading loop in client handler by sending it a quit message
+                        self.clients[c].online.reader.feed_data(comms.prepare_transmission(message.Message.QUIT.value))
+                    except Exception as exc:
+                        # ok, try to shut down a bit more aggressively
+                        try:
+                            self.clients[c].online.writer.close()
+                        except:
+                            pass
             close_waiters = [asyncio.create_task(self.clients[c].online.writer.wait_closed()) for c in self.clients if self.clients[c].online]
         if close_waiters:
             await asyncio.wait(close_waiters)
@@ -208,7 +213,7 @@ class Master:
     async def _handle_client(self, reader: asyncio.streams.StreamReader, writer: asyncio.streams.StreamWriter):
         keepalive.set(writer.get_extra_info('socket'))
 
-        me = ConnectedClient(writer)
+        me = ConnectedClient(reader, writer)
         id = None
 
         # request info about client
@@ -296,7 +301,7 @@ class Master:
                 print("".join(tb_lines))
                 continue
 
-        self.unmount_client_shares(client=me)
+        await self.unmount_client_shares(me)
         writer.close()
         me.writer = None
 
@@ -354,22 +359,13 @@ class Master:
             coros = [comms.typed_send(self.clients[c].online.writer, type, msg) for c in self.clients if self.clients[c].online]
         await asyncio.gather(*coros)
 
-    def unmount_client_shares(self, client: ConnectedClient = None, drives: list[str] = None):
-        if (client and (not client.writer or not client.writer.is_closing())) or not async_thread.loop or not async_thread.loop.is_running:
+    async def unmount_client_shares(self, client: ConnectedClient):
+        if not client.writer or client.writer.is_closing():
             return
-        all_drives = set()
-        if drives:
-            all_drives.update(drives)
-        if client:
-            all_drives.update(client.mounted_shares.keys())
         coros = []
-        for drive in all_drives:
-            request = {'drive': drive}
-            if client and client.writer:
-                coros.append(comms.typed_send(client.writer, message.Message.SHARE_UNMOUNT, request))
-            else:
-                coros.append(self.broadcast(message.Message.SHARE_UNMOUNT, request))
-        async_thread.run(asyncio.wait(coros))
+        for drive in client.mounted_shares.keys():
+            coros.append(comms.typed_send(client.writer, message.Message.SHARE_UNMOUNT, {'drive': drive}))
+        await asyncio.gather(*coros)
 
     async def run_task(self,
                        type: task.Type,
