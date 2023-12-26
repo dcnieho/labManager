@@ -467,7 +467,11 @@ class MainGUI:
 
     def _lost_client(self, client: structs.ConnectedClient, client_id: int):
         # we lost this client. Clear out all state related to it
-        self._computer_GUI_tasks[client_id] = None
+        if self.master.clients[client_id].known:
+            self._computer_GUI_tasks[client_id] = None
+        else:
+            del self._computer_GUI_tasks[client_id]
+            self._window_list = [w for w in hello_imgui.get_runner_params().docking_params.dockable_windows if not w.label.startswith(self.master.clients[client_id].name)]
 
         to_del = []
         for t in self._computer_GUI_interactive_tasks:
