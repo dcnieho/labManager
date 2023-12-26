@@ -492,7 +492,7 @@ class Master:
     async def run_task(self,
                        type: task.Type,
                        payload: str,
-                       clients: list[int] | str,
+                       clients: str | int | list[int],
                        payload_type='text',
                        cwd: str=None,
                        env: dict=None,
@@ -502,9 +502,15 @@ class Master:
         if clients=='*':
             with self.clients_lock:
                 clients = [c for c in self.clients]
+        elif isinstance(clients, int):
+            clients = [clients]
         if not clients:
             # nothing to do
-            return
+            return None, None
+        else:
+            for c in clients:
+                if c not in self.clients:
+                    raise ValueError(f'client with id {c} is not known')
 
         # handle payload
         match payload_type:
