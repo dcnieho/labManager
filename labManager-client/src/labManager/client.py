@@ -40,7 +40,7 @@ class ConnectedMaster:
     remote_addr:    tuple[str,int]
     local_addr:     tuple[str,int]
 
-    handler_task:   asyncio.Task            = None
+    handler:        asyncio.Task            = None
 
     task_list:      list[task.RunningTask]  = field(default_factory=lambda: [])
     mounted_drives: list[str]               = field(default_factory=lambda: [])
@@ -132,7 +132,7 @@ class Client:
                 ConnectedMaster(writer, server_addr, writer.get_extra_info('sockname'))
 
         # run connection handler
-        self.masters[m].handler_task = asyncio.create_task(self._handle_master(m, reader, writer))
+        self.masters[m].handler = asyncio.create_task(self._handle_master(m, reader, writer))
 
     def _get_next_master_id(self):
         m = self._next_master_id
@@ -148,9 +148,9 @@ class Client:
 
         # wait till everything is stopped and cancelled
         with self.master_lock:
-            running_tasks = [t.async_task for m in self.masters for t in self.masters[m].task_list]
+            running_tasks = [t.handler for m in self.masters for t in self.masters[m].task_list]
             close_waiters = [self.masters[m].writer.wait_closed() for m in self.masters]
-            master_handlers = [self.masters[m].handler_task for m in self.masters]
+            master_handlers = [self.masters[m].handler for m in self.masters]
         await asyncio.wait(
             running_tasks +
             self._poll_for_netnames_task +
@@ -175,7 +175,7 @@ class Client:
         with self.master_lock:
             for m in self.masters:
                 for t in self.masters[m].task_list:
-                    t.async_task.cancel()
+                    t.handler.cancel()
 
                 try:
                     self.masters[m].writer.close()
@@ -184,7 +184,7 @@ class Client:
 
     def get_waiters(self) -> list[asyncio.Task]:
         with self.master_lock:
-            return [self.masters[m].handler_task for m in self.masters]
+            return [self.masters[m].handler for m in self.masters]
 
     async def broadcast(self, type: message.Message, msg: str=''):
         with self.master_lock:
@@ -195,7 +195,7 @@ class Client:
         if m not in self.masters:
             return
         for i,t in enumerate(self.masters[m].task_list):
-            if t.async_task.get_name()==my_task.get_name():
+            if t.handler.get_name()==my_task.get_name():
                 del self.masters[m].task_list[i]
                 break
 
@@ -248,19 +248,19 @@ class Client:
 
                     case message.Message.TASK_CREATE:
                         new_task = task.RunningTask(msg['task_id'], )
-                        new_task.async_task = asyncio.create_task(
+                        new_task.handler = asyncio.create_task(
                             task.Executor().run(
                                 msg['task_id'],msg['type'],msg['payload'],msg['cwd'],msg['env'],msg['interactive'],msg['python_unbuf'],
                                 new_task,
                                 writer)
                         )
                         self.masters[m].task_list.append(new_task)
-                        new_task.async_task.add_done_callback(lambda tsk: self._remove_finished_task(m, tsk))
+                        new_task.handler.add_done_callback(lambda tsk: self._remove_finished_task(m, tsk))
                     case message.Message.TASK_INPUT:
                         # find if there is a running task with this id and which has an input queue, else ignore the input
                         my_task = None
                         for t in self.masters[m].task_list:
-                            if msg['task_id']==t.id and not t.async_task.done():
+                            if msg['task_id']==t.id and not t.handler.done():
                                 my_task = t
                                 break
                         if my_task and my_task.input:
@@ -269,7 +269,7 @@ class Client:
                         # find if there is a running task with this id, else ignore the request
                         my_task = None
                         for t in self.masters[m].task_list:
-                            if msg['task_id']==t.id and not t.async_task.done():
+                            if msg['task_id']==t.id and not t.handler.done():
                                 my_task = t
                                 break
                         if my_task:
@@ -277,7 +277,7 @@ class Client:
                                 my_task.tried_stdin_close = True
                                 await my_task.input.put(None)
                             else:
-                                t.async_task.cancel()
+                                t.handler.cancel()
 
                     case message.Message.FILE_GET_DRIVES:
                         drives = []

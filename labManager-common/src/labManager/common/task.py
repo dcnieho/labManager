@@ -74,7 +74,7 @@ class Task:
 @dataclass
 class RunningTask:
     id                  : int
-    async_task          : asyncio.Task = None
+    handler             : asyncio.Task = None
     input               : asyncio.Queue= None
     tried_stdin_close   : bool = False
 
