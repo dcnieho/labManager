@@ -28,6 +28,9 @@ class Master:
         self._share_access_task : asyncio.Task                  = None
         self.has_share_access   : bool                          = False
 
+        self._loop              : asyncio.AbstractEventLoop     = None
+        self._waiters           : set[structs.Waiter]           = set()
+
         # connections to servers
         self.admin              : admin_conn.Client             = None
         self.toems              : toems.Client                  = None
@@ -159,6 +162,7 @@ class Master:
         if self._server and self.is_serving():
             return
 
+        self._loop = asyncio.get_running_loop()
         if local_addr is None:
             if_ips,_ = ifs.get_ifaces(config.master['network'])
             if not if_ips:
@@ -203,6 +207,10 @@ class Master:
             # no shares can get mounted just as we're shutting down
             await self._share_access_task
 
+        # if user has any waiters registered, cancel them
+        for w in self._waiters:
+            w.fut.cancel()
+
         with self.clients_lock:
             for c in self.clients:
                 if self.clients[c].online:
@@ -233,6 +241,39 @@ class Master:
             self._server.close()
             await self._server.wait_closed()
         self._server = None
+        self._loop = None
+
+    def add_waiter(self, waiter_type : str|structs.WaiterType, parameter: str|pathlib.Path|int|None):
+        waiter_type = structs.WaiterType.get(waiter_type)
+
+        # check parameter is valid
+        match waiter_type:
+            case structs.WaiterType.Client_Connect:
+                # None: wait for any client to connect
+                # int: wait until a specific number of clients is connected
+                # str: wait until client with this specific name is connected
+                assert parameter is None or type(parameter) in [int, str],\
+                    f'When creating a {waiter_type.value} waiter, parameter should be None, an int, or a str'
+            case structs.WaiterType.Task:
+                assert isinstance(parameter, int),\
+                    f'When creating a {waiter_type.value} waiter, parameter should be an int (task id)'
+            case structs.WaiterType.Task_Group:
+                assert isinstance(parameter, int),\
+                    f'When creating a {waiter_type.value} waiter, parameter should be an int (task group id)'
+            case structs.WaiterType.File_Listing:
+                assert isinstance(parameter, str) or isinstance(parameter, pathlib.Path),\
+                    f'When creating a {waiter_type.value} waiter, parameter should be an str or a pathlib.Path (listing path)'
+            case structs.WaiterType.File_Action:
+                assert isinstance(parameter, int),\
+                    f'When creating a {waiter_type.value} waiter, parameter should be an int (file action id)'
+
+        # its valid, create our waiter
+        waiter = structs.Waiter(waiter_type, parameter, self._loop.create_future())
+
+        # register future and add our cleanup function
+        self._waiters.add(waiter)
+        waiter.fut.add_done_callback(lambda _: self._waiters.discard(waiter))
+        return waiter.fut
 
     async def _handle_client(self, reader: asyncio.streams.StreamReader, writer: asyncio.streams.StreamWriter):
         keepalive.set(writer.get_extra_info('socket'))
@@ -323,6 +364,13 @@ class Master:
                     case message.Message.FILE_ACTION_STATUS:
                         action_id = msg.pop('action_id')
                         me.file_actions[action_id] = msg
+                        # check if there are any waiters for this action, notify them
+                        if msg['status'] in ['ok', 'error']:
+                            for w in self._waiters:
+                                if w.waiter_type==structs.WaiterType.File_Action and w.parameter==action_id:
+                                    # NB: no need for lock as callback is not called
+                                    # immediately, but call_soon()
+                                    w.fut.set_result(None)
 
                     case _:
                         print(f'got unhandled type {msg_type.value}, message: {msg}')
@@ -359,6 +407,7 @@ class Master:
                 self.clients[client.id] = client
 
     def _client_connected(self, client: structs.ConnectedClient, name, MACs):
+        client_id = None
         with self.clients_lock:
             for c in self.clients:
                 if self.clients[c].name != name:
@@ -367,12 +416,27 @@ class Master:
                     if m in MACs:
                         # known client, registrer online instance to it
                         self.clients[c].online = client
-                        return self.clients[c].id # we're done
+                        client_id = self.clients[c].id
 
             # client not known, add
-            c = structs.Client(name, MACs, online=client)
-            self.clients[c.id] = c
-            return c.id
+            if not client_id:
+                c = structs.Client(name, MACs, online=client)
+                client_id = c.id
+                self.clients[client_id] = c
+            num_clients = len(self.clients)
+
+        for w in self._waiters:
+            if w.waiter_type==structs.WaiterType.Client_Connect:
+                if w.parameter is None:
+                    # waiting for any client to connect
+                    w.fut.set_result(None)
+                elif isinstance(w.parameter, int) and num_clients==w.parameter:
+                    # waiting for a specific number of clients to be connected
+                    w.fut.set_result(None)
+                elif self.clients[client_id].name==w.parameter:
+                    # waiting for client with a specific name to connect
+                    w.fut.set_result(None)
+        return client_id
 
     def _client_disconnected(self, client: structs.ConnectedClient, client_id: int):
         # call hooks, if any

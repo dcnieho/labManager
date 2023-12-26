@@ -12,9 +12,8 @@ async def run():
     await labManager.master.cmd_login_flow(master)
     await master.start_server()
 
-    # wait until we have at least one client
-    while not master.clients:
-        await asyncio.sleep(.5)
+    # wait until a client connects
+    await asyncio.wait_for(master.add_waiter('client-connect', None), timeout=None)
 
     # print some info about each client
     with master.clients_lock:

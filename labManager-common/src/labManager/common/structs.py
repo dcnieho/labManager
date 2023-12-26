@@ -1,9 +1,26 @@
 from __future__ import annotations
 
 import asyncio
+import pathlib
 from dataclasses import dataclass, field
+from enum import auto
 
-from . import counter, task
+from . import counter, enum_helper, task
+
+
+@enum_helper.get
+class WaiterType(enum_helper.AutoNameDash):
+    Client_Connect  = auto()    # wait for any (parameter is None), a specific number of clients (parameter is an int) or a specific client (parameter is a string) to connect
+    Task            = auto()    # run for a specific task to complete
+    Task_Group      = auto()    # wait for all tasks in a task group to complete
+    File_Listing    = auto()    # wait for a file listing for a specific path to become available
+    File_Action     = auto()    # wait for a specific file action to complete
+
+@dataclass(frozen=True)
+class Waiter:
+    waiter_type : WaiterType
+    parameter   : str|pathlib.Path|int
+    fut         : asyncio.Future
 
 
 @dataclass
@@ -22,12 +39,13 @@ class ConnectedClient:
     file_actions    : dict[int,dict]        = field(default_factory=dict)
     mounted_shares  : dict[str,str]         = field(default_factory=dict)
 
+    _waiters        : set[Waiter]           = field(default_factory=set)
+
     def __post_init__(self):
         self.host,self.port = self.writer.get_extra_info('peername')
 
     def __repr__(self):
         return f'{self.name}@{self.host}:{self.port}'
-
 
 _client_id_provider = counter.CounterContext()
 @dataclass
