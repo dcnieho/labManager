@@ -61,8 +61,6 @@ class Task:
     # when status finished or errored, client provides the return code:
     return_code : int = None
 
-    chain_id    : int = None    # if non-zero, start task with this id after the current task has finished (not errored)
-
     def __post_init__(self):
         global _task_id_provider
         with _task_id_provider:
@@ -86,13 +84,12 @@ class TaskGroup:
     payload     : str               # command, batch file contents, python script contents
     id          : int = None
 
-    # references to tasks belonging to this group, indexed by client name
+    # references to tasks belonging to this group
+    # index is client id
     task_refs   : dict[int, Task]  = field(default_factory=lambda: {})
 
     num_finished: int = 0
     status      : Status = Status.Not_started   # running when any task has started, error when any has errored, finished when all finished successfully
-
-    chain_id    : int = None        # if non-zero, indicates task group of tasks that will start after tasks in this group have finished (not errored)
 
     def __post_init__(self):
         global _task_group_id_provider
