@@ -109,15 +109,31 @@ class Executor:
         self._proc: asyncio.subprocess.Process = None
         self._input: asyncio.Queue = None
 
-    async def _read_stream(self, stream, stream_type: StreamType, writer, id):
+    async def _read_stream(self, stream: asyncio.streams.StreamReader, stream_type: StreamType, writer, task_id):
+        full_line = b''
         while True:
             line = await stream.read(20)
             if line:
-                await comms.typed_send(
-                    writer,
-                    message.Message.TASK_OUTPUT,
-                    {'task_id': id, 'stream_type': stream_type, 'output': line.decode('utf8')}
-                )
+                try:
+                    msg = (full_line+line).decode('utf8')
+                except UnicodeDecodeError as exc:
+                    if len(full_line)+len(line)==exc.end:
+                        # our read split a utf8 codepoint in two
+                        # add to next read and try again
+                        full_line += line
+                        msg = None
+                    else:
+                        # replace string with error message
+                        msg = '<UnicodeDecodeError>'
+                finally:
+                    if msg is None:
+                        continue
+                    full_line = b''
+                    await comms.typed_send(
+                        writer,
+                        message.Message.TASK_OUTPUT,
+                        {'task_id': task_id, 'stream_type': stream_type, 'output': msg}
+                    )
             else:
                 break
 
