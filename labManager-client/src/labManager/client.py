@@ -149,13 +149,13 @@ class Client:
         # wait till everything is stopped and cancelled
         with self.master_lock:
             running_tasks = [t.async_task for m in self.masters for t in self.masters[m].task_list]
-            close_waiters = [asyncio.create_task(self.masters[m].writer.wait_closed()) for m in self.masters]
+            close_waiters = [self.masters[m].writer.wait_closed() for m in self.masters]
             master_handlers = [self.masters[m].handler_task for m in self.masters]
         await asyncio.wait(
             running_tasks +
             self._poll_for_netnames_task +
             self._poll_for_eyetrackers_task +
-            ([asyncio.create_task(self._ssdp_client.stop())] if self._ssdp_client else []) +
+            ([self._ssdp_client.stop()] if self._ssdp_client else []) +
             close_waiters +
             master_handlers,
             timeout=timeout
