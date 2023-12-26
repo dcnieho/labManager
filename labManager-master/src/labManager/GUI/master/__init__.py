@@ -928,7 +928,7 @@ class MainGUI:
                         utils.push_disabled()
                     if imgui.button('Upload'):
                         async_thread.run(self.master.toems_upload_to_disk_image(selected_clients[0], im['Name']),
-                                        lambda fut: self._image_action_result('upload',fut))
+                                         lambda fut: self._image_action_result('upload',fut))
                     if not disabled and imgui.is_item_hovered():
                         utils.draw_tooltip(f"Upload station {station_txt} to image '{im['UserFacingName']}'")
                     if disabled:
