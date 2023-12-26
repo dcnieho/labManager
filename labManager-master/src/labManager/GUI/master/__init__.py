@@ -1291,7 +1291,7 @@ class MainGUI:
 
         with self.master.clients_lock:
             if len(self.selected_computers)!=len(self.master.clients):
-                # update: remove or add to selected as needed
+                # update: remove from or add to selected as needed
                 # NB: slightly complicated as we cannot replace the dict. A ref to it is
                 # held by self.computer_lister, and that reffed object needs to be updated
                 new_vals = {k:(self.selected_computers[k] if k in self.selected_computers else False) for k in self.master.clients}
