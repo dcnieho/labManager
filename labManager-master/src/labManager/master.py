@@ -156,6 +156,9 @@ class Master:
 
 
     async def start_server(self, local_addr: tuple[str,int]=None, start_ssdp_advertise=True):
+        if self._server and self.is_serving():
+            return
+
         if local_addr is None:
             if_ips,_ = ifs.get_ifaces(config.master['network'])
             if not if_ips:
