@@ -273,6 +273,62 @@ class Master:
         # register future and add our cleanup function
         self._waiters.add(waiter)
         waiter.fut.add_done_callback(lambda _: self._waiters.discard(waiter))
+
+        # some extra set up or checks
+        match waiter_type:
+            # client-connect: check if client already connected
+            case structs.WaiterType.Client_Connect:
+                if isinstance(parameter, int) and len(self.clients)==parameter:
+                    # condition already met, set future done
+                    waiter.fut.set_result(None)
+                elif isinstance(parameter, str) and parameter in [self.clients[c].name for c in self.clients if self.clients[c].online]:
+                    # client with this name is already connected, set future done
+                    waiter.fut.set_result(None)
+            case structs.WaiterType.Task:
+                # see if task exists, and if so if its already done
+                # find the task somewhere in all the task groups
+                tsk = None
+                for tg in reversed(self.task_groups):   # check newest first, more likely to be found there
+                    for c in self.task_groups[tg].tasks:
+                        if self.task_groups[tg].tasks[c].id==parameter:
+                            # found
+                            tsk = self.task_groups[tg].tasks[c]
+                            break
+                    if tsk:
+                        break
+                # now register waiter for task if task was found
+                if not tsk:
+                    waiter.fut.set_exception(ValueError(f'task with id {parameter} does not exist'))
+                elif tsk.is_done():
+                    waiter.fut.set_result(None)
+                else:
+                    # waiting for these is accomplished by means of a callback that fires when their status changes
+                    tsk.add_listener(lambda t: waiter.fut.set_result(None) if t.is_done() and not waiter.fut.done() else None)
+            case structs.WaiterType.Task_Group:
+                # see if task group exists, and if so if its already done
+                if parameter not in self.task_groups:
+                    waiter.fut.set_exception(ValueError(f'task group with id {parameter} does not exist'))
+                elif self.task_groups[parameter].is_done():
+                    waiter.fut.set_result(None)
+                else:
+                    # waiting for these is accomplished by means of a callback that fires when their status changes
+                    self.task_groups[parameter].add_listener(lambda tg: waiter.fut.set_result(None) if tg.is_done() and not waiter.fut.done() else None)
+            case structs.WaiterType.File_Listing:
+                # nothing to do. special case. A file listing with this key is likely already present
+                # but we wait for a new one to come in. It is advised to make the waiter before just
+                # to be very safe about avoid a race condition
+                pass
+            case structs.WaiterType.File_Action:
+                # see if file action, and if so if its already done
+                # find file action
+                for c in self.clients:
+                    if self.clients[c].online and parameter in self.clients[c].online.file_actions:
+                        # found
+                        if self.clients[c].online.file_actions[parameter]['status'] in ['ok', 'error']:
+                            # action is already finished
+                            waiter.fut.set_result(None)
+                        break
+
         return waiter.fut
 
     async def _handle_client(self, reader: asyncio.streams.StreamReader, writer: asyncio.streams.StreamWriter):
@@ -357,9 +413,15 @@ class Master:
 
 
                     case message.Message.FILE_LISTING:
-                        path = msg.pop('path')
+                        path = str(msg.pop('path')) # should always be sent as a plain string instead of pathlib.Path by client, but lets be safe
                         msg['age'] = time.time()
                         me.file_listings[path] = msg
+                        for w in self._waiters:
+                            if w.waiter_type==structs.WaiterType.File_Listing and str(w.parameter)==path:
+                                # NB: no need for lock as callback is not called
+                                # immediately, but call_soon()
+                                if not w.fut.done():
+                                    w.fut.set_result(None)
                     case message.Message.FILE_ACTION_STATUS:
                         action_id = msg.pop('action_id')
                         me.file_actions[action_id] = msg
@@ -369,7 +431,8 @@ class Master:
                                 if w.waiter_type==structs.WaiterType.File_Action and w.parameter==action_id:
                                     # NB: no need for lock as callback is not called
                                     # immediately, but call_soon()
-                                    w.fut.set_result(None)
+                                    if not w.fut.done():
+                                        w.fut.set_result(None)
 
                     case _:
                         print(f'got unhandled type {msg_type.value}, message: {msg}')
@@ -431,10 +494,12 @@ class Master:
                     w.fut.set_result(None)
                 elif isinstance(w.parameter, int) and num_clients==w.parameter:
                     # waiting for a specific number of clients to be connected
-                    w.fut.set_result(None)
+                    if not w.fut.done():
+                        w.fut.set_result(None)
                 elif self.clients[client_id].name==w.parameter:
                     # waiting for client with a specific name to connect
-                    w.fut.set_result(None)
+                    if not w.fut.done():
+                        w.fut.set_result(None)
         return client_id
 
     def _client_disconnected(self, client: structs.ConnectedClient, client_id: int):
