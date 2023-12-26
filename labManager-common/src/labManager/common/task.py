@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import asyncio
 import aiopath
 import aioshutil
@@ -8,6 +10,7 @@ import traceback
 import sys
 from enum import auto
 from dataclasses import dataclass, field
+from typing import Callable
 
 from . import counter, enum_helper, message, structs
 from .network import comms, wol
@@ -51,7 +54,8 @@ class Task:
     python_unbuf: bool= False   # if task.Type is Python_module or Python_script, specify whether the -u flag should be passed to run in unbuffered mode
 
     id          : int = None
-    status      : Status = Status.Not_started
+    status      : Status    # after https://stackoverflow.com/a/61480946/3103767
+    _status     : Status = field(init=False, repr=False, default=Status.Not_started)
 
     client      : int = None
     task_group_id: int = None
@@ -61,12 +65,41 @@ class Task:
     # when status finished or errored, client provides the return code:
     return_code : int = None
 
+    _listeners: list[Callable[[Task], None]] = field(default_factory=list)
+
     def __post_init__(self):
         global _task_id_provider
         with _task_id_provider:
             self.id = _task_id_provider.count
 
-    def done(self):
+    @property
+    def status(self) -> Status:
+        return self._status
+
+    @status.setter
+    def status(self, value: Status) -> None:
+        if isinstance(value, property):
+            # initial value not specified, use default
+            self._status = Task._status
+            return
+
+        self._status = value
+
+        # call any value changed observers
+        to_del = []
+        for i,c in enumerate(self._listeners):
+            try:
+                c(self)
+            except:
+                to_del.append(i)
+        # remove crashing hooks so they are not called again
+        for i in to_del[::-1]:
+            del self._listeners[i]
+
+    def add_listener(self, callback: Callable[[Task], None]):
+        self._listeners.append(callback)
+
+    def is_done(self):
         return self.status in [Status.Finished, Status.Errored]
 
 @dataclass
@@ -89,12 +122,69 @@ class TaskGroup:
     tasks       : dict[int, Task]  = field(default_factory=dict)
 
     num_finished: int = 0
-    status      : Status = Status.Not_started   # running when any task has started, error when any has errored, finished when all finished successfully
+    # status: running when any task has started, error when any has errored, finished when all finished successfully
+    status      : Status    # after https://stackoverflow.com/a/61480946/3103767
+    _status     : Status = field(init=False, repr=False, default=Status.Not_started)
+
+    _listeners: list[Callable[[TaskGroup], None]] = field(default_factory=list)
 
     def __post_init__(self):
         global _task_group_id_provider
         with _task_group_id_provider:
             self.id = _task_group_id_provider.count
+
+    def add_task(self, client_id: int, tsk: Task):
+        self.tasks[client_id] = tsk
+        tsk.add_listener(self._on_task_state_change)
+
+    def _on_task_state_change(self, tsk: Task):
+        if tsk.id not in [self.tasks[c].id for c in self.tasks]:
+            # task not a part of this task group (shouldn't occur?), nothing to do
+            return
+        if tsk.status==Status.Running and self.status!=Status.Running:
+            self.status = Status.Running
+
+        # rest of logic is for when the task is finished
+        if not tsk.is_done():
+            return
+        self.num_finished += 1
+        if tsk.status==Status.Errored:
+            # task group status is errored when any task has errored
+            self.status = Status.Errored
+        elif self.num_finished==len(self.tasks):
+            # task group status is finished when all tasks have finished
+            self.status = Status.Finished
+
+    @property
+    def status(self) -> Status:
+        return self._status
+
+    @status.setter
+    def status(self, value: Status) -> None:
+        if isinstance(value, property):
+            # initial value not specified, use default
+            self._status = TaskGroup._status
+            return
+
+        self._status = value
+
+        # call any value changed observers
+        to_del = []
+        for i,c in enumerate(self._listeners):
+            try:
+                c(self)
+            except:
+                to_del.append(i)
+        # remove crashing hooks so they are not called again
+        for i in to_del[::-1]:
+            del self._listeners[i]
+
+    def add_listener(self, callback: Callable[[TaskGroup], None]):
+        self._listeners.append(callback)
+
+    def is_done(self):
+        return self.status in [Status.Finished, Status.Errored]
+
 
 @enum_helper.get
 class StreamType(enum_helper.AutoNameDash):
@@ -349,7 +439,7 @@ def create_group(type: Type, payload: str, clients: list[int], cwd: str=None, en
         # create task
         task = Task(type, payload, cwd=cwd, env=env, interactive=interactive, python_unbuf=python_unbuf, client=c, task_group_id=task_group.id)
         # add to task group
-        task_group.tasks[c] = task
+        task_group.add_task(c,task)
 
     # second return: true if whole group should be launched as one, false if tasks should be launched individually
     return task_group, type==type.Wake_on_LAN
