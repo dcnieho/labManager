@@ -24,7 +24,7 @@ async def run():
 
     # start a task on all clients
     tg_id, _ = await master.run_task(labManager.common.task.Type.Shell_command, 'ping 8.8.8.8', '*')
-    tasks = [master.task_groups[tg_id].task_refs[c] for c in master.task_groups[tg_id].task_refs]
+    tasks = [master.task_groups[tg_id].tasks[c] for c in master.task_groups[tg_id].tasks]
 
     # wait until tasks are done
     while any([not t.done() for t in tasks]):

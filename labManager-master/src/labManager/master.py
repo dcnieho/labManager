@@ -519,8 +519,8 @@ class Master:
 
         # start tasks
         coros = []
-        for c in task_group.task_refs:  # NB: index is client ID
-            mytask = task_group.task_refs[c]
+        for c in task_group.tasks:  # NB: index is client ID
+            mytask = task_group.tasks[c]
             # add to client task list
             if self.clients[c].online:
                 self.clients[c].online.tasks[mytask.id] = mytask
@@ -533,7 +533,7 @@ class Master:
         await asyncio.gather(*coros)
 
         # return TaskGroup.id and [Task.id, ...] for all constituent tasks
-        return task_group.id, [task_group.task_refs[c].id for c in task_group.task_refs]
+        return task_group.id, [task_group.tasks[c].id for c in task_group.tasks]
 
     def add_task_state_change_hook(self, fun: Callable[[structs.ConnectedClient, int, task.Task], None]):
         self.task_state_change_hooks.append(fun)

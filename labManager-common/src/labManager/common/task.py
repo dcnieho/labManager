@@ -86,7 +86,7 @@ class TaskGroup:
 
     # references to tasks belonging to this group
     # index is client id
-    task_refs   : dict[int, Task]  = field(default_factory=lambda: {})
+    tasks       : dict[int, Task]  = field(default_factory=dict)
 
     num_finished: int = 0
     status      : Status = Status.Not_started   # running when any task has started, error when any has errored, finished when all finished successfully
@@ -293,11 +293,11 @@ class Executor:
 async def send(task: Task|TaskGroup, client: list[structs.Client]|structs.Client):
     if isinstance(task, TaskGroup):
         if task.type==Type.Wake_on_LAN:
-            if task.task_refs:
-                MACs = [client[task.task_refs[i].client].MACs for i in task.task_refs if task.task_refs[i].client in client]
+            if task.tasks:
+                MACs = [client[task.tasks[i].client].MACs for i in task.tasks if task.tasks[i].client in client]
                 MACs = [m for mac in MACs for m in mac]
                 await wol.send_magic_packet(*MACs)
-                for _,t in task.task_refs.items():
+                for _,t in task.tasks.items():
                     t.status = Status.Finished  # This task is finished once its sent
         else:
             raise RuntimeError(f'API usage error: Task type {task.Type.value} cannot be launched as a group at once. Do this only if the second return argument of task.create_group() is True')
@@ -341,7 +341,7 @@ async def send_cancel(client, task: Task):
             }
         )
 
-def create_group(type: Type, payload: str, clients: list[int], cwd: str=None, env: dict=None, interactive=False, python_unbuf=False) -> TaskGroup:
+def create_group(type: Type, payload: str, clients: list[int], cwd: str=None, env: dict=None, interactive=False, python_unbuf=False) -> tuple[TaskGroup, bool]:
     task_group = TaskGroup(type, payload)
 
     # make individual tasks
@@ -349,7 +349,7 @@ def create_group(type: Type, payload: str, clients: list[int], cwd: str=None, en
         # create task
         task = Task(type, payload, cwd=cwd, env=env, interactive=interactive, python_unbuf=python_unbuf, client=c, task_group_id=task_group.id)
         # add to task group
-        task_group.task_refs[c] = task
+        task_group.tasks[c] = task
 
     # second return: true if whole group should be launched as one, false if tasks should be launched individually
     return task_group, type==type.Wake_on_LAN
