@@ -36,10 +36,11 @@ async def run(duration: float = None):
 @dataclass
 class ConnectedMaster:
     writer:         asyncio.streams.StreamWriter
-    handler_task:   asyncio.Task = None
 
     remote_addr:    tuple[str,int]
     local_addr:     tuple[str,int]
+
+    handler_task:   asyncio.Task = None
 
     task_list:      list[task.RunningTask]  = field(default_factory=lambda: [])
     mounted_drives: list[str]
