@@ -12,30 +12,76 @@ async def run():
     await labManager.master.cmd_login_flow(master)
     await master.start_server()
 
-    # wait until a client connects
+    # wait until a client connects (irrespective of how many are already connected, this waits for a new one)
     await asyncio.wait_for(master.add_waiter('client-connect', None), timeout=None)
+    # can also wait for a specific number of clients to be connected (will not fire when there are more or less)
+    #await asyncio.wait_for(master.add_waiter('client-connect', 1), timeout=None)
+    # can also wait for a specific client by name
+    #await asyncio.wait_for(master.add_waiter('client-connect', 'STATION01'), timeout=None)
 
-    # print some info about each client
+    # print some info about connected clients
+    client_id = None
     with master.clients_lock:
         for c in master.clients:
-            print(master.clients[c].online.host)
-            if master.clients[c].online.eye_tracker and master.clients[c].online.eye_tracker.online:
-                print(f'  eye tracker: {master.clients[c].online.eye_tracker.model}')
+            if master.clients[c].online:    # is None if client is not online but in the list because it was configured as a known client
+                if client_id is None:
+                    client_id = c
+                print(master.clients[c].online.host)
+                if master.clients[c].online.eye_tracker and master.clients[c].online.eye_tracker.online:
+                    print(f'  eye tracker: {master.clients[c].online.eye_tracker.model}')
 
     # start a task on all clients
     tg_id, _ = await master.run_task(labManager.common.task.Type.Shell_command, 'ping 8.8.8.8', '*')
-    tasks = [master.task_groups[tg_id].tasks[c] for c in master.task_groups[tg_id].tasks]
+    # wait until all tasks in this task group are done (i.e. all clients have executed this task)
+    await asyncio.wait_for(master.add_waiter('task-group', tg_id), timeout=None)
 
-    # wait until tasks are done
-    while any([not t.done() for t in tasks]):
-        await asyncio.sleep(.5)
+    # start a task on the first client
+    _, tsk_ids = await master.run_task(labManager.common.task.Type.Shell_command, 'echo "test"', master.clients[client_id].id)
+    await asyncio.wait_for(master.add_waiter('task', tsk_ids[0]), timeout=None)
 
-    # print output of first task
-    print(f'ran "{tasks[0].payload}" on {master.clients[c].online.host} which finished with exit code {tasks[0].return_code}, got:')
-    print(tasks[0].output)
+    # print output of first task as run on first client (task_refs are indexed by client id)
+    task = master.task_groups[tg_id].tasks[master.clients[client_id].id]
+    print(f'ran "{task.payload}" on {master.clients[task.client].name} ({master.clients[task.client].online.host}) which finished with exit code {task.return_code}, got:')
+    print(task.output)
+
+    # get some file listings on the client
+    # make this waiter before the request to ensure no race condition
+    fut1 = master.add_waiter('file-listing', 'root')
+    fut2 = master.add_waiter('file-listing', 'C:\\')
+    await master.get_client_drives(master.clients[client_id])
+    await master.get_client_file_listing(master.clients[client_id], 'C:\\')
+    # can also requests shares on a SMB server, will be found under \\SERVER, for waiter and file_listings
+    # await master.get_client_remote_shares(master.clients[client_id], 'SERVER')
+    await asyncio.wait_for(fut1, timeout=None)
+    await asyncio.wait_for(fut2, timeout=None)
+    print(master.clients[client_id].online.file_listings['root'])
+    print(master.clients[client_id].online.file_listings['C:\\'])
+
+    # do some file actions on the client (NB: you should really be waiting for each before continuing, but since all these are immediate there is no problem)
+    await master.make_client_folder(master.clients[client_id], 'C:\\test')
+    await master.rename_client_file_folder(master.clients[client_id], 'C:\\test', 'C:\\test2')
+    await master.copy_client_file_folder(master.clients[client_id], 'C:\\test2', 'C:\\test3')
+    await master.move_client_file_folder(master.clients[client_id], 'C:\\test2', 'C:\\test4')
+    await master.delete_client_file_folder(master.clients[client_id], 'C:\\test2')
+    action_id = await master.delete_client_file_folder(master.clients[client_id], 'C:\\test3')
+    await asyncio.wait_for(master.add_waiter('file-action', action_id), timeout=None)
+    await master.make_client_file(master.clients[client_id], r'C:\test4\test.txt')
+    await master.rename_client_file_folder(master.clients[client_id], r'C:\test4\test.txt', r'C:\test4\test2.txt')
+    await master.copy_client_file_folder(master.clients[client_id], r'C:\test4\test2.txt', r'C:\test4\test3.txt')
+    await master.move_client_file_folder(master.clients[client_id], r'C:\test4\test2.txt', r'C:\test4\test4.txt')
+    await master.delete_client_file_folder(master.clients[client_id], r'C:\test4\test2.txt')
+    await master.delete_client_file_folder(master.clients[client_id], r'C:\test4\test3.txt')
+    await master.delete_client_file_folder(master.clients[client_id], r'C:\test4\test4.txt')
+    action_id = await master.delete_client_file_folder(master.clients[client_id], 'C:\\test4')
+    # wait till last action is done
+    await asyncio.wait_for(master.add_waiter('file-action', action_id), timeout=None)
+    print(master.clients[client_id].online.file_actions[action_id])
+    # waiting for an already finished action returns immediately
+    await asyncio.wait_for(master.add_waiter('file-action', action_id), timeout=None)
 
     # clean up
     await master.stop_server()
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="labManager client")
