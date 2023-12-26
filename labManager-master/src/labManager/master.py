@@ -341,11 +341,10 @@ class Master:
                         mytask.output += msg['output']
                     case message.Message.TASK_UPDATE:
                         mytask = me.tasks[msg['task_id']]
-                        status_change = mytask.status!=msg['status']
                         mytask.status = msg['status']
                         if 'return_code' in msg:
                             mytask.return_code = msg['return_code']
-                        if status_change and self.task_state_change_hooks:
+                        if self.task_state_change_hooks:
                             to_del = []
                             for i,h in enumerate(self.task_state_change_hooks):
                                 try:
