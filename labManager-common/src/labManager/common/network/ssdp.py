@@ -371,6 +371,7 @@ class Base:
             waiters.append(self.protocol_multicast.done)
         if waiters:
             await asyncio.wait(waiters)
+        self.loop = None
         self._is_started = False
 
     async def _stop(self):
