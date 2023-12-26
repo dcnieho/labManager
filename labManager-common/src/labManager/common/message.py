@@ -101,7 +101,7 @@ def parse(type: Type, msg: str) -> str | Dict:
         msg = jsonpickle.decode(msg, keys=True)
     return msg
 
-def prepare(type: Type, payload: str | Dict) -> str:
+def prepare(type: Type, payload: str | bytes | Dict) -> str:
     # dump to JSON if needed
     if type_map[type]==Type.JSON:
         payload = jsonpickle.encode(payload, keys=True)
