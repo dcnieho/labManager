@@ -23,7 +23,7 @@ class ComputerList():
         self.clr_off = (1., 0.2824, 0.2824, 1.)
         self.clr_on  = (0.0588, 0.4510, 0.0471, 1.)
 
-        self._view_column_count = 3
+        self._view_column_count = 5
         self._num_items = len(self.items)
         self.table_flags: int = (
             imgui.TableFlags_.scroll_x |
@@ -60,6 +60,8 @@ class ComputerList():
             imgui.table_setup_column("Selector", imgui.TableColumnFlags_.no_hide | imgui.TableColumnFlags_.no_sort | imgui.TableColumnFlags_.no_resize | imgui.TableColumnFlags_.no_reorder, init_width_or_weight=checkbox_width)  # 0
             imgui.table_setup_column("Name", imgui.TableColumnFlags_.default_sort | imgui.TableColumnFlags_.no_hide | imgui.TableColumnFlags_.no_resize)  # 1
             imgui.table_setup_column("IP", imgui.TableColumnFlags_.default_hide) # 2
+            imgui.table_setup_column("Image name", imgui.TableColumnFlags_.default_hide) # 3
+            imgui.table_setup_column("Image timestamp", imgui.TableColumnFlags_.default_hide) # 4
 
             # Enabled columns
             if imgui.table_get_column_flags(0) & imgui.TableColumnFlags_.is_enabled:
@@ -170,6 +172,12 @@ class ComputerList():
                         case 2:
                             # IP
                             imgui.text(item.online.host if item.online else '')
+                        case 3:
+                            # image name
+                            imgui.text(self._get_image_name(item))
+                        case 4:
+                            # image timestamp
+                            imgui.text(item.online.image_info["timestamp"].replace('T',' ') if item.online and item.online.image_info else '')
                     num_columns_drawn+=1
 
                 # handle selection logic
@@ -276,6 +284,14 @@ class ComputerList():
     def _draw_item_context_menu(self, id):
         pass
 
+    def _get_image_name(self, item: structs.Client, output_if_no_name=''):
+        if not item.online or not item.online.image_info:
+            return output_if_no_name
+        name = item.online.image_info['name']
+        if self.project and name.startswith(self.project+'_'):
+            name = name[len(self.project)+1:]
+        return name
+
     def _sort_items(self, sort_specs_in: imgui.TableSortSpecs):
         if sort_specs_in.specs_dirty or self._require_sort:
             ids = list(self.items)
@@ -284,7 +300,11 @@ class ComputerList():
                 match sort_spec.column_index:
                     case 2:     # IP
                         key = lambda id: self.items[id].online.host if self.items[id].online else "zzz" # sort last if not online
-                    case _:     # Name and all others
+                    case 3:
+                        key = lambda id: self._get_image_name(self.items[id], output_if_no_name="zzz")  # sort last if not online or no image name
+                    case 4:
+                        raise NotImplementedError() # TODO!
+                    case _:     # (Computer) Name and all others
                         key = lambda id: self.items[id].name.lower()
                 ids.sort(key=key, reverse=bool(sort_spec.get_sort_direction() - 1))
             self.sorted_ids = ids
