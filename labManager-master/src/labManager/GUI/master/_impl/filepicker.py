@@ -90,17 +90,8 @@ class FilePicker:
             self.goto(paths[0])
         else:
             self.goto(paths[0].parent)
-            # update selected
-            got_one = False
-            for p in paths:
-                for iid in self.items:
-                    entry = self.items[iid]
-                    if entry.full_path==p and (not self.predicate or self.predicate(iid)):
-                        self.selected[iid] = True
-                        got_one = True
-                        break
-                if not self.allow_multiple and got_one:
-                    break
+            # select dropped items that match predicate (if any)
+            self._select_paths(paths)
 
     def goto(self, loc: str | pathlib.Path):
         loc = pathlib.Path(loc)
@@ -140,9 +131,10 @@ class FilePicker:
                     drives.append(drive)
             self._refresh_drives_done(drives)
 
-    def _refresh_path_done(self, items: list[structs.DirEntry]|Exception):
+    def _refresh_path_done(self, items: list[DirEntryWithCache]|Exception):
+        previously_selected = []
         if not self.new_loc:
-            selected = [self.items[iid] for iid in self.items if iid in self.selected and self.selected[iid]]
+            previously_selected = [self.items[iid].full_path for iid in self.items if iid in self.selected and self.selected[iid]]
         self.items.clear()
         self.selected.clear()
         self.msg = None
@@ -155,13 +147,7 @@ class FilePicker:
                 self.msg = "This folder is empty!"
 
         # if refreshed the same directory, restore old selection
-        if not self.new_loc:
-            for old in selected:
-                for iid in self.items:
-                    entry = self.items[iid]
-                    if entry.name==old.name:
-                        self.selected[iid] = True
-                        break
+        self._select_paths(previously_selected)
 
         self.require_sort = True
         self.new_loc = False
@@ -173,6 +159,18 @@ class FilePicker:
         for i,d in enumerate(self.drives):
             if str(self.loc).startswith(d):
                 self.current_drive = i
+                break
+
+    def _select_paths(self, paths: list[pathlib.Path]):
+        got_one = False
+        for path in paths:
+            for iid in self.items:
+                entry = self.items[iid]
+                if entry.full_path==path and (not self.predicate or self.predicate(iid)):
+                    self.selected[iid] = True
+                    got_one = True
+                    break
+            if not self.allow_multiple and got_one:
                 break
 
     def tick(self):
