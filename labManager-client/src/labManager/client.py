@@ -4,6 +4,7 @@ import aiopath
 import traceback
 import platform
 import pathlib
+import pathvalidate
 import json
 import string
 import threading
@@ -310,11 +311,14 @@ class Client:
 
                         path = aiopath.AsyncPath(msg['path'])
                         try:
+                            pathvalidate.validate_filepath(msg['path'], "auto")
                             if msg['is_dir']:
                                 await path.mkdir()
                             else:
                                 await path.touch()
                         except Exception as exc:
+                            if isinstance(exc,pathvalidate.ValidationError):
+                                exc = str(exc)  # these don't unpickle well, also can't assume receiver to have the same package installed
                             out['error'] = exc
                             out['status'] = structs.Status.Errored
                         else:
@@ -329,8 +333,12 @@ class Client:
                         out['action'] = msg_type
 
                         try:
+                            pathvalidate.validate_filepath(msg['old_path'], "auto")
+                            pathvalidate.validate_filepath(msg['new_path'], "auto")
                             return_path = await aiopath.AsyncPath(msg['old_path']).rename(msg['new_path'])
                         except Exception as exc:
+                            if isinstance(exc,pathvalidate.ValidationError):
+                                exc = str(exc)  # these don't unpickle well, also can't assume receiver to have the same package installed
                             out['error'] = exc
                             out['status'] = structs.Status.Errored
                         else:
@@ -346,8 +354,10 @@ class Client:
                         out['action'] = msg_type
 
                         source_path = aiopath.AsyncPath(msg['source_path'])
-                        dest_path = aiopath.AsyncPath(msg['dest_path'])
+                        dest_path   = aiopath.AsyncPath(msg['dest_path'])
                         try:
+                            pathvalidate.validate_filepath(msg['source_path'], "auto")
+                            pathvalidate.validate_filepath(msg['dest_path'], "auto")
                             if msg['is_move']:
                                 return_path = await aioshutil.move(source_path, dest_path)
                             else:
@@ -356,6 +366,8 @@ class Client:
                                 else:
                                     return_path = await aioshutil.copy2(source_path, dest_path)
                         except Exception as exc:
+                            if isinstance(exc,pathvalidate.ValidationError):
+                                exc = str(exc)  # these don't unpickle well, also can't assume receiver to have the same package installed
                             out['error'] = exc
                             out['status'] = structs.Status.Errored
                         else:
@@ -372,11 +384,14 @@ class Client:
 
                         path = aiopath.AsyncPath(msg['path'])
                         try:
+                            pathvalidate.validate_filepath(msg['path'], "auto")
                             if await path.is_dir():
                                 await aioshutil.rmtree(path,ignore_errors=True)
                             else:
                                 await path.unlink()
                         except Exception as exc:
+                            if isinstance(exc,pathvalidate.ValidationError):
+                                exc = str(exc)  # these don't unpickle well, also can't assume receiver to have the same package installed
                             out['error'] = exc
                             out['status'] = structs.Status.Errored
                         else:

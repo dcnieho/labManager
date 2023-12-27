@@ -24,7 +24,8 @@ classifiers = [
     "Topic :: Utilities",
 ]
 dependencies = [
-    "labManager-common==0.8.6"
+    "labManager-common==0.8.6",
+    "pathvalidate"
 ]
 
 [project.optional-dependencies]
