@@ -9,7 +9,11 @@ import labManager.common
 async def run():
     # login and start server
     master = labManager.master.Master()
-    await labManager.master.cmd_login_flow(master)
+    want_login = input(f'Do you want to log in to a project? (y/n): ').casefold()=='y'
+    if want_login:
+        await labManager.master.cmd_login_flow(master)
+    else:
+        print('You didn''t answer y, so not logging in')
     await master.start_server()
 
     # wait until a client connects (irrespective of how many are already connected, this waits for a new one)
