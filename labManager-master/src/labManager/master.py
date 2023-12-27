@@ -669,22 +669,34 @@ class Master:
     async def toems_get_computers(self):
         with self.clients_lock:
             names = [self.clients[c].name for c in self.clients]
+        if not self.toems:
+            return []
         return await self.toems.computer_get(filter_list=names)
 
     async def toems_get_disk_images(self):
+        if not self.toems:
+            return None
         return await self.toems.image_get(project=self.project, project_format=config.master['toems']['images']['format'], name_mapping=config.master['base_image_name_table'] if 'base_image_name_table' in config.master else None)
 
     async def toems_get_disk_image_size(self, name_or_id: int|str):
+        if not self.toems:
+            return None
         return await self.toems.image_get_server_size(name_or_id)
 
     async def toems_get_disk_image_info(self, name_or_id: int|str):
+        if not self.toems:
+            return []
         image = (await self.toems.image_get(name_or_id))
 
         # get timestamp last time image was updated
+        if not self.toems:
+            return []
         im_logs = await self.toems.image_get_audit_log(image['Id'])
         for l in im_logs:   # NB: logs are sorted newest-first
             if l['AuditType'] in ['Upload','OndUpload']:
                 upload_info = json.loads(l['ObjectJson'])
+                if not self.toems:
+                    return []
                 computer = await self.toems.computer_get(upload_info['ComputerId'])
                 return {
                     'TimeStamp': l['DateTime'],
