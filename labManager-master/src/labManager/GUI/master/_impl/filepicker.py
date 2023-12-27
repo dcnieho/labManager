@@ -189,7 +189,6 @@ class FilePicker:
                     imgui.TableFlags_.resizable |
                     imgui.TableFlags_.sort_multi |
                     imgui.TableFlags_.reorderable |
-                    imgui.TableFlags_.row_bg |
                     imgui.TableFlags_.sizing_fixed_fit |
                     imgui.TableFlags_.no_host_extend_y |
                     imgui.TableFlags_.no_borders_in_body_until_resize
@@ -280,13 +279,8 @@ class FilePicker:
                                 imgui.push_style_var(imgui.StyleVar_.frame_border_size, 0.)
                                 imgui.push_style_var(imgui.StyleVar_.frame_padding    , (0.,0.))
                                 imgui.push_style_var(imgui.StyleVar_.item_spacing     , (0.,cell_padding_y))
-                                # make selectable completely transparent
-                                imgui.push_style_color(imgui.Col_.header_active , (0., 0., 0., 0.))
-                                imgui.push_style_color(imgui.Col_.header        , (0., 0., 0., 0.))
-                                imgui.push_style_color(imgui.Col_.header_hovered, (0., 0., 0., 0.))
                                 selectable_clicked, selectable_out = imgui.selectable(f"##{id}_hitbox", self.selected[id], flags=imgui.SelectableFlags_.span_all_columns|imgui.SelectableFlags_.allow_overlap|imgui.internal.SelectableFlagsPrivate_.select_on_click, size=(0,frame_height+cell_padding_y))
                                 imgui.set_cursor_pos_y(cur_pos_y)   # instead of imgui.same_line(), we just need this part of its effect
-                                imgui.pop_style_color(3)
                                 imgui.pop_style_var(3)
                                 has_drawn_hitbox = True
 
