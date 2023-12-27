@@ -42,14 +42,17 @@ class ComputerList():
         self.project = project
 
     def draw(self):
+        if (num_items := len(self.items)) != self._num_items:
+            self._num_items = num_items
+            self._require_sort = True
+        if self._num_items==0:
+            imgui.text_wrapped('There are no clients. Is your network setup correct?')
+            return
         if imgui.begin_table(
             f"##item_list",
             column=self._view_column_count,
             flags=self.table_flags,
         ):
-            if (num_items := len(self.items)) != self._num_items:
-                self._num_items = num_items
-                self._require_sort = True
             frame_height = imgui.get_frame_height()
 
             # Setup
