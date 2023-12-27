@@ -54,7 +54,7 @@ class FilePicker:
         imgui.WindowFlags_.no_saved_settings
     )
 
-    def __init__(self, title="File picker", dir_picker=False, start_dir: str | pathlib.Path = None, callback: typing.Callable = None, allow_multiple = True, custom_popup_flags=0):
+    def __init__(self, title="File picker", start_dir: str | pathlib.Path = None, callback: typing.Callable = None, allow_multiple = True, custom_popup_flags=0):
         self.title = title
         self.elapsed = 0.0
         self.callback = callback
@@ -68,8 +68,6 @@ class FilePicker:
         self.last_clicked_id: int = None
 
         self.loc: pathlib.Path = None
-        self.is_dir_picker = dir_picker
-        self.show_only_dirs = self.is_dir_picker   # by default, a dir picker only shows dirs
         self.predicate = None
         self.default_flags = custom_popup_flags or FilePicker.default_flags
         self.platform_is_windows = sys.platform.startswith("win")
@@ -123,17 +121,11 @@ class FilePicker:
         self.items.clear()
         self.selected.clear()
         self.msg = None
-        # if we're a directory picker should show only directories,
-        # install a predicate for that if there isn't yet one
-        if self.is_dir_picker and self.show_only_dirs and not self.predicate:
-            self.predicate = lambda id: self.items[id].is_dir
         try:
             items = list(self.loc.iterdir())
             if not items:
                 self.msg = "This folder is empty!"
             else:
-                if self.is_dir_picker and self.show_only_dirs:
-                    items = [i for i in items if i.is_dir()]
                 if items:
                     for i,item in enumerate(items):
                         stat = item.stat()
@@ -376,7 +368,7 @@ class FilePicker:
                                 if self.items[id].is_dir:
                                     self.goto(self.items[id].full_path)
                                     break
-                                elif not self.is_dir_picker:
+                                else:
                                     utils.set_all(self.selected, False)
                                     self.selected[id] = True
                                     imgui.close_current_popup()
@@ -401,7 +393,7 @@ class FilePicker:
             # Ok button
             imgui.same_line()
             num_selected = sum([self.selected[id] for id in self.selected])
-            disable_ok = not num_selected and not self.is_dir_picker
+            disable_ok = not num_selected
             if disable_ok:
                 imgui.internal.push_item_flag(imgui.internal.ItemFlags_.disabled, True)
                 imgui.push_style_var(imgui.StyleVar_.alpha, imgui.get_style().alpha *  0.5)
@@ -413,21 +405,13 @@ class FilePicker:
                 imgui.pop_style_var()
             # Selected text
             imgui.same_line()
-            if self.is_dir_picker and not num_selected:
-                imgui.text(f"  Selected the current directory ({self.loc if self.loc==self.loc.parent else self.loc.name})")
-            elif num_selected==1:
-                selected = [self.items[id] for id in self.items if id in self.selected and self.selected[id]]
-                imgui.text(f"  Selected {num_selected} item ({'directory' if selected[0].is_dir else 'file'} '{selected[0].name}')")
-            else:
-                imgui.text(f"  Selected {num_selected} items")
+            imgui.text(f"  Selected {num_selected} items")
         else:
             opened = 0
             cancelled = closed = True
         if closed:
             if not cancelled and self.callback:
                 selected = [self.items[id].full_path for id in self.items if id in self.selected and self.selected[id]]
-                if self.is_dir_picker and not selected:
-                    selected = [self.loc]
                 self.callback(selected if selected else None)
         return opened, closed
 
@@ -456,9 +440,3 @@ class FilePicker:
             self.sorted_items = ids
             sort_specs_in.specs_dirty = False
             self.require_sort = False
-
-
-class DirPicker(FilePicker):
-    def __init__(self, title="Directory picker", start_dir: str | pathlib.Path = None, callback: typing.Callable = None, allow_multiple = True, custom_popup_flags=0):
-        super().__init__(title=title, dir_picker=True, start_dir=start_dir, callback=callback, allow_multiple=allow_multiple, custom_popup_flags=custom_popup_flags)
-
