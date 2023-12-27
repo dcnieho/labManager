@@ -120,7 +120,7 @@ popup_flags: int = (
     imgui.WindowFlags_.always_auto_resize
 )
 
-def popup(label: str, popup_content: Callable, buttons: dict[str, Callable] = None, closable=True, outside=True):
+def popup(label: str, popup_content: Callable, buttons: dict[str, Callable] = None, closable=True, escape=True, outside=True):
     if buttons is True:
         buttons = {
             icons_fontawesome.ICON_FA_CHECK + " Ok": None
@@ -130,8 +130,8 @@ def popup(label: str, popup_content: Callable, buttons: dict[str, Callable] = No
     closed = False
     opened = 1
     if imgui.begin_popup_modal(label, closable or None, flags=popup_flags)[0]:
-        if outside:
-            closed = close_weak_popup()
+        if escape or outside:
+            closed = close_weak_popup(check_escape=escape, check_click_outside=outside)
         imgui.begin_group()
         activate_button = popup_content()
         imgui.end_group()

@@ -55,11 +55,4 @@ def msgbox(title: str, msg: str, type: MsgBox = None, buttons: dict[str, Callabl
         imgui.end_group()
         imgui.same_line(spacing=spacing)
         imgui.dummy((0, 0))
-    return utils.popup(title, popup_content, buttons, closable=False, outside=False)
-
-
-class Exc(Exception):
-    def __init__(self, title:str, msg: str, type: MsgBox = None, buttons: dict[str, Callable] = True, more: str = None):
-        self.title = title
-        self.msg = msg
-        self.popup = utils.push_popup(msgbox, title, msg, type, buttons, more)
+    return utils.popup(title, popup_content, buttons, closable=False, escape=True, outside=False)

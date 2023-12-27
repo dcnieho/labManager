@@ -89,7 +89,7 @@ class MainGUI:
                 exc = future.exception()
             except concurrent.futures.CancelledError:
                 return
-            if not exc or type(exc) is msgbox.Exc:
+            if not exc:
                 return
             tb = utils.get_traceback(type(exc), exc, exc.__traceback__)
             if isinstance(exc, asyncio.TimeoutError):
