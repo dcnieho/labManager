@@ -65,7 +65,7 @@ async def run():
     await master.rename_client_file_folder(master.clients[client_id], 'C:\\test', 'C:\\test2')
     await master.copy_client_file_folder(master.clients[client_id], 'C:\\test2', 'C:\\test3')
     await master.move_client_file_folder(master.clients[client_id], 'C:\\test2', 'C:\\test4')
-    await master.delete_client_file_folder(master.clients[client_id], 'C:\\test2')
+    await master.delete_client_file_folder(master.clients[client_id], 'C:\\tes:*?t2')
     action_id = await master.delete_client_file_folder(master.clients[client_id], 'C:\\test3')
     await asyncio.wait_for(master.add_waiter('file-action', action_id), timeout=None)
     await master.make_client_file(master.clients[client_id], r'C:\test4\test.txt')
