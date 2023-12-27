@@ -539,18 +539,21 @@ class MainGUI:
         imgui.dock_space(dock_space_id, (0.,0.), imgui.DockNodeFlags_.no_docking_split|imgui.internal.DockNodeFlagsPrivate_.no_tab_bar)
 
         if imgui.begin('task_list_pane'):
-            for t in config.master['tasks']:
-                if imgui.button(t['name']):
-                    self._task_prep.type        = task.Type(t['type'])
-                    self._task_prep.payload_type= t['payload_type']
-                    if t['payload_type']=='text':
-                        self._task_prep.payload_text = t['payload']
-                    else:
-                        self._task_prep.payload_file = t['payload']
-                    self._task_prep.cwd         = t['cwd']
-                    self._task_prep.env         = t['env']
-                    self._task_prep.interactive = t['interactive']
-                    self._task_prep.python_unbuf= t['python_unbuffered']
+            if 'tasks' in config.master:
+                for t in config.master['tasks']:
+                    if imgui.button(t['name']):
+                        self._task_prep.type        = task.Type(t['type'])
+                        self._task_prep.payload_type= t['payload_type']
+                        if t['payload_type']=='text':
+                            self._task_prep.payload_text = t['payload']
+                        else:
+                            self._task_prep.payload_file = t['payload']
+                        self._task_prep.cwd         = t['cwd']
+                        self._task_prep.env         = t['env']
+                        self._task_prep.interactive = t['interactive']
+                        self._task_prep.python_unbuf= t['python_unbuffered']
+            else:
+                imgui.text_wrapped('There are no preconfigured tasks. Launch your own task using the panels on the right.')
         imgui.end()
         if imgui.begin('task_type_pane'):
             for t in task.Type:
