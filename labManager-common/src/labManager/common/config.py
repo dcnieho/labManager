@@ -12,7 +12,7 @@ _master_schema = s.Map({
         'name_table': s.MapPattern(s.Str(), s.Str()),
     }),
     s.Optional('base_image_name_table'): s.MapPattern(s.Str(), s.Str()),
-    'SMB': s.Map({
+    s.Optional('SMB'): s.Map({
         'server': s.Str(),
         'domain': s.Str(),
         'projects': s.Map({
@@ -23,11 +23,11 @@ _master_schema = s.Map({
         'mount_drive_letter': s.Str(),
         'mount_only_known_clients': s.Bool(),
     }),
-    'admin': s.Map({
+    s.Optional('admin'): s.Map({
         'server': s.Str(),
         'port': s.Int(),
     }),
-    'toems': s.Map({
+    s.Optional('toems'): s.Map({
         'server': s.Str(),
         'port': s.Int(),
         'images': s.Map({

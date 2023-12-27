@@ -63,6 +63,12 @@ class Master:
         # clean up old session, if any
         await self._logout_async()
 
+        # check preconditions
+        if not 'admin' in config.master:
+            raise LookupError('You cannot login without the admin config item being set in your configuration yaml file')
+        if not 'toems' in config.master:    # technically we need this only when selecting a project, but may as well error now
+            raise LookupError('You cannot login without the toems config item being set in your configuration yaml file')
+
         # sanitize username and password, control characters mess with ldap
         username = "".join(ch for ch in username if unicodedata.category(ch)[0]!="C")
         password = "".join(ch for ch in password if unicodedata.category(ch)[0]!="C")
@@ -110,6 +116,10 @@ class Master:
 
         if project == self.project:
             return
+
+        # check preconditions
+        if not 'toems' in config.master:    # technically we need this only when selecting a project, but may as well error now
+            raise LookupError('You cannot login without the toems config item being set in your configuration yaml file')
 
         # ensure possible previous project is unloaded
         self.toems = None
@@ -189,7 +199,7 @@ class Master:
             await self._ssdp_server.send_notification()  # send one notification upon startup
 
         # check SMB access
-        if self.project and (not self._share_access_task or self._share_access_task.done()):
+        if self.project and 'SMB' in config.master and (not self._share_access_task or self._share_access_task.done()):
             self._share_access_task = asyncio.create_task(self._determine_share_access(self.project))
             self._share_access_task.add_done_callback(lambda _: setattr(self, '_share_access_task', None))
 
@@ -536,7 +546,7 @@ class Master:
         await asyncio.gather(*coros)
 
     async def client_mount_project_share(self, client: structs.ConnectedClient, client_id: int):
-        if self.has_share_access and config.master['SMB']['mount_share_on_client']:
+        if self.has_share_access and 'SMB' in config.master and config.master['SMB']['mount_share_on_client']:
             # check if we're allowed to issue mount command to this client
             if (config.master['SMB']['mount_only_known_clients'] and self.clients[client_id].known) or not config.master['SMB']['mount_only_known_clients']:
                 domain, user = smb.get_domain_username(self.admin.user['full_name'], config.master["SMB"]["domain"])
