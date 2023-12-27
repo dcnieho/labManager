@@ -3,7 +3,6 @@ import typing
 import string
 from imgui_bundle import imgui, icons_fontawesome
 import sys
-import os
 import natsort
 import mimetypes
 import datetime
@@ -77,7 +76,7 @@ class FilePicker:
         self.drives: list[str] = []
         self.current_drive = 0
 
-        self.goto(start_dir or os.getcwd())
+        self.goto(start_dir or '.')
 
     # if passed a single directory will show that directory
     # if passed a single file, or multiple files and/or directories, will
@@ -108,9 +107,9 @@ class FilePicker:
         if loc.is_file():
             loc = loc.parent
         if loc is None:
-            loc = pathlib.Path(os.getcwd())
+            loc = pathlib.Path('.')
 
-        loc = loc.absolute()
+        loc = loc.resolve()
         if loc != self.loc:
             self.loc = loc
             self.new_loc = True
