@@ -68,6 +68,8 @@ class FilePicker:
         self.last_clicked_id: int = None
 
         self.loc: pathlib.Path = None
+        self.refreshing = False
+        self.new_loc = False
         self.predicate = None
         self.default_flags = custom_popup_flags or FilePicker.default_flags
         self.platform_is_windows = sys.platform.startswith("win")
@@ -111,50 +113,68 @@ class FilePicker:
         loc = loc.absolute()
         if loc != self.loc:
             self.loc = loc
+            self.new_loc = True
             # changing location clears selection
             self.selected = {}
             # load new directory
             self.refresh()
 
     def refresh(self):
-        selected = [self.items[id] for id in self.items if id in self.selected and self.selected[id]]
-        self.items.clear()
-        self.selected.clear()
-        self.msg = None
+        self.refreshing = True
         try:
-            for i,item in enumerate(self.loc.iterdir()):
+            items = []
+            for item in self.loc.iterdir():
                 stat = item.stat()
-                item = structs.DirEntry(item.name,item.is_dir(),item,
-                                        stat.st_ctime,stat.st_mtime,stat.st_size,
-                                        mimetypes.guess_type(item)[0])
-                self.items[i] = DirEntryWithCache(item)
-                self.selected[i] = False
-
-            if not self.items:
-                self.msg = "This folder is empty!"
-
+                items.append(structs.DirEntry(item.name,item.is_dir(),item,
+                                              stat.st_ctime,stat.st_mtime,stat.st_size,
+                                              mimetypes.guess_type(item)[0]))
         except Exception as exc:
-            self.msg = f"Cannot open this folder!\n:{exc}"
+            items = exc
 
-        for old in selected:
-            for id in self.items:
-                entry = self.items[id]
-                if entry.name==old.name:
-                    self.selected[id] = True
-                    break
-
-        self.require_sort = True
-
+        # also update drives
         if self.platform_is_windows:
-            self.drives.clear()
-            i = -1
+            drives = []
             for letter in string.ascii_uppercase:
                 drive = f"{letter}:\\"
                 if pathlib.Path(drive).exists():
-                    i += 1
-                    self.drives.append(drive)
-                    if str(self.loc).startswith(drive):
-                        self.current_drive = i
+                    drives.append(drive)
+
+        self._refresh_done(items, drives)
+
+    def _refresh_done(self, items: list[structs.DirEntry]|Exception, drives: list[str]):
+        if not self.new_loc:
+            selected = [self.items[id] for id in self.items if id in self.selected and self.selected[id]]
+        self.items.clear()
+        self.selected.clear()
+        self.msg = None
+        if isinstance(items, Exception):
+            self.msg = f"Cannot open this folder!\n:{items}"
+        else:
+            self.items = {i:DirEntryWithCache(item) for i,item in enumerate(items)}
+            self.selected = {k:False for k in self.items}
+            if not self.items:
+                self.msg = "This folder is empty!"
+
+        # if refreshed the same directory, restore old selection
+        if not self.new_loc:
+            for old in selected:
+                for id in self.items:
+                    entry = self.items[id]
+                    if entry.name==old.name:
+                        self.selected[id] = True
+                        break
+
+        # refresh drives and set up directory selector
+        if self.platform_is_windows:
+            self.drives = drives
+            for i,d in enumerate(self.drives):
+                if str(self.loc).startswith(d):
+                    self.current_drive = i
+                    break
+
+        self.require_sort = True
+        self.new_loc = False
+        self.refreshing = False
 
     def tick(self):
         # Auto refresh
