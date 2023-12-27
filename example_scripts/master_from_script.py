@@ -48,14 +48,17 @@ async def run():
     # make this waiter before the request to ensure no race condition
     fut1 = master.add_waiter('file-listing', 'root')
     fut2 = master.add_waiter('file-listing', 'C:\\')
+    # fut3 = master.add_waiter('file-listing', '\\\\SERVER')
     await master.get_client_drives(master.clients[client_id])
     await master.get_client_file_listing(master.clients[client_id], 'C:\\')
     # can also requests shares on a SMB server, will be found under \\SERVER, for waiter and file_listings
-    # await master.get_client_remote_shares(master.clients[client_id], 'SERVER')
+    # await master.get_client_remote_shares(master.clients[client_id], 'SERVER')  # NB: supports SERVER, \\SERVER, \\SERVER\, //SERVER and //SERVER/
     await asyncio.wait_for(fut1, timeout=None)
     await asyncio.wait_for(fut2, timeout=None)
+    # await asyncio.wait_for(fut3, timeout=None)
     print(master.clients[client_id].online.file_listings['root'])
     print(master.clients[client_id].online.file_listings['C:\\'])
+    # print(master.clients[client_id].online.file_listings['\\\\SERVER'])
 
     # do some file actions on the client (NB: you should really be waiting for each before continuing, but since all these are immediate there is no problem)
     await master.make_client_folder(master.clients[client_id], 'C:\\test')

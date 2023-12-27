@@ -285,12 +285,14 @@ class Client:
                                               )
                     case message.Message.FILE_GET_SHARES:
                         out = msg
+                        msg['net_name'] = msg['net_name'].strip('\\/')  # support SERVER, \\SERVER, \\SERVER\, //SERVER and //SERVER/
                         out['share_names'] = await smb.get_shares(msg['net_name'], msg['user'], msg['password'], msg['domain'], check_access_level=msg['access_level'])
                         del out['password']
                         out['path'] = f'\\\\{out["net_name"]}'
                         out['listing'] = []
                         for n in out['share_names']:
-                            out['listing'].append(dir_list.DirEntry(n,True,pathlib.Path(f'\\\\{msg["net_name"]}') / n,0.,0.,0,None))
+                            # NB: //SERVER/ is the format pathlib understands and can concatenate share names to
+                            out['listing'].append(dir_list.DirEntry(n,True,pathlib.Path(f'//{msg["net_name"]}/') / n,0.,0.,0,None))
                         await comms.typed_send(writer,
                                                message.Message.FILE_LISTING,
                                                out
@@ -452,6 +454,7 @@ async def _format_drives_file_listing_msg(net_names: list[str]):
     for d in out['drives']:
         out['listing'].append(dir_list.DirEntry(str(d),True,d,0.,0.,0,'labManager/drive'))
     for n in out['net_names']:
-        out['listing'].append(dir_list.DirEntry(n,True,pathlib.Path(f'\\\\{n}'),0.,0.,0,'labManager/net_name'))
+        # NB: //SERVER/ is the format pathlib understands and can concatenate share names to
+        out['listing'].append(dir_list.DirEntry(n,True,pathlib.Path(f'//{n}/'),0.,0.,0,'labManager/net_name'))
 
     return out
