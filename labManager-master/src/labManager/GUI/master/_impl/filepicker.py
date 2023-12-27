@@ -16,10 +16,8 @@ from . import utils
 
 class FilePicker:
     flags: int = (
-        imgui.WindowFlags_.no_resize |
         imgui.WindowFlags_.no_collapse |
-        imgui.WindowFlags_.no_saved_settings |
-        imgui.WindowFlags_.always_auto_resize
+        imgui.WindowFlags_.no_saved_settings
     )
 
     def __init__(self, title="File picker", dir_picker=False, start_dir: str | pathlib.Path = None, callback: typing.Callable = None, allow_multiple = True, custom_popup_flags=0):
@@ -130,10 +128,8 @@ class FilePicker:
                         self.current_drive = i
 
     def tick(self):
-        io = imgui.get_io()
-
         # Auto refresh
-        self.elapsed += io.delta_time
+        self.elapsed += imgui.get_io().delta_time
         if self.elapsed > 2:
             self.elapsed = 0.0
             self.refresh()
@@ -143,15 +139,20 @@ class FilePicker:
             imgui.open_popup(self.title)
         cancelled = closed = False
         opened = 1
-        pos = imgui.get_window_pos()
-        size = imgui.get_window_size()
-        imgui.set_next_window_pos((pos.x+size.x/2, pos.y+size.y/2), pivot=(0.5,0.5), cond=imgui.Cond_.appearing)
+        size = imgui.get_io().display_size
+        size.x *= .7
+        size.y *= .7
+        imgui.set_next_window_size(size, cond=imgui.Cond_.appearing)
         if imgui.begin_popup_modal(self.title, True, flags=self.flags)[0]:
             cancelled = closed = utils.close_weak_popup()
             imgui.begin_group()
             # Up button
             if imgui.button(icons_fontawesome.ICON_FA_ARROW_UP):
                 self.goto(self.dir.parent)
+            # Refresh button
+            imgui.same_line()
+            if imgui.button(icons_fontawesome.ICON_FA_REDO):
+                self.refresh()
             # Drive selector
             if self.windows:
                 imgui.same_line()
@@ -161,23 +162,21 @@ class FilePicker:
                     self.goto(self.drives[value])
             # Location bar
             imgui.same_line()
-            imgui.set_next_item_width(size.x * 0.7)
-            confirmed, loc = imgui.input_text("##location_bar", str(self.dir), flags=imgui.InputTextFlags_.enter_returns_true)
+            imgui.set_next_item_width(imgui.get_content_region_avail().x)
+            confirmed, loc = imgui.input_text("##location_bar", str(self.loc), flags=imgui.InputTextFlags_.enter_returns_true)
             if imgui.begin_popup_context_item(f"##location_context"):
                 if imgui.selectable(icons_fontawesome.ICON_FA_PASTE+" Paste", False)[0] and (loc := imgui.get_clipboard_text()):
                     confirmed = True
                 imgui.end_popup()
             if confirmed:
                 self.goto(loc)
-            # Refresh button
-            imgui.same_line()
-            if imgui.button(icons_fontawesome.ICON_FA_REDO):
-                self.refresh()
             imgui.end_group()
 
             # entry list
             num_selected = 0
-            imgui.begin_child("##folder_contents", size=(imgui.get_item_rect_size().x, size.y*0.65))
+            button_text_size = imgui.calc_text_size(icons_fontawesome.ICON_FA_BAN+" Cancel")
+            bottom_margin = button_text_size.y+imgui.get_style().frame_padding.y*2+imgui.get_style().item_spacing.y
+            imgui.begin_child("##folder_contents", size=(imgui.get_item_rect_size().x, -bottom_margin))
             if self.msg:
                 imgui.text_unformatted(self.msg)
             else:
@@ -186,12 +185,10 @@ class FilePicker:
                     imgui.TableFlags_.scroll_y |
                     imgui.TableFlags_.hideable |
                     imgui.TableFlags_.sortable |
-                    imgui.TableFlags_.resizable |
                     imgui.TableFlags_.sort_multi |
                     imgui.TableFlags_.reorderable |
                     imgui.TableFlags_.sizing_fixed_fit |
-                    imgui.TableFlags_.no_host_extend_y |
-                    imgui.TableFlags_.no_borders_in_body_until_resize
+                    imgui.TableFlags_.no_host_extend_y
                 )
                 if imgui.begin_table(f"##folder_list",column=5+self.allow_multiple,flags=table_flags):
                     frame_height = imgui.get_frame_height()
@@ -200,7 +197,7 @@ class FilePicker:
                     checkbox_width = frame_height
                     if self.allow_multiple:
                         imgui.table_setup_column("Selector", imgui.TableColumnFlags_.no_hide | imgui.TableColumnFlags_.no_sort | imgui.TableColumnFlags_.no_resize | imgui.TableColumnFlags_.no_reorder, init_width_or_weight=checkbox_width)  # 0
-                    imgui.table_setup_column("Name", imgui.TableColumnFlags_.default_sort | imgui.TableColumnFlags_.no_hide)  # 1
+                    imgui.table_setup_column("Name", imgui.TableColumnFlags_.width_stretch | imgui.TableColumnFlags_.default_sort | imgui.TableColumnFlags_.no_hide)  # 1
                     imgui.table_setup_column("Date created", imgui.TableColumnFlags_.default_hide)  # 2
                     imgui.table_setup_column("Date modified")  # 3
                     imgui.table_setup_column("Type")  # 4
