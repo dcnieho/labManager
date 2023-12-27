@@ -13,7 +13,7 @@ import glfw
 
 from labManager.common import async_thread, config, eye_tracker, structs, task
 from ... import master
-from ._impl import computer_list, msgbox, utils
+from ._impl import computer_list, filepicker, msgbox, utils
 
 # Struct that holds the application's state
 class ActionState(Enum):
@@ -335,7 +335,7 @@ class MainGUI:
                         if not self._image_description_cache[im['Id']][0] or self._image_description_cache[im['Id']][1]==im['Description']:
                             # was not edited or current description matches cache, dump
                             del self._image_description_cache[im['Id']]
-                # succeeded successfully, break out of the try-loop
+                # succeeded, break out of the try-loop
                 break
             except Exception as exc:
                 if n_tries>=max_tries:
@@ -640,6 +640,10 @@ class MainGUI:
                         imgui.push_font(imgui_md.get_code_font())
                         _, self._task_prep.payload_text = imgui.input_text(f'##{field_name}', self._task_prep.payload_text)
                         imgui.pop_font()
+                    if imgui.button("Append path"):
+                        def append_path(tsk: TaskDef, path: str):
+                            tsk.payload_text += str(path[0])
+                        utils.push_popup(self, filepicker.FilePicker(title='Select path to append', allow_multiple=False, callback=lambda path: append_path(self._task_prep, path)))
                 else:
                     imgui.push_font(imgui_md.get_code_font())
                     _, self._task_prep.payload_file = imgui.input_text('##file_inputter',self._task_prep.payload_file)
