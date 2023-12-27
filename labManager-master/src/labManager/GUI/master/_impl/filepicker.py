@@ -15,7 +15,7 @@ from . import utils
 
 
 class FilePicker:
-    flags: int = (
+    default_flags: int = (
         imgui.WindowFlags_.no_collapse |
         imgui.WindowFlags_.no_saved_settings
     )
@@ -35,18 +35,21 @@ class FilePicker:
         self.sorted_items: list[int] = []
         self.last_clicked_id: int = None
 
-        self.dir: pathlib.Path = None
-        self.dir_picker = dir_picker
-        self.show_only_dirs = self.dir_picker   # by default, a dir picker only shows dirs
+        self.loc: pathlib.Path = None
+        self.is_dir_picker = dir_picker
+        self.show_only_dirs = self.is_dir_picker   # by default, a dir picker only shows dirs
         self.predicate = None
-        self.flags = custom_popup_flags or self.flags
-        self.windows = sys.platform.startswith("win")
-        if self.windows:
+        self.default_flags = custom_popup_flags or FilePicker.default_flags
+        self.platform_is_windows = sys.platform.startswith("win")
+        if self.platform_is_windows:
             self.drives: list[str] = []
             self.current_drive = 0
 
         self.goto(start_dir or os.getcwd())
 
+    # if passed a single directory will show that directory
+    # if passed a single file, or multiple files and/or directories, will
+    # open the parent of those and select them (kinda like "show in folder")
     def set_dir(self, paths: pathlib.Path | list[pathlib.Path]):
         if not isinstance(paths,list):
             paths = [paths]
@@ -68,31 +71,36 @@ class FilePicker:
                 if not self.allow_multiple and got_one:
                     break
 
-    def goto(self, dir: str | pathlib.Path):
-        dir = pathlib.Path(dir)
-        if dir.is_file():
-            dir = dir.parent
-        if dir.is_dir():
-            self.dir = dir
-        elif self.dir is None:
-            self.dir = pathlib.Path(os.getcwd())
-        self.dir = self.dir.absolute()
-        self.selected = {}
-        self.refresh()
+    def goto(self, loc: str | pathlib.Path):
+        loc = pathlib.Path(loc)
+        if loc.is_file():
+            loc = loc.parent
+        if loc is None:
+            loc = pathlib.Path(os.getcwd())
+
+        loc = loc.absolute()
+        if loc != self.loc:
+            self.loc = loc
+            # changing location clears selection
+            self.selected = {}
+            # load new directory
+            self.refresh()
 
     def refresh(self):
         selected = [self.items[id] for id in self.items if id in self.selected and self.selected[id]]
         self.items.clear()
         self.selected.clear()
         self.msg = None
-        if self.dir_picker and self.show_only_dirs and not self.predicate:
+        # if we're a directory picker should show only directories,
+        # install a predicate for that if there isn't yet one
+        if self.is_dir_picker and self.show_only_dirs and not self.predicate:
             self.predicate = lambda id: self.items[id].is_dir
         try:
-            items = list(self.dir.iterdir())
+            items = list(self.loc.iterdir())
             if not items:
                 self.msg = "This folder is empty!"
             else:
-                if self.dir_picker and self.show_only_dirs:
+                if self.is_dir_picker and self.show_only_dirs:
                     items = [i for i in items if i.is_dir()]
                 if items:
                     for i,item in enumerate(items):
@@ -116,7 +124,7 @@ class FilePicker:
 
         self.require_sort = True
 
-        if self.windows:
+        if self.platform_is_windows:
             self.drives.clear()
             i = -1
             for letter in string.ascii_uppercase:
@@ -124,7 +132,7 @@ class FilePicker:
                 if pathlib.Path(drive).exists():
                     i += 1
                     self.drives.append(drive)
-                    if str(self.dir).startswith(drive):
+                    if str(self.loc).startswith(drive):
                         self.current_drive = i
 
     def tick(self):
@@ -143,18 +151,18 @@ class FilePicker:
         size.x *= .7
         size.y *= .7
         imgui.set_next_window_size(size, cond=imgui.Cond_.appearing)
-        if imgui.begin_popup_modal(self.title, True, flags=self.flags)[0]:
+        if imgui.begin_popup_modal(self.title, True, flags=self.default_flags)[0]:
             cancelled = closed = utils.close_weak_popup()
             imgui.begin_group()
             # Up button
             if imgui.button(icons_fontawesome.ICON_FA_ARROW_UP):
-                self.goto(self.dir.parent)
+                self.goto(self.loc.parent)
             # Refresh button
             imgui.same_line()
             if imgui.button(icons_fontawesome.ICON_FA_REDO):
                 self.refresh()
             # Drive selector
-            if self.windows:
+            if self.platform_is_windows:
                 imgui.same_line()
                 imgui.set_next_item_width(imgui.get_font_size() * 4)
                 changed, value = imgui.combo("##drive_selector", self.current_drive, self.drives)
@@ -346,7 +354,7 @@ class FilePicker:
                                 if self.items[id].is_dir:
                                     self.goto(self.items[id].full_path)
                                     break
-                                elif not self.dir_picker:
+                                elif not self.is_dir_picker:
                                     utils.set_all(self.selected, False)
                                     self.selected[id] = True
                                     imgui.close_current_popup()
@@ -371,7 +379,7 @@ class FilePicker:
             # Ok button
             imgui.same_line()
             num_selected = sum([self.selected[id] for id in self.selected])
-            disable_ok = not num_selected and not self.dir_picker
+            disable_ok = not num_selected and not self.is_dir_picker
             if disable_ok:
                 imgui.internal.push_item_flag(imgui.internal.ItemFlags_.disabled, True)
                 imgui.push_style_var(imgui.StyleVar_.alpha, imgui.get_style().alpha *  0.5)
@@ -383,8 +391,8 @@ class FilePicker:
                 imgui.pop_style_var()
             # Selected text
             imgui.same_line()
-            if self.dir_picker and not num_selected:
-                imgui.text(f"  Selected the current directory ({self.dir if self.dir==self.dir.parent else self.dir.name})")
+            if self.is_dir_picker and not num_selected:
+                imgui.text(f"  Selected the current directory ({self.loc if self.loc==self.loc.parent else self.loc.name})")
             elif num_selected==1:
                 selected = [self.items[id] for id in self.items if id in self.selected and self.selected[id]]
                 imgui.text(f"  Selected {num_selected} item ({'directory' if selected[0].is_dir else 'file'} '{selected[0].name}')")
@@ -396,8 +404,8 @@ class FilePicker:
         if closed:
             if not cancelled and self.callback:
                 selected = [self.items[id].full_path for id in self.items if id in self.selected and self.selected[id]]
-                if self.dir_picker and not selected:
-                    selected = [self.dir]
+                if self.is_dir_picker and not selected:
+                    selected = [self.loc]
                 self.callback(selected if selected else None)
         return opened, closed
 
