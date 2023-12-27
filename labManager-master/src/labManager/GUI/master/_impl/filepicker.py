@@ -190,7 +190,7 @@ class FilePicker:
         size.y *= .7
         imgui.set_next_window_size(size, cond=imgui.Cond_.appearing)
         if imgui.begin_popup_modal(self.title, True, flags=self.default_flags)[0]:
-            cancelled = closed = utils.close_weak_popup()
+            cancelled = closed = utils.close_weak_popup(check_click_outside=False)
             imgui.begin_group()
             # Up button
             if imgui.button(icons_fontawesome.ICON_FA_ARROW_UP):

@@ -97,14 +97,14 @@ def draw_hover_text(hover_text: str, text="(?)", force=False, hovered_flags=0, *
     return False
 
 
-def close_weak_popup():
+def close_weak_popup(check_escape: bool = True, check_click_outside: bool = True):
     if not imgui.is_popup_open("", imgui.PopupFlags_.any_popup_id):
         # This is the topmost popup
-        if imgui.is_key_pressed(imgui.Key.escape):
+        if check_escape and imgui.is_key_pressed(imgui.Key.escape):
             # Escape is pressed
             imgui.close_current_popup()
             return True
-        elif imgui.is_mouse_clicked(imgui.MouseButton_.left):
+        elif check_click_outside and imgui.is_mouse_clicked(imgui.MouseButton_.left):
             # Mouse was just clicked
             pos = imgui.get_window_pos()
             size = imgui.get_window_size()
