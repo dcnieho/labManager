@@ -6,7 +6,6 @@ import platform
 import pathlib
 import pathvalidate
 import json
-import string
 import threading
 from dataclasses import dataclass, field
 
@@ -57,6 +56,7 @@ class Client:
         self._if_macs:                      list[str]                   = None
 
         self._poll_for_netnames_task:       asyncio.Task                = None
+        self._drives:                       list[str]                   = []
         self._net_names:                    dict[str,str]               = {}
         self._poll_for_eyetrackers_task:    asyncio.Task                = None
         self.connected_eye_tracker:         eye_tracker.ET_class        = None
@@ -164,6 +164,7 @@ class Client:
 
         # clear out state
         self._poll_for_netnames_task = None
+        self._drives = []
         self._net_names = {}
         self._poll_for_eyetrackers_task = None
         self.connected_eye_tracker = None
@@ -282,7 +283,7 @@ class Client:
                     case message.Message.FILE_GET_DRIVES:
                         await comms.typed_send(writer,
                                                message.Message.FILE_LISTING,
-                                               await _format_drives_file_listing_msg(self._net_names)
+                                               await _format_drives_file_listing_msg(self._drives, self._net_names)
                                               )
                     case message.Message.FILE_GET_SHARES:
                         out = msg
@@ -423,11 +424,12 @@ class Client:
     async def _poll_for_netnames(self):
         try:
             while True:
+                self._drives    = await dir_list.get_drives()
                 self._net_names = await net_names.get_network_computers(self.network)
 
                 # when done, broadcast to any connected clients so they stay up to date
                 await self.broadcast(message.Message.FILE_LISTING,
-                                     await _format_drives_file_listing_msg(self._net_names))
+                                     await _format_drives_file_listing_msg(self._drives, self._net_names))
 
                 # rate-limit to every x seconds
                 await asyncio.sleep(30)
@@ -453,14 +455,8 @@ class Client:
             pass    # we broke out of the loop: cancellation processed
 
 
-async def _format_drives_file_listing_msg(net_names: list[str]):
+async def _format_drives_file_listing_msg(drives: list[str], net_names: dict[str,str]):
     # get drives of this computer to add to the information
-    drives = []
-    for letter in string.ascii_uppercase:
-        drive = f"{letter}:\\"
-        if await aiopath.AsyncPath(drive).exists():
-            drives.append(pathlib.Path(drive))
-
     out = {'path': 'root', 'drives': drives, 'net_names': net_names}
 
     # format as a standard listing so its uniform for the receiver
@@ -468,7 +464,7 @@ async def _format_drives_file_listing_msg(net_names: list[str]):
     out['listing'] = []
     for d in out['drives']:
         out['listing'].append(structs.DirEntry(str(d),True,d,0.,0.,0,'labManager/drive'))
-    for n in out['net_names']:
+    for n in out['net_names']:  # key is the machine new (value is ip), so key is all we need
         # NB: //SERVER/ is the format pathlib understands and can concatenate share names to
         out['listing'].append(structs.DirEntry(n,True,pathlib.Path(f'//{n}/'),0.,0.,0,'labManager/net_name'))
 

@@ -2,9 +2,17 @@ import pathlib
 import mimetypes
 import asyncio
 import aiopath
+import string
 
 from . import structs
 
+async def get_drives():
+    drives = []
+    for letter in string.ascii_uppercase:
+        drive = f"{letter}:\\"
+        if await aiopath.AsyncPath(drive).exists():
+            drives.append(pathlib.Path(drive))
+    return drives
 
 async def get_dir_list(path: pathlib.Path) -> list[structs.DirEntry] | None:
     # return None if path doesn't exist or is not a directory
