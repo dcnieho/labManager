@@ -537,14 +537,21 @@ class Master:
             # check if we're allowed to issue mount command to this client
             if (config.master['SMB']['mount_only_known_clients'] and self.clients[client_id].known) or not config.master['SMB']['mount_only_known_clients']:
                 domain, user = smb.get_domain_username(self.admin.user['full_name'], config.master["SMB"]["domain"])
-                request = {
-                    'drive': config.master['SMB']['mount_drive_letter'],
-                    'share_path': f'\\\\{config.master["SMB"]["server"]}\{self.project}{config.master["SMB"]["projects"]["remove_trailing"]}',
-                    'user': f'{domain}\{user}',
-                    'password': self.password
-                    }
-                await comms.typed_send(client.writer, message.Message.SHARE_MOUNT, request)
-                client.mounted_shares[request['drive']] = request['share_path']
+                await self.client_mount_share(
+                    client, drive=config.master['SMB']['mount_drive_letter'],
+                    share_path=f'\\\\{config.master["SMB"]["server"]}\{self.project}{config.master["SMB"]["projects"]["remove_trailing"]}',
+                    user=user, password=self.password, domain=domain
+                )
+
+    async def client_mount_share(self, client: structs.ConnectedClient, drive: str, share_path: str|pathlib.Path, user: str, password: str, domain: str = ''):
+        request = {
+            'drive': drive,
+            'share_path': share_path,
+            'user': f'{domain}\{user}' if domain else user,
+            'password': password
+        }
+        await comms.typed_send(client.writer, message.Message.SHARE_MOUNT, request)
+        client.mounted_shares[request['drive']] = request['share_path']
 
     async def client_unmount_shares(self, client: structs.ConnectedClient):
         if not client.writer or client.writer.is_closing():
