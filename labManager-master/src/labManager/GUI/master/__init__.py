@@ -99,12 +99,6 @@ class MainGUI:
         async_thread.done_callback = asyncexcepthook
 
 
-    def _fix_popup_transparency(self):
-        frame_bg_col = list(imgui.get_style().color_(imgui.Col_.title_bg_active))
-        imgui.get_style().set_color_(imgui.Col_.title_bg_active,(*frame_bg_col[0:3], 1.))
-        popup_bg_col = list(imgui.get_style().color_(imgui.Col_.popup_bg))
-        imgui.get_style().set_color_(imgui.Col_.popup_bg,(*popup_bg_col[0:3], 1.))
-
     def _load_fonts(self):
         # It will load them from the assets/ folder.
         assets_folder = demo_utils.demos_assets_folder()
@@ -1259,7 +1253,7 @@ class MainGUI:
 
     def _computer_pane(self):
         # this pane is always visible, so we handle popups here
-        self._fix_popup_transparency()
+        utils.fix_popup_transparency()
         open_popup_count = 0
         for popup in self.popup_stack:
             if hasattr(popup, "tick"):

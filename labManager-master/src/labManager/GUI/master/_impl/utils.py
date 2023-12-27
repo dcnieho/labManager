@@ -97,6 +97,12 @@ def draw_hover_text(hover_text: str, text="(?)", force=False, hovered_flags=0, *
     return False
 
 
+def fix_popup_transparency():
+    frame_bg_col = list(imgui.get_style().color_(imgui.Col_.title_bg_active))
+    imgui.get_style().set_color_(imgui.Col_.title_bg_active,(*frame_bg_col[0:3], 1.))
+    popup_bg_col = list(imgui.get_style().color_(imgui.Col_.popup_bg))
+    imgui.get_style().set_color_(imgui.Col_.popup_bg,(*popup_bg_col[0:3], 1.))
+
 def close_weak_popup(check_escape: bool = True, check_click_outside: bool = True):
     if not imgui.is_popup_open("", imgui.PopupFlags_.any_popup_id):
         # This is the topmost popup
