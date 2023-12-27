@@ -95,7 +95,7 @@ class ComputerList():
 
                     if multi_selected_state==0:
                         imgui.internal.push_item_flag(imgui.internal.ItemFlags_.mixed_value, True)
-                    clicked, new_state = my_checkbox(f"##header_checkbox", multi_selected_state==1, frame_size=(0,0), do_vertical_align=False)
+                    clicked, new_state = utils.my_checkbox(f"##header_checkbox", multi_selected_state==1, frame_size=(0,0), do_vertical_align=False)
                     if multi_selected_state==0:
                         imgui.internal.pop_item_flag()
 
@@ -161,7 +161,7 @@ class ComputerList():
                     match ri:
                         case 0:
                             # Selector
-                            checkbox_clicked, checkbox_out = my_checkbox(f"##{id}_selected", self.selected_items[id], frame_size=(0,0))
+                            checkbox_clicked, checkbox_out = utils.my_checkbox(f"##{id}_selected", self.selected_items[id], frame_size=(0,0))
                             checkbox_hovered = imgui.is_item_hovered()
                         case 1:
                             # Name
@@ -292,26 +292,3 @@ class ComputerList():
             self.sorted_ids = ids
             sort_specs_in.specs_dirty = False
             self._require_sort = False
-
-def my_checkbox(label: str, state: bool, frame_size: tuple=None, do_vertical_align=True):
-    style = imgui.get_style()
-    if state:
-        imgui.push_style_color(imgui.Col_.frame_bg_hovered, style.color_(imgui.Col_.button_hovered))
-        imgui.push_style_color(imgui.Col_.frame_bg, style.color_(imgui.Col_.button_hovered))
-        imgui.push_style_color(imgui.Col_.check_mark, style.color_(imgui.Col_.text))
-    if frame_size is not None:
-        frame_padding = [style.frame_padding.x, style.frame_padding.y]
-        imgui.push_style_var(imgui.StyleVar_.frame_padding, frame_size)
-        imgui.push_style_var(imgui.StyleVar_.item_spacing, (0.,0.))
-        imgui.begin_group()
-        if do_vertical_align:
-            imgui.dummy((0,frame_padding[1]))
-        imgui.dummy((frame_padding[0],0))
-        imgui.same_line()
-    result = imgui.checkbox(label, state)
-    if frame_size is not None:
-        imgui.end_group()
-        imgui.pop_style_var(2)
-    if state:
-        imgui.pop_style_color(3)
-    return result

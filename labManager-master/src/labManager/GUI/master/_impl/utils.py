@@ -173,3 +173,26 @@ def push_popup(gui, *args, bottom=False, **kwargs):
         gui.popup_stack.append(popup_func)
     return popup_func
 
+
+def my_checkbox(label: str, state: bool, frame_size: tuple=None, do_vertical_align=True):
+    style = imgui.get_style()
+    if state:
+        imgui.push_style_color(imgui.Col_.frame_bg_hovered, style.color_(imgui.Col_.button_hovered))
+        imgui.push_style_color(imgui.Col_.frame_bg, style.color_(imgui.Col_.button_hovered))
+        imgui.push_style_color(imgui.Col_.check_mark, style.color_(imgui.Col_.text))
+    if frame_size is not None:
+        frame_padding = [style.frame_padding.x, style.frame_padding.y]
+        imgui.push_style_var(imgui.StyleVar_.frame_padding, frame_size)
+        imgui.push_style_var(imgui.StyleVar_.item_spacing, (0.,0.))
+        imgui.begin_group()
+        if do_vertical_align:
+            imgui.dummy((0,frame_padding[1]))
+        imgui.dummy((frame_padding[0],0))
+        imgui.same_line()
+    result = imgui.checkbox(label, state)
+    if frame_size is not None:
+        imgui.end_group()
+        imgui.pop_style_var(2)
+    if state:
+        imgui.pop_style_color(3)
+    return result
