@@ -453,6 +453,8 @@ class Master:
 
     def load_known_clients(self, known_clients: list[dict[str,str|list[str]]] = None):
         if not known_clients:
+            if 'clients' not in config.master:
+                return  # nothing to load
             known_clients = config.master['clients']
         self._known_clients = known_clients
 
