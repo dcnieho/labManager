@@ -674,16 +674,16 @@ class Master:
                                             {'path': path})
 
 
-    async def toems_get_computers(self):
+    async def toems_get_computers(self) -> list[dict[str,Any]]:
         with self.clients_lock:
             names = [self.clients[c].name for c in self.clients]
         if not self.toems:
             return []
         return await self.toems.computer_get(filter_list=names)
 
-    async def toems_get_disk_images(self):
+    async def toems_get_disk_images(self) -> list[dict[str,Any]]:
         if not self.toems:
-            return None
+            return []
         return await self.toems.image_get(project=self.project, project_format=config.master['toems']['images']['format'], name_mapping=config.master['base_image_name_table'] if 'base_image_name_table' in config.master else None)
 
     async def toems_get_disk_image_size(self, name_or_id: int|str):
@@ -693,18 +693,18 @@ class Master:
 
     async def toems_get_disk_image_info(self, name_or_id: int|str):
         if not self.toems:
-            return []
+            return None
         image = (await self.toems.image_get(name_or_id))
 
         # get timestamp last time image was updated
         if not self.toems:
-            return []
+            return None
         im_logs = await self.toems.image_get_audit_log(image['Id'])
         for l in im_logs:   # NB: logs are sorted newest-first
             if l['AuditType'] in ['Upload','OndUpload']:
                 upload_info = json.loads(l['ObjectJson'])
                 if not self.toems:
-                    return []
+                    return None
                 computer = await self.toems.computer_get(upload_info['ComputerId'])
                 return {
                     'TimeStamp': l['DateTime'],
@@ -713,17 +713,29 @@ class Master:
         return None     # no info found
 
     async def toems_create_disk_image(self, name: str, description: str|None = None):
+        if not self.admin:
+            return None
         return await self.admin.create_image(name, description)
 
     async def toems_update_disk_image(self, name: str, updates):
+        if not self.toems:
+            return None
         image_id = (await self.toems.image_get(name))['Id']
+        if not self.admin:
+            return None
         return await self.admin.update_image(image_id, updates)
 
-    async def toems_delete_disk_image(self, name: str):
+    async def toems_delete_disk_image(self, name: str) -> None:
+        if not self.toems:
+            return
         image_id = (await self.toems.image_get(name))['Id']
-        return await self.admin.delete_image(image_id)
+        if not self.admin:
+            return
+        await self.admin.delete_image(image_id)
 
-    async def toems_deploy_disk_image(self, image: str, part_of_project: bool, clients: int|list[int]):
+    async def toems_deploy_disk_image(self, image: str, part_of_project: bool, clients: int|list[int]) -> None:
+        if not self.toems:
+            return
         image_id = (await self.toems.image_get(image))['Id']
 
         # update image info script
@@ -739,43 +751,59 @@ class Master:
             if part_of_project:
                 info['project'] = self.project
             script = toems.make_info_script(info, config.master['toems']['image_info_script_partition'])
+            if not self.admin:
+                return
             resp = await self.admin.image_set_script(image_id, config.master['toems']['image_info_script'], script, priority=1, run_when=3)
             if not resp['Success']:
                 raise RuntimeError(f"can't deploy: failed to set image info script ({resp['ErrorMessage']})")
         if 'pre_upload_script' in config.master['toems']:
             # if there is a pre-upload script, disable it
+            if not self.admin:
+                return
             resp = await self.admin.image_set_script(image_id, config.master['toems']['pre_upload_script'], '', priority=0, run_when=0)
             if not resp['Success']:
                 raise RuntimeError(f"can't deploy: failed to disable image cleanup script ({resp['ErrorMessage']})")
 
         if not isinstance(clients,list):
             clients = [clients]
+        if not self.toems:
+            return
         comps = await asyncio.gather(*[self.toems.computer_get(self.clients[c].name) for c in clients])
         comp_ids = [c['Id'] for c in comps if c is not None]
         if not comp_ids:
             raise RuntimeError(f"can't deploy: none of the indicated clients are known to Toems")
         for c in comp_ids:
+            if not self.admin:
+                return
             resp = await self.admin.apply_image(image_id, c)
             if not resp['Success']:
                 raise RuntimeError(f"can't deploy: failed to apply image to computer ({resp['ErrorMessage']})")
 
+        if not self.toems:
+            return
         resp = await self.toems.computer_deploy(image_id, comp_ids)
         if not resp['Success']:
             raise RuntimeError(f"can't deploy: failed to start task ({resp['ErrorMessage']})")
 
-    async def toems_upload_to_disk_image(self, client: int, image: str):
+    async def toems_upload_to_disk_image(self, client: int, image: str) -> None:
         # we can only ever upload to an image belonging to this project, so check it is a project image
         if not image.startswith(self.project+'_'):
             image = self.project+'_'+image
+        if not self.toems:
+            return
         im = await self.toems.image_get(image)
         if im is None:
             raise RuntimeError(f"can't upload: image with name '{image}' not found")
         image_id = im['Id']
 
+        if not self.toems:
+            return
         comp = await self.toems.computer_get(self.client[client])
         if comp is None:
             raise RuntimeError(f"can't upload: computer with name '{self.client[client].name}' not found or not known to Toems")
         comp_id  = comp['Id']
+        if not self.admin:
+            return
         resp = await self.admin.apply_image(image_id, comp_id)
         if not resp['Success']:
             raise RuntimeError(f"can't upload: failed to apply image to computer ({resp['ErrorMessage']})")
@@ -788,19 +816,27 @@ class Master:
                 raise RuntimeError(f"can't upload: failed to set image cleanup script ({resp['ErrorMessage']})")
         if 'image_info_script' in config.master['toems']:
             # if there is a post-deploy script, disable it
+            if not self.admin:
+                return
             resp = await self.admin.image_set_script(image_id, config.master['toems']['image_info_script'], '', priority=1, run_when=0)
             if not resp['Success']:
                 raise RuntimeError(f"can't upload: failed to unset image info script ({resp['ErrorMessage']})")
 
+        if not self.admin:
+            return
         resp = await self.admin.update_image(image_id, {"Protected": False})
         if resp['Protected']:   # check it worked
             raise RuntimeError(f"can't upload: failed to unprotect image ({resp['ErrorMessage']})")
 
+        if not self.toems:
+            return
         resp = await self.toems.computer_upload(comp_id, image_id)
         if not resp['Success']:
             raise RuntimeError(f"can't upload: failed to start task ({resp['ErrorMessage']})")
 
-    async def toems_get_active_imaging_tasks(self, image_id: int|None = None):
+    async def toems_get_active_imaging_tasks(self, image_id: int|None = None) -> list[dict[str,str]]:
+        if not self.toems:
+            return []
         resp = await self.toems.imaging_tasks_get_active()
         # info about what image the task concerns is contained in the Computer dict under ImageId
 
@@ -824,7 +860,9 @@ class Master:
 
         return out
 
-    async def toems_cancel_active_imaging_task(self, task_id: int):
+    async def toems_cancel_active_imaging_task(self, task_id: int) -> None:
+        if not self.toems:
+            return
         resp = await self.toems.imaging_tasks_cancel_active(task_id)
         if not 'Success' in resp or not resp['Success']:
             raise RuntimeError(f"can't cancel active image task: failed because: {resp['ErrorMessage']}")
