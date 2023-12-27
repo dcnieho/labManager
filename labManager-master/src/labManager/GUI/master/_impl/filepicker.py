@@ -122,20 +122,16 @@ class FilePicker:
         self.selected.clear()
         self.msg = None
         try:
-            items = list(self.loc.iterdir())
-            if not items:
+            for i,item in enumerate(self.loc.iterdir()):
+                stat = item.stat()
+                item = structs.DirEntry(item.name,item.is_dir(),item,
+                                        stat.st_ctime,stat.st_mtime,stat.st_size,
+                                        mimetypes.guess_type(item)[0])
+                self.items[i] = DirEntryWithCache(item)
+                self.selected[i] = False
+
+            if not self.items:
                 self.msg = "This folder is empty!"
-            else:
-                if items:
-                    for i,item in enumerate(items):
-                        stat = item.stat()
-                        item = structs.DirEntry(item.name,item.is_dir(),item,
-                                                stat.st_ctime,stat.st_mtime,stat.st_size,
-                                                mimetypes.guess_type(item)[0])
-                        self.items[i] = DirEntryWithCache(item)
-                        self.selected[i] = False
-                else:
-                    self.msg = "This folder does not contain any folders!"
 
         except Exception as exc:
             self.msg = f"Cannot open this folder!\n:{exc}"
