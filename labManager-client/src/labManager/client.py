@@ -293,7 +293,7 @@ class Client:
                         out['listing'] = []
                         for n in out['share_names']:
                             # NB: //SERVER/ is the format pathlib understands and can concatenate share names to
-                            out['listing'].append(dir_list.DirEntry(n,True,pathlib.Path(f'//{msg["net_name"]}/') / n,0.,0.,0,None))
+                            out['listing'].append(structs.DirEntry(n,True,pathlib.Path(f'//{msg["net_name"]}/') / n,0.,0.,0,None))
                         await comms.typed_send(writer,
                                                message.Message.FILE_LISTING,
                                                out
@@ -467,9 +467,9 @@ async def _format_drives_file_listing_msg(net_names: list[str]):
     # use special mime-types to flag that the content is drives and net work computers
     out['listing'] = []
     for d in out['drives']:
-        out['listing'].append(dir_list.DirEntry(str(d),True,d,0.,0.,0,'labManager/drive'))
+        out['listing'].append(structs.DirEntry(str(d),True,d,0.,0.,0,'labManager/drive'))
     for n in out['net_names']:
         # NB: //SERVER/ is the format pathlib understands and can concatenate share names to
-        out['listing'].append(dir_list.DirEntry(n,True,pathlib.Path(f'//{n}/'),0.,0.,0,'labManager/net_name'))
+        out['listing'].append(structs.DirEntry(n,True,pathlib.Path(f'//{n}/'),0.,0.,0,'labManager/net_name'))
 
     return out

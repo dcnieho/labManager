@@ -74,3 +74,14 @@ class Client:
 
     def __repr__(self):
         return f'{self.name}@{self.MACs}, {"" if self.online else "not "}connected'
+
+
+@dataclass
+class DirEntry:
+    name: str
+    is_dir: bool
+    full_path: pathlib.Path
+    ctime: float
+    mtime: float
+    size: int
+    mime_type: str
