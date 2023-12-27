@@ -73,9 +73,9 @@ class FilePicker:
         self.predicate = None
         self.default_flags = custom_popup_flags or FilePicker.default_flags
         self.platform_is_windows = sys.platform.startswith("win")
-        if self.platform_is_windows:
-            self.drives: list[str] = []
-            self.current_drive = 0
+        # only relevant on Windows
+        self.drives: list[str] = []
+        self.current_drive = 0
 
         self.goto(start_dir or os.getcwd())
 
@@ -130,6 +130,7 @@ class FilePicker:
                                               mimetypes.guess_type(item)[0]))
         except Exception as exc:
             items = exc
+        self._refresh_path_done(items)
 
         # also update drives
         if self.platform_is_windows:
@@ -138,10 +139,9 @@ class FilePicker:
                 drive = f"{letter}:\\"
                 if pathlib.Path(drive).exists():
                     drives.append(drive)
+            self._refresh_drives_done(drives)
 
-        self._refresh_done(items, drives)
-
-    def _refresh_done(self, items: list[structs.DirEntry]|Exception, drives: list[str]):
+    def _refresh_path_done(self, items: list[structs.DirEntry]|Exception):
         if not self.new_loc:
             selected = [self.items[id] for id in self.items if id in self.selected and self.selected[id]]
         self.items.clear()
@@ -164,17 +164,17 @@ class FilePicker:
                         self.selected[id] = True
                         break
 
-        # refresh drives and set up directory selector
-        if self.platform_is_windows:
-            self.drives = drives
-            for i,d in enumerate(self.drives):
-                if str(self.loc).startswith(d):
-                    self.current_drive = i
-                    break
-
         self.require_sort = True
         self.new_loc = False
         self.refreshing = False
+
+    def _refresh_drives_done(self, drives: list[str]):
+        # refresh drives and set up directory selector
+        self.drives = drives
+        for i,d in enumerate(self.drives):
+            if str(self.loc).startswith(d):
+                self.current_drive = i
+                break
 
     def tick(self):
         # Auto refresh
@@ -203,7 +203,7 @@ class FilePicker:
             if imgui.button(icons_fontawesome.ICON_FA_REDO):
                 self.refresh()
             # Drive selector
-            if self.platform_is_windows:
+            if self.drives:
                 imgui.same_line()
                 imgui.set_next_item_width(imgui.get_font_size() * 4)
                 changed, value = imgui.combo("##drive_selector", self.current_drive, self.drives)
