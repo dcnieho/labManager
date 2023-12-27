@@ -8,7 +8,7 @@ import natsort
 import mimetypes
 import datetime
 import re
-from dataclasses import dataclass, InitVar, field
+from dataclasses import dataclass
 
 from labManager.common import structs
 from . import utils
