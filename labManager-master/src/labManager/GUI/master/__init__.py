@@ -50,6 +50,7 @@ class MainGUI:
         self.proj_idx         = -1
         self.project_select_immediately = False
         self.project          = ''  # NB: display name, self.master.project for real name
+        self.no_login_mode    = False
 
         # GUI state
         self._window_list     = []
@@ -72,7 +73,7 @@ class MainGUI:
         self._image_description_cache: dict[int, list[bool, str]] = {}
         self._active_imaging_tasks = []
         self._active_imaging_tasks_updater = None
-        self._active_imaging_tasks_updater_should_stop = False
+        self._active_imaging_tasks_updater_should_stop = True
         self._active_upload_tasks = set()  # set of images
         self._active_upload_tasks_map: dict[str,int] = {}
 
@@ -249,19 +250,25 @@ class MainGUI:
             imgui.end_menu()
         if imgui.menu_item("Close project", "", False, enabled=self.proj_select_state==ActionState.Done)[0]:
             self._unload_project()
-        if imgui.menu_item("Log out", "", False, enabled=self.login_state==ActionState.Done)[0]:
-            self._logout()
+        if self.no_login_mode:
+            if imgui.menu_item("Return to login", "", False)[0]:
+                self._logout()
+        else:
+            if imgui.menu_item("Log out", "", False, enabled=self.login_state==ActionState.Done)[0]:
+                self._logout()
 
-    def _get_window_title(self, add_user=False, add_project=False):
+    def _get_window_title(self, add_user=False, add_project=False, no_login_mode=False):
         title = "labManager Master"
-        if add_user and add_project:
+        if no_login_mode:
+            title+= ' (not logged in)'
+        elif add_user and add_project:
             title+= f' ({self.username}/{self.project})'
         elif add_user:
             title+= f' ({self.username})'
         return title
 
-    def _set_window_title(self, add_user=False, add_project=False):
-        new_title = self._get_window_title(add_user,add_project)
+    def _set_window_title(self, add_user=False, add_project=False, no_login_mode=False):
+        new_title = self._get_window_title(add_user,add_project,no_login_mode)
         # this is just for show, doesn't trigger an update. But lets keep them in sync
         hello_imgui.get_runner_params().app_window_params.window_title = new_title
         # actually update window title.
@@ -278,8 +285,20 @@ class MainGUI:
         self.username         = ''
         self.password         = ''
         self.login_state      = ActionState.Not_Done
+        self.no_login_mode    = False
         self.master.logout()
         self._set_window_title()
+
+    def _continue_without_login(self):
+        self.no_login_mode = True
+        self._window_list = [
+            self.computer_list,
+            self._make_main_space_window("Tasks", self._task_GUI),
+            ]
+        self._to_dock = ["Tasks"]
+        self._set_window_title(no_login_mode=True)
+        # start server
+        async_thread.run(self.master.start_server())
 
     def _project_selected(self):
         self.proj_select_state = ActionState.Done
@@ -381,6 +400,9 @@ class MainGUI:
                     else:
                         self.login_state = ActionState.Processing
                         async_thread.run(self.master.login(self.username,self.password), lambda fut: self._login_projectsel_result('login',fut))
+                imgui.same_line()
+                if imgui.button("Continue without logging in"):
+                    self._continue_without_login()
 
             if disabled:
                 utils.pop_disabled()
@@ -1269,7 +1291,7 @@ class MainGUI:
             imgui.end_popup()
 
         # now render actual pane
-        if self.proj_select_state!=ActionState.Done:
+        if self.proj_select_state!=ActionState.Done and not self.no_login_mode:
             return
 
         imgui.align_text_to_frame_padding()
