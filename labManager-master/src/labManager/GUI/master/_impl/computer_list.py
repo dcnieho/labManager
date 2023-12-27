@@ -169,7 +169,7 @@ class ComputerList():
                             info_button_hovered = imgui.is_item_hovered()
                         case 2:
                             # IP
-                            imgui.text(item.client.host if item.client else '')
+                            imgui.text(item.online.host if item.online else '')
                     num_columns_drawn+=1
 
                 # handle selection logic
