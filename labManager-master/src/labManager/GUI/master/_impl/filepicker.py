@@ -8,10 +8,44 @@ import natsort
 import mimetypes
 import datetime
 import re
+from dataclasses import dataclass, InitVar, field
 
 from labManager.common import structs
 from . import utils
 
+
+DIR_ICON = icons_fontawesome.ICON_FA_FOLDER + "  "
+FILE_ICON = icons_fontawesome.ICON_FA_FILE + "  "
+
+
+@dataclass
+class DirEntryWithCache(structs.DirEntry):
+    # display fields
+    display_name: str
+    ctime_str: str
+    mtime_str: str
+    size_str: str
+
+    def __init__(self, item: structs.DirEntry):
+        super().__init__(item.name, item.is_dir, item.full_path, item.ctime, item.mtime, item.size, item.mime_type)
+
+        # prep display strings
+        self.display_name   = (DIR_ICON if self.is_dir else FILE_ICON)+self.name
+        self.ctime_str      = datetime.datetime.fromtimestamp(self.ctime).strftime("%Y-%m-%d %H:%M:%S")
+        self.mtime_str      = datetime.datetime.fromtimestamp(self.mtime).strftime("%Y-%m-%d %H:%M:%S")
+        # size
+        if not self.is_dir:
+            unit = 1024**2
+            orig = "%.1f KiB" % ((1024 * self.size / unit))
+            while True:
+                # add commas as thousands separators, if any are needed
+                new = re.sub(r"^(-?\d+)(\d{3})", r"\g<1>,\g<2>", orig)
+                if orig == new:
+                    break
+                orig = new
+            self.size_str = new
+        else:
+            self.size_str = None
 
 
 class FilePicker:
@@ -23,11 +57,9 @@ class FilePicker:
     def __init__(self, title="File picker", dir_picker=False, start_dir: str | pathlib.Path = None, callback: typing.Callable = None, allow_multiple = True, custom_popup_flags=0):
         self.title = title
         self.elapsed = 0.0
-        self.dir_icon = icons_fontawesome.ICON_FA_FOLDER + "  "
-        self.file_icon = icons_fontawesome.ICON_FA_FILE + "  "
         self.callback = callback
 
-        self.items: dict[int, structs.DirEntry] = {}
+        self.items: dict[int, DirEntryWithCache] = {}
         self.selected: dict[int, bool] = {}
         self.allow_multiple = allow_multiple
         self.msg: str = None
@@ -105,9 +137,10 @@ class FilePicker:
                 if items:
                     for i,item in enumerate(items):
                         stat = item.stat()
-                        self.items[i] = structs.DirEntry(item.name,item.is_dir(),item,
-                                                         stat.st_ctime,stat.st_mtime,stat.st_size,
-                                                         mimetypes.guess_type(item)[0])
+                        item = structs.DirEntry(item.name,item.is_dir(),item,
+                                                stat.st_ctime,stat.st_mtime,stat.st_size,
+                                                mimetypes.guess_type(item)[0])
+                        self.items[i] = DirEntryWithCache(item)
                         self.selected[i] = False
                 else:
                     self.msg = "This folder does not contain any folders!"
@@ -308,32 +341,21 @@ class FilePicker:
                                     checkbox_hovered = imgui.is_item_hovered()
                                 case 1:
                                     # Name
-                                    prefix = self.dir_icon if self.items[id].is_dir else self.file_icon
-                                    imgui.text(prefix+self.items[id].name)
+                                    imgui.text(self.items[id].display_name)
                                 case 2:
                                     # Date created
-                                    dt = datetime.datetime.fromtimestamp(self.items[id].ctime).strftime("%Y-%m-%d %H:%M:%S")
-                                    imgui.text(dt)
+                                    imgui.text(self.items[id].ctime_str)
                                 case 3:
                                     # Date modified
-                                    dt = datetime.datetime.fromtimestamp(self.items[id].mtime).strftime("%Y-%m-%d %H:%M:%S")
-                                    imgui.text(dt)
+                                    imgui.text(self.items[id].mtime_str)
                                 case 4:
                                     # Type
                                     if self.items[id].mime_type:
                                         imgui.text(self.items[id].mime_type)
                                 case 5:
                                     # Size
-                                    if not self.items[id].is_dir:
-                                        unit = 1024**2
-                                        orig = "%.1f KiB" % ((1024 * self.items[id].size / unit))
-                                        while True:
-                                            # add commas as thousands separators, if any are needed
-                                            new = re.sub(r"^(-?\d+)(\d{3})", r"\g<1>,\g<2>", orig)
-                                            if orig == new:
-                                                break
-                                            orig = new
-                                        imgui.text(new)
+                                    if self.items[id].size_str:
+                                        imgui.text(self.items[id].size_str)
 
                         if disable_item:
                             imgui.internal.pop_item_flag()
