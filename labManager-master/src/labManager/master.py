@@ -189,7 +189,7 @@ class Master:
             await self._ssdp_server.send_notification()  # send one notification upon startup
 
         # check SMB access
-        if not self._share_access_task or self._share_access_task.done():
+        if self.project and (not self._share_access_task or self._share_access_task.done()):
             self._share_access_task = asyncio.create_task(self._determine_share_access(self.project))
             self._share_access_task.add_done_callback(lambda _: setattr(self, '_share_access_task', None))
 
