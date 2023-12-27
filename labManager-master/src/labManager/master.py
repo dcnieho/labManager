@@ -154,7 +154,6 @@ class Master:
         self.has_share_access = False
         if self.admin is not None:
             self.admin.unset_project()
-        self.task_groups.clear()
         # NB: no need to clean up clients, stop_server() above will stop the connections, which cleans them up for us
 
 
@@ -236,6 +235,8 @@ class Master:
                         except:
                             pass
                 await asyncio.wait(not_finished)
+
+        self.task_groups.clear()
 
         if self._server:
             self._server.close()
