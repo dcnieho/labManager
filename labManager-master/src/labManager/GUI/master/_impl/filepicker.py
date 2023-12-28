@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from typing import Callable
 
 from labManager.common import async_thread, dir_list, structs
+from labManager.common.network import net_names
 from . import utils
 
 
@@ -61,14 +62,22 @@ class DirEntryWithCache(structs.DirEntry):
 
 
 class DirectoryProvider:
-    def __init__(self, drive_callback: Callable[[list[str]|Exception, bool], None], listing_callback: Callable[[list[structs.DirEntry]|Exception, bool], None]):
+    def __init__(self, drive_callback: Callable[[list[str]|Exception, bool], None], listing_callback: Callable[[list[structs.DirEntry]|Exception, bool], None], network: str = None):
         self.listing_cache: dict[str, list[structs.DirEntry]] = {}
         self.waiters: set[asyncio.Future] = set()
 
         self.drive_callback: Callable[[list[str]|Exception, bool], None] = drive_callback
         self.listing_callback: Callable[[list[structs.DirEntry]|Exception, bool], None] = listing_callback
 
+        self.network: str|None = network
+        self.network_computers: dict[str,tuple[structs.DirEntry,str]] = {}
+        self.network_computer_getter: asyncio.Future = None
+        if self.network:
+            self.network_computer_getter = async_thread.run(self._get_network_computers())
+
     def __del__(self):
+        if self.network_computer_getter and not self.network_computer_getter.done():
+            self.network_computer_getter.cancel()
         for w in self.waiters:
             w.cancel()
 
@@ -90,6 +99,16 @@ class DirectoryProvider:
         fut = async_thread.run(dir_list.get_drives(), lambda f: self.action_done(f, 'root', action_type))
         self.waiters.add(fut)
         return fut
+
+    async def _get_network_computers(self):
+        try:
+            while True:
+                self.network_computers = await net_names.get_network_computers(self.network)
+
+                # rate-limit to every x seconds
+                await asyncio.sleep(30)
+        except asyncio.CancelledError:
+            pass    # we broke out of the loop: cancellation processed
 
     def return_cache(self, path: str|pathlib.Path, which: str):
         key = str(path)
@@ -113,8 +132,15 @@ class DirectoryProvider:
             result = exc
 
         if result is not None:
+            key = str(path)
+            if key=='root':
+                # add network computers
+                names = [n.name for n in result]
+                for n in self.network_computers:    # indexed by name, so can just use n
+                    if n not in names:
+                        result.append(self.network_computers[n][0]) # (value is tuple[DirEntry,ip:str]), get the DirEntry
             # add to cache
-            self.listing_cache[str(path)] = result
+            self.listing_cache[key] = result
             # determine which callback to call
             match which:
                 case 'drives':
@@ -131,13 +157,13 @@ class FilePicker:
         imgui.WindowFlags_.no_saved_settings
     )
 
-    def __init__(self, title="File picker", start_dir: str | pathlib.Path = None, callback: typing.Callable = None, allow_multiple = True, directory_service=None, custom_popup_flags=0):
+    def __init__(self, title="File picker", start_dir: str | pathlib.Path = None, callback: typing.Callable = None, allow_multiple = True, directory_service=None, network: str = None, custom_popup_flags=0):
         self.title = title
         self.elapsed = 0.0
         self.callback = callback
         self.directory_service = directory_service
         if self.directory_service is None:
-            self.directory_service = DirectoryProvider(self._refresh_drives_done, self._refresh_path_done)
+            self.directory_service = DirectoryProvider(self._refresh_drives_done, self._refresh_path_done, network)
 
         self.items: dict[int, DirEntryWithCache] = {}
         self.items_lock: threading.Lock = threading.Lock()
