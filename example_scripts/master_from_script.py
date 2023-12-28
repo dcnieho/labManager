@@ -13,7 +13,7 @@ async def run():
     if want_login:
         await labManager.master.cmd_login_flow(master)
     else:
-        print('You didn''t answer y, so not logging in')
+        print('You didn\'t answer y, so not logging in')
     await master.start_server()
 
     # wait until a client connects (irrespective of how many are already connected, this waits for a new one)
