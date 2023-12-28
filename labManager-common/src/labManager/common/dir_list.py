@@ -18,11 +18,8 @@ async def get_drives() -> list[pathlib.Path]:
     return [structs.DirEntry(str(d),True,d,None,None,None,'labManager/drive') for d in drives]
 
 async def get_dir_list(path: pathlib.Path) -> list[structs.DirEntry] | None:
-    # return None if path doesn't exist or is not a directory
+    # will throw when path doesn't exist or is not a directory
     path = aiopath.AsyncPath(path)
-    if not await path.is_dir():
-        return None
-
     out = []
     async for e in path.iterdir():
         stat, is_dir = await asyncio.gather(e.stat(), e.is_dir())

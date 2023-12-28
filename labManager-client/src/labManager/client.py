@@ -300,10 +300,18 @@ class Client:
                                                out
                                               )
                     case message.Message.FILE_GET_LISTING:
-                        listing = await dir_list.get_dir_list(msg['path'])
+                        msg = {'path': str(msg['path'])}
+                        try:
+                            pathvalidate.validate_filepath(msg['path'], "auto")
+                            msg['listing'] = await dir_list.get_dir_list(msg['path'])
+                        except Exception as exc:
+                            if isinstance(exc,pathvalidate.ValidationError):
+                                exc = str(exc)  # these don't unpickle well, also can't assume receiver to have the same package installed
+                            msg['error'] = exc
+                            msg['listing'] = []
                         await comms.typed_send(writer,
                                                message.Message.FILE_LISTING,
-                                               {'path': str(msg['path']), 'listing': listing}
+                                               msg
                                               )
 
                     case message.Message.FILE_MAKE:
