@@ -131,7 +131,7 @@ class FilePicker:
                     drives.append(drive)
             self._refresh_drives_done(drives)
 
-    def _refresh_path_done(self, items: list[DirEntryWithCache]|Exception):
+    def _refresh_path_done(self, items: list[structs.DirEntry]|Exception):
         previously_selected = []
         if not self.new_loc:
             previously_selected = [self.items[iid].full_path for iid in self.items if iid in self.selected and self.selected[iid]]
