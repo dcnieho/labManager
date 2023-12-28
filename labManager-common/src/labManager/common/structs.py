@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import pathlib
+import datetime
 from dataclasses import dataclass, field
 from enum import auto
 
@@ -85,3 +86,9 @@ class DirEntry:
     mtime: float
     size: int
     mime_type: str
+
+    def __post_init__(self):
+        if self.ctime is not None and not isinstance(self.ctime, datetime.datetime):
+            self.ctime = datetime.datetime.fromtimestamp(self.ctime)
+        if self.mtime is not None and not isinstance(self.mtime, datetime.datetime):
+            self.mtime = datetime.datetime.fromtimestamp(self.mtime)
