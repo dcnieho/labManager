@@ -6,7 +6,7 @@ from icmplib import async_multiping
 
 from .. import structs
 
-async def get_network_computers(ip_network):
+async def get_network_computers(ip_network) -> dict[str,tuple[structs.DirEntry,str]]:
     network = ipaddress.IPv4Network(ip_network)
     if network.num_addresses > 512:
         raise ValueError(f'Too many addresses in network {ip_network}')
