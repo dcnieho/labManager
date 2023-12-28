@@ -104,6 +104,7 @@ class DirectoryProvider:
             cb(self.listing_cache[key], True)
 
     def action_done(self, fut: asyncio.Future, path: str|pathlib.Path, which: str):
+        self.waiters.discard(fut)
         try:
             result = fut.result()
         except concurrent.futures.CancelledError:
@@ -122,7 +123,6 @@ class DirectoryProvider:
                     cb = self.listing_callback
         if cb:
             cb(result, False)
-        self.waiters.discard(fut)
 
 
 class FilePicker:
