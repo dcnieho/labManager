@@ -8,6 +8,10 @@ from labManager.common.network import ldap
 from labManager.common.network import toems as toems_conn
 from labManager.common import config, secrets
 
+
+__version__ = '0.8.6'
+
+
 # server with REST API for dealing with stuff that needs secret we don't want users to have access to:
 # 1. LDAP querying for verifying user credentials and getting which projects they're members of
 #    a. direct connection to LDAP system

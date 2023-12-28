@@ -33,6 +33,29 @@ filename = "labManager-master/pyproject.toml"
 filename = "labManager-common/pyproject.toml"
 
 
+
+[[tool.bumpversion.files]]
+filename = "labManager-admin-server/admin_server.py"
+search = "__version__ = {current_version}"
+replace = "__version__ = {new_version}"
+
+[[tool.bumpversion.files]]
+filename = "labManager-client/client.py"
+search = "__version__ = {current_version}"
+replace = "__version__ = {new_version}"
+
+[[tool.bumpversion.files]]
+filename = "labManager-common/__init__.py"
+search = "__version__ = {current_version}"
+replace = "__version__ = {new_version}"
+
+[[tool.bumpversion.files]]
+filename = "labManager-master/master.py"
+search = "__version__ = {current_version}"
+replace = "__version__ = {new_version}"
+
+
+
 [[tool.bumpversion.files]]
 filename = "README.md"
 search = "labManager v{current_version}"

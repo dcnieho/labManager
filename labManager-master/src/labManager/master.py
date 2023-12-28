@@ -13,6 +13,8 @@ from typing import Any, Callable
 from labManager.common import async_thread, config, counter, dir_list, eye_tracker, message, structs, task
 from labManager.common.network import admin_conn, comms, ifs, keepalive, smb, ssdp, toems
 
+__version__ = '0.8.6'
+
 
 
 class Master:
