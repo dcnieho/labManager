@@ -60,7 +60,7 @@ class Client:
 
         self._poll_for_netnames_task:       asyncio.Task                = None
         self._drives:                       list[str]                   = []
-        self._net_names:                    dict[str,str]               = {}
+        self._net_names:                    dict[str,tuple[structs.DirEntry, str]] = {}
         self._poll_for_eyetrackers_task:    asyncio.Task                = None
         self.connected_eye_tracker:         eye_tracker.ET_class        = None
         self._next_master_id:               int                         = 0
@@ -458,7 +458,7 @@ class Client:
             pass    # we broke out of the loop: cancellation processed
 
 
-async def _format_drives_file_listing_msg(drives: list[structs.DirEntry], net_names: dict[str,str]):
+async def _format_drives_file_listing_msg(drives: list[structs.DirEntry], net_names: dict[str,tuple[structs.DirEntrystr]]):
     # get drives of this computer to add to the information
     out = {'path': 'root',
            'drives': [d.name for d in drives],
