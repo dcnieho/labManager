@@ -38,7 +38,7 @@ def cleanup():
         thread = None
 
 
-def run(coroutine: typing.Coroutine, override_done_callback: typing.Callable = None):
+def run(coroutine: typing.Coroutine, override_done_callback: typing.Callable = None) -> asyncio.Future:
     future = asyncio.run_coroutine_threadsafe(coroutine, loop)
     if override_done_callback:
         future.add_done_callback(override_done_callback)
