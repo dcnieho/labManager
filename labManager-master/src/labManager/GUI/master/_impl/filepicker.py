@@ -280,9 +280,9 @@ class FilePicker:
             if self.refreshing and self.new_loc:
                 string = 'loading directory...'
                 t_size = imgui.calc_text_size(string)
-                symbol_size = imgui.calc_text_size("x").y*2
-                spinner_radii = [x/22/2*symbol_size for x in [22, 16, 10]]
-                lw = 3.5/22/2*symbol_size
+                symbol_size = imgui.calc_text_size("x").y
+                spinner_radii = [x/22*symbol_size for x in [22, 16, 10]]
+                lw = 3.5/22*symbol_size
                 tot_height = t_size.y+2*spinner_radii[0]+lw
                 imgui.set_cursor_pos(((imgui.get_content_region_avail().x - t_size.x)/2, (imgui.get_content_region_avail().y - tot_height)/2))
                 imgui.text(string)

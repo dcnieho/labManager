@@ -400,9 +400,9 @@ class MainGUI:
             i2,self.password = imgui.input_text('Password', self.password, flags=imgui.InputTextFlags_.enter_returns_true|imgui.InputTextFlags_.password)
 
             if self.login_state==ActionState.Processing:
-                symbol_size = imgui.calc_text_size("x").y*2
-                spinner_radii = [x/22/2*symbol_size for x in [22, 16, 10]]
-                lw = 3.5/22/2*symbol_size
+                symbol_size = imgui.calc_text_size("x").y
+                spinner_radii = [x/22*symbol_size for x in [22, 16, 10]]
+                lw = 3.5/22*symbol_size
                 imspinner.spinner_ang_triple(f'loginSpinner', *spinner_radii, lw, c1=imgui.get_style().color_(imgui.Col_.text_selected_bg), c2=imgui.get_style().color_(imgui.Col_.text), c3=imgui.get_style().color_(imgui.Col_.text_selected_bg))
             else:
                 if imgui.button("Log in") | i1 | i2:
@@ -443,9 +443,9 @@ class MainGUI:
                 selection_done = (imgui.is_item_clicked() and imgui.is_mouse_double_clicked(imgui.MouseButton_.left)) or imgui.is_key_pressed(imgui.Key.enter)
 
                 if self.proj_select_state==ActionState.Processing:
-                    symbol_size = imgui.calc_text_size("x").y*2
-                    spinner_radii = [x/22/2*symbol_size for x in [22, 16, 10]]
-                    lw = 3.5/22/2*symbol_size
+                    symbol_size = imgui.calc_text_size("x").y
+                    spinner_radii = [x/22*symbol_size for x in [22, 16, 10]]
+                    lw = 3.5/22*symbol_size
                     imspinner.spinner_ang_triple(f'projSpinner', *spinner_radii, lw, c1=imgui.get_style().color_(imgui.Col_.text_selected_bg), c2=imgui.get_style().color_(imgui.Col_.text), c3=imgui.get_style().color_(imgui.Col_.text_selected_bg))
                 else:
                     if imgui.button("Select") or selection_done:
