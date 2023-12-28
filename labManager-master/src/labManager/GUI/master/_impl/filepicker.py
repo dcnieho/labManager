@@ -70,15 +70,22 @@ class DirectoryProvider:
     def __del__(self):
         pass
 
-    def get_listing(self, path: pathlib.Path) -> tuple[list[structs.DirEntry],asyncio.Future]:
-        fut = async_thread.run(dir_list.get_dir_list(path), lambda f: self.action_done(f, 'listing'))
-        self.waiters.add(fut)
+    def get_listing(self, path: str|pathlib.Path) -> tuple[list[structs.DirEntry],asyncio.Future]:
+        if path=='root':
+            fut = self._get_drives('listing')
+        else:
+            fut = async_thread.run(dir_list.get_dir_list(path), lambda f: self.action_done(f, 'listing'))
+            self.waiters.add(fut)
         return [],fut   # can return any cache we may have. Understood to be potentially stale
 
     def get_drives(self) -> tuple[list[str],asyncio.Future]:
-        fut = async_thread.run(dir_list.get_drives(), lambda f: self.action_done(f, 'drives'))
-        self.waiters.add(fut)
+        fut = self._get_drives('drives')
         return [],fut   # can return any cache we may have. Understood to be potentially stale
+
+    def _get_drives(self, action_type: str) -> asyncio.Future:
+        fut = async_thread.run(dir_list.get_drives(), lambda f: self.action_done(f, action_type))
+        self.waiters.add(fut)
+        return fut
 
     def action_done(self, fut: asyncio.Future, which: str):
         try:
@@ -133,7 +140,7 @@ class FilePicker:
         # only relevant on Windows
         self.drives_lock: threading.Lock = threading.Lock()
         self.drives: list[DirEntryWithCache] = []
-        self.current_drive = 0
+        self.current_drive = -1
 
         self.goto(start_dir or '.')
 
@@ -153,19 +160,27 @@ class FilePicker:
             self._select_paths(paths)
 
     def goto(self, loc: str | pathlib.Path):
-        loc = pathlib.Path(loc)
-        if loc.is_file():
-            loc = loc.parent
-        if loc is None:
-            loc = pathlib.Path('.')
+        if isinstance(loc, str):
+            if loc.casefold=='my computer':
+                loc = 'root'
+            is_root = loc=='root'
+        else:
+            is_root = False
+        if not is_root:
+            loc = pathlib.Path(loc)
+            if loc.is_file():
+                loc = loc.parent
+            if loc is None:
+                loc = pathlib.Path('.')
+            loc = loc.resolve()
 
-        loc = loc.resolve()
         if loc != self.loc:
             self.loc = loc
             self.new_loc = True
             # changing location clears selection
             utils.set_all(self.selected, False)
             # load new directory
+            self._set_current_drive()   # update the drive selector already
             self.refresh()
 
     def refresh(self):
@@ -209,6 +224,10 @@ class FilePicker:
             return
         with self.drives_lock:
             self.drives = [DirEntryWithCache(item) for item in drives]
+        self._set_current_drive()
+
+    def _set_current_drive(self):
+        with self.drives_lock:
             for i,d in enumerate(self.drives):
                 if str(self.loc).startswith(d.name):
                     self.current_drive = i
@@ -247,7 +266,11 @@ class FilePicker:
             imgui.begin_group()
             # Up button
             if imgui.button(icons_fontawesome.ICON_FA_ARROW_UP):
-                self.goto(self.loc.parent)
+                parent = self.loc.parent
+                if parent==self.loc:
+                    # we're in a drive root, one higher would be the drive list (denoted by root)
+                    parent = 'root'
+                self.goto(parent)
             # Refresh button
             imgui.same_line()
             if self.refreshing:
@@ -268,17 +291,30 @@ class FilePicker:
                 if imgui.button(icons_fontawesome.ICON_FA_REDO):
                     self.refresh()
             # Drive selector
+            is_root = self.loc=='root'
             if self.drives:
                 imgui.same_line()
                 imgui.set_next_item_width(imgui.get_font_size() * 4)
                 with self.drives_lock:
-                    changed, value = imgui.combo("##drive_selector", self.current_drive, [d.display_name for d in self.drives])
-                    if changed:
-                        self.goto(self.drives[value].full_path)
+                    if is_root:
+                        drive_list = [('','')]
+                        current_drive = 0
+                    else:
+                        drive_list = []
+                        current_drive = self.current_drive
+                    drive_list.extend([(d.display_name,d.full_path) for d in self.drives])
+
+                changed, value = imgui.combo("##drive_selector", current_drive, [d[0] for d in drive_list])
+                if changed:
+                    self.goto(drive_list[value][1])
             # Location bar
             imgui.same_line()
             imgui.set_next_item_width(imgui.get_content_region_avail().x)
-            confirmed, loc = imgui.input_text("##location_bar", str(self.loc), flags=imgui.InputTextFlags_.enter_returns_true)
+            if is_root:
+                loc_str = 'My Computer'
+            else:
+                loc_str = str(self.loc)
+            confirmed, loc = imgui.input_text("##location_bar", loc_str, flags=imgui.InputTextFlags_.enter_returns_true)
             if imgui.begin_popup_context_item(f"##location_context"):
                 if imgui.selectable(icons_fontawesome.ICON_FA_PASTE+" Paste", False)[0] and (loc := imgui.get_clipboard_text()):
                     confirmed = True
