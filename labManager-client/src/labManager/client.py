@@ -458,15 +458,15 @@ class Client:
             pass    # we broke out of the loop: cancellation processed
 
 
-async def _format_drives_file_listing_msg(drives: list[str], net_names: dict[str,str]):
+async def _format_drives_file_listing_msg(drives: list[structs.DirEntry], net_names: dict[str,str]):
     # get drives of this computer to add to the information
-    out = {'path': 'root', 'drives': drives, 'net_names': net_names}
+    out = {'path': 'root',
+           'drives': [d.name for d in drives],
+           'net_names': net_names}
 
     # format as a standard listing so its uniform for the receiver
-    # use special mime-types to flag that the content is drives and net work computers
-    out['listing'] = []
-    for d in out['drives']:
-        out['listing'].append(structs.DirEntry(str(d),True,d,0.,0.,0,'labManager/drive'))
+    # use special mime-types to flag that the content is drives and network computers
+    out['listing'] = drives.copy()
     for n in out['net_names']:  # key is the machine new (value is ip), so key is all we need
         # NB: //SERVER/ is the format pathlib understands and can concatenate share names to
         out['listing'].append(structs.DirEntry(n,True,pathlib.Path(f'//{n}/'),0.,0.,0,'labManager/net_name'))
