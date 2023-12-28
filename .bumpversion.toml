@@ -1,5 +1,5 @@
 [tool.bumpversion]
-current_version = "0.8.6"
+current_version = "0.9.0"
 
 
 [[tool.bumpversion.files]]
@@ -35,24 +35,24 @@ filename = "labManager-common/pyproject.toml"
 
 
 [[tool.bumpversion.files]]
-filename = "labManager-admin-server/admin_server.py"
-search = "__version__ = {current_version}"
-replace = "__version__ = {new_version}"
+filename = "labManager-admin-server/src/labManager/admin_server.py"
+search = "__version__ = '{current_version}'"
+replace = "__version__ = '{new_version}'"
 
 [[tool.bumpversion.files]]
-filename = "labManager-client/client.py"
-search = "__version__ = {current_version}"
-replace = "__version__ = {new_version}"
+filename = "labManager-client/src/labManager/client.py"
+search = "__version__ = '{current_version}'"
+replace = "__version__ = '{new_version}'"
 
 [[tool.bumpversion.files]]
-filename = "labManager-common/__init__.py"
-search = "__version__ = {current_version}"
-replace = "__version__ = {new_version}"
+filename = "labManager-common/src/labManager/common/__init__.py"
+search = "__version__ = '{current_version}'"
+replace = "__version__ = '{new_version}'"
 
 [[tool.bumpversion.files]]
-filename = "labManager-master/master.py"
-search = "__version__ = {current_version}"
-replace = "__version__ = {new_version}"
+filename = "labManager-master/src/labManager/master.py"
+search = "__version__ = '{current_version}'"
+replace = "__version__ = '{new_version}'"
 
 
 

@@ -13,7 +13,7 @@ from labManager.common import async_thread, config, dir_list, eye_tracker, messa
 from labManager.common.network import comms, ifs, keepalive, net_names, smb, ssdp
 
 
-__version__ = '0.8.6'
+__version__ = '0.9.0'
 
 
 # main function for independently running client

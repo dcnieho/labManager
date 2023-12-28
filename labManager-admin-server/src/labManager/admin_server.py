@@ -9,7 +9,7 @@ from labManager.common.network import toems as toems_conn
 from labManager.common import config, secrets
 
 
-__version__ = '0.8.6'
+__version__ = '0.9.0'
 
 
 # server with REST API for dealing with stuff that needs secret we don't want users to have access to:
