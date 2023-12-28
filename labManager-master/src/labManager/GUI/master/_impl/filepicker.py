@@ -61,33 +61,49 @@ class DirEntryWithCache(structs.DirEntry):
 
 
 class DirectoryProvider:
-    def __init__(self, drive_callback: Callable[[list[str]], None], listing_callback: Callable[[list[structs.DirEntry]|Exception], None]):
+    def __init__(self, drive_callback: Callable[[list[str]|Exception, bool], None], listing_callback: Callable[[list[structs.DirEntry]|Exception, bool], None]):
+        self.listing_cache: dict[str, list[structs.DirEntry]] = {}
         self.waiters: set[asyncio.Future] = set()
 
-        self.drive_callback: Callable[[list[str]], None] = drive_callback
-        self.listing_callback: Callable[[list[structs.DirEntry]|Exception], None] = listing_callback
+        self.drive_callback: Callable[[list[str]|Exception, bool], None] = drive_callback
+        self.listing_callback: Callable[[list[structs.DirEntry]|Exception, bool], None] = listing_callback
 
     def __del__(self):
-        pass
+        for w in self.waiters:
+            w.cancel()
 
     def get_listing(self, path: str|pathlib.Path) -> tuple[list[structs.DirEntry],asyncio.Future]:
+        self.return_cache(path, 'listing')
         if path=='root':
             fut = self._get_drives('listing')
         else:
-            fut = async_thread.run(dir_list.get_dir_list(path), lambda f: self.action_done(f, 'listing'))
+            fut = async_thread.run(dir_list.get_dir_list(path), lambda f: self.action_done(f, path, 'listing'))
             self.waiters.add(fut)
-        return [],fut   # can return any cache we may have. Understood to be potentially stale
+        return fut   # can return any cache we may have. Understood to be potentially stale
 
     def get_drives(self) -> tuple[list[str],asyncio.Future]:
         fut = self._get_drives('drives')
-        return [],fut   # can return any cache we may have. Understood to be potentially stale
+        return fut   # can return any cache we may have. Understood to be potentially stale
 
     def _get_drives(self, action_type: str) -> asyncio.Future:
-        fut = async_thread.run(dir_list.get_drives(), lambda f: self.action_done(f, action_type))
+        self.return_cache('root', action_type)
+        fut = async_thread.run(dir_list.get_drives(), lambda f: self.action_done(f, 'root', action_type))
         self.waiters.add(fut)
         return fut
 
-    def action_done(self, fut: asyncio.Future, which: str):
+    def return_cache(self, path: str|pathlib.Path, which: str):
+        key = str(path)
+        if not key in self.listing_cache:
+            return
+        match which:
+            case 'drives':
+                cb = self.drive_callback
+            case 'listing':
+                cb = self.listing_callback
+        if cb:
+            cb(self.listing_cache[key], True)
+
+    def action_done(self, fut: asyncio.Future, path: str|pathlib.Path, which: str):
         try:
             result = fut.result()
         except concurrent.futures.CancelledError:
@@ -96,13 +112,16 @@ class DirectoryProvider:
             result = exc
 
         if result is not None:
+            # add to cache
+            self.listing_cache[str(path)] = result
+            # determine which callback to call
             match which:
                 case 'drives':
                     cb = self.drive_callback
                 case 'listing':
                     cb = self.listing_callback
         if cb:
-            cb(result)
+            cb(result, False)
         self.waiters.discard(fut)
 
 
@@ -191,10 +210,10 @@ class FilePicker:
             self.drive_refresh_task.cancel()
         # launch refresh
         self.refreshing = True
-        cache, self.listing_refresh_task = self.directory_service.get_listing(self.loc)
-        cache, self.drive_refresh_task   = self.directory_service.get_drives()
+        self.listing_refresh_task = self.directory_service.get_listing(self.loc)
+        self.drive_refresh_task   = self.directory_service.get_drives()
 
-    def _refresh_path_done(self, items: list[structs.DirEntry]|Exception):
+    def _refresh_path_done(self, items: list[structs.DirEntry]|Exception, from_cache: bool):
         previously_selected = []
         with self.items_lock:
             if not self.new_loc:
@@ -215,10 +234,11 @@ class FilePicker:
 
         self.require_sort = True
         self.new_loc = False
-        self.refreshing = False
-        self.elapsed = 0.0
+        if not from_cache:
+            self.refreshing = False
+            self.elapsed = 0.0
 
-    def _refresh_drives_done(self, drives: list[structs.DirEntry]|Exception):
+    def _refresh_drives_done(self, drives: list[structs.DirEntry]|Exception, from_cache: bool):
         # refresh drives and set up directory selector
         if isinstance(drives, Exception):
             return
@@ -407,6 +427,7 @@ class FilePicker:
 
                     # Loop rows
                     any_selectable_clicked = False
+                    new_loc = None
                     with self.items_lock:
                         if self.sorted_items and self.last_clicked_id not in self.sorted_items:
                             # default to topmost if last_clicked unknown, or no longer on screen due to filter
@@ -499,7 +520,7 @@ class FilePicker:
                             if selectable_clicked and not checkbox_hovered: # don't enter this branch if interaction is with checkbox on the table row
                                 if not imgui.get_io().key_ctrl and not imgui.get_io().key_shift and imgui.is_mouse_double_clicked(imgui.MouseButton_.left):
                                     if self.items[iid].is_dir:
-                                        self.goto(self.items[iid].full_path)
+                                        new_loc = self.items[iid].full_path
                                         break
                                     else:
                                         utils.set_all(self.selected, False)
@@ -507,6 +528,8 @@ class FilePicker:
                                         imgui.close_current_popup()
                                         closed = True
 
+                    if new_loc:
+                        self.goto(new_loc)
                     last_y = imgui.get_cursor_screen_pos().y
                     imgui.end_table()
 
