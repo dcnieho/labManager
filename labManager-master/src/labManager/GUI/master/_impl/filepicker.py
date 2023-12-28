@@ -250,8 +250,23 @@ class FilePicker:
                 self.goto(self.loc.parent)
             # Refresh button
             imgui.same_line()
-            if imgui.button(icons_fontawesome.ICON_FA_REDO):
-                self.refresh()
+            if self.refreshing:
+                button_text_size = imgui.calc_text_size(icons_fontawesome.ICON_FA_REDO)
+                button_size = (button_text_size.x+imgui.get_style().frame_padding.x*2, button_text_size.y+imgui.get_style().frame_padding.y*2)
+                symbol_size = imgui.calc_text_size("x").y/2
+                spinner_radii = [x/22*symbol_size for x in [22, 16, 10]]
+                lw = 3.5/22*symbol_size
+                spinner_diam = 2*spinner_radii[0]+lw
+                offset_x = (button_size[0]-spinner_diam)/2
+                cp = imgui.get_cursor_pos()
+                imgui.set_cursor_pos_x(cp.x+offset_x)
+                imspinner.spinner_ang_triple(f'loginSpinner', *spinner_radii, lw, c1=imgui.get_style().color_(imgui.Col_.text_selected_bg), c2=imgui.get_style().color_(imgui.Col_.text), c3=imgui.get_style().color_(imgui.Col_.text_selected_bg))
+                imgui.set_cursor_pos(cp)
+                imgui.dummy(button_size)
+                utils.draw_hover_text(text='', hover_text='Refreshing...')
+            else:
+                if imgui.button(icons_fontawesome.ICON_FA_REDO):
+                    self.refresh()
             # Drive selector
             if self.drives:
                 imgui.same_line()
