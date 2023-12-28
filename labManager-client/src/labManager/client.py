@@ -463,7 +463,7 @@ class Client:
             pass    # we broke out of the loop: cancellation processed
 
 
-async def _format_drives_file_listing_msg(drives: list[structs.DirEntry], net_names: dict[str,tuple[structs.DirEntrystr]]):
+async def _format_drives_file_listing_msg(drives: list[structs.DirEntry], net_names: dict[str,tuple[structs.DirEntry,str]]):
     # get drives of this computer to add to the information
     out = {'path': 'root',
            'drives': [d.name for d in drives],
