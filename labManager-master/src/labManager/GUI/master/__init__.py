@@ -4,8 +4,12 @@ import concurrent
 import json
 import time
 import math
+import sys
+import platform
+import webbrowser
 from dataclasses import dataclass, field
 
+import imgui_bundle
 from imgui_bundle import hello_imgui, icons_fontawesome, imgui, immapp, imspinner, imgui_md, imgui_color_text_edit, glfw_utils
 from imgui_bundle import portable_file_dialogs
 from imgui_bundle.demos_python import demo_utils
@@ -141,6 +145,7 @@ class MainGUI:
         # Menu bar
         runner_params.imgui_window_params.show_menu_bar = True
         runner_params.callbacks.show_app_menu_items = self._show_app_menu_items
+        runner_params.callbacks.show_menus = self._show_menu_gui
 
 
         # optional native events handling
@@ -256,6 +261,12 @@ class MainGUI:
         else:
             if imgui.menu_item("Log out", "", False, enabled=self.login_state==ActionState.Done)[0]:
                 self._logout()
+
+    def _show_menu_gui(self):
+        if imgui.begin_menu("Help"):
+            if imgui.menu_item("About", "", False)[0]:
+                utils.push_popup(self, self._draw_about_popup)
+            imgui.end_menu()
 
     def _get_window_title(self, add_user=False, add_project=False, no_login_mode=False):
         title = "labManager Master"
@@ -510,6 +521,96 @@ class MainGUI:
                 del self._computer_GUI_interactive_tasks[key]
             if key in self._computer_GUI_interactive_sent_finish:
                 del self._computer_GUI_interactive_sent_finish[key]
+
+    def _draw_about_popup(self):
+        def popup_content():
+            _60 = 60*hello_imgui.dpi_window_size_factor()
+            _230 = 230*hello_imgui.dpi_window_size_factor()
+            width = 530*hello_imgui.dpi_window_size_factor()
+            imgui.begin_group()
+            imgui.dummy((_60, _230))
+            imgui.same_line()
+            imgui.dummy((_230, _230))
+            #_general_imgui.icon_texture.render(_230, _230, rounding=globals.settings.style_corner_radius)
+            imgui.same_line()
+            imgui.begin_group()
+            imgui.push_text_wrap_pos(width - imgui.get_style().frame_padding.x)
+            #imgui.push_font(self.big_font)
+            imgui.text("labManager")
+            #imgui.pop_font()
+            imgui.text(f"Version {master.__version__}")
+            imgui.text("Made by Diederick C. Niehorster")
+            imgui.text("")
+            imgui.text(f"Python {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}")
+            imgui.text(f"GLFW {'.'.join(str(num) for num in glfw.get_version())}, pyGLFW {glfw.__version__}")
+            imgui.text(f"ImGui {imgui.get_version()}, imgui_bundle {imgui_bundle.__version__}")
+            if sys.platform.startswith("linux"):
+                imgui.text(f"{platform.system()} {platform.release()}")
+            elif sys.platform.startswith("win"):
+                imgui.text(f"{platform.system()} {platform.release()} {platform.version()}")
+            elif sys.platform.startswith("darwin"):
+                imgui.text(f"{platform.system()} {platform.release()}")
+            imgui.pop_text_wrap_pos()
+            imgui.end_group()
+            imgui.same_line()
+            imgui.dummy((_60, _230))
+            imgui.end_group()
+            imgui.spacing()
+            btn_tot_width = (width - 2*imgui.get_style().item_spacing.x)
+            if imgui.button("PyPI", size=(btn_tot_width/6, 0)):
+                webbrowser.open("https://pypi.org/project/labManager-master/")
+            imgui.same_line()
+            utils.push_disabled()
+            if imgui.button("Paper", size=(btn_tot_width/6, 0)):
+                pass
+            utils.pop_disabled()
+            imgui.same_line()
+            if imgui.button("GitHub repo", size=(btn_tot_width/3, 0)):
+                webbrowser.open("https://github.com/dcnieho/labManager")
+            imgui.same_line()
+            if imgui.button("Researcher homepage", size=(btn_tot_width/3, 0)):
+                webbrowser.open("https://scholar.google.se/citations?user=uRUYoVgAAAAJ&hl=en")
+
+            imgui.spacing()
+            imgui.spacing()
+            imgui.push_text_wrap_pos(width - imgui.get_style().frame_padding.x)
+            imgui.text("This software is licensed under the MIT license and is provided to you for free. Furthermore, due to "
+                       "its license, it is also free as in freedom: you are free to use, study, modify and share this software "
+                       "in whatever way you wish as long as you keep the same license.")
+            imgui.spacing()
+            imgui.spacing()
+            imgui.text("If you find bugs or have some feedback, please do let me know on GitHub (using issues or pull requests).")
+            imgui.spacing()
+            imgui.spacing()
+            imgui.dummy((0, 10*hello_imgui.dpi_window_size_factor()))
+            #imgui.push_font(self.big_font)
+            size = imgui.calc_text_size("Reference")
+            imgui.set_cursor_pos_x((width - size.x + imgui.get_style().scrollbar_size) / 2)
+            imgui.text("Reference")
+            #imgui.pop_font()
+            imgui.spacing()
+            imgui.spacing()
+            reference         = r"Niehorster, D.C., Gullberg, M. & Nyström, M. (in prep). Designing and running multi-user lab environments for behavioral science: infrastructure, open-source tools and practical advice."
+            reference_bibtex  = r"""@article{niehorster2024labmanager,
+    Author = {Niehorster, Diederick C. and Gullberg, Marianne and Nystr{\"o}m, Marcus},
+    Journal = {},
+    Number = {},
+    Pages = {},
+    Title = {Designing and running multi-user lab environments for behavioral science: infrastructure, open-source tools and practical advice},
+    Year = {in prep}
+}
+"""
+            imgui.text(reference)
+            if imgui.begin_popup_context_item(f"##reference_context"):
+                if imgui.selectable("APA", False)[0]:
+                    imgui.set_clipboard_text(reference)
+                if imgui.selectable("BibTeX", False)[0]:
+                    imgui.set_clipboard_text(reference_bibtex)
+                imgui.end_popup()
+            utils.draw_hover_text(text='', hover_text="Right-click to copy citation to clipboard")
+
+            imgui.pop_text_wrap_pos()
+        return utils.popup("About labManager", popup_content, closable=True, outside=True)
 
     def _task_GUI(self):
         dock_space_id = imgui.get_id("TasksDockSpace")
