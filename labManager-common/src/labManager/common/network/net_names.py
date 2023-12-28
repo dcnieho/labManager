@@ -1,7 +1,10 @@
 import ipaddress
 import asyncio
+import pathlib
 from ..impacket import nmb
 from icmplib import async_multiping
+
+from .. import structs
 
 async def get_network_computers(ip_network):
     network = ipaddress.IPv4Network(ip_network)
@@ -18,7 +21,9 @@ async def get_network_computers(ip_network):
         try:
             name = N.getnetbiosname(h.address, timeout=0.2, tries=2)
             if name not in names:
-                names[name] = h.address
+                # NB: //SERVER/ is the format pathlib understands and can concatenate share names to
+                entry = structs.DirEntry(name,True,pathlib.Path(f'//{name}/'),None,None,None,'labManager/net_name')
+                names[name] = (entry, h.address)
         except nmb.NetBIOSTimeout:
             pass
         await asyncio.sleep(0)    # don't block

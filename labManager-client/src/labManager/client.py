@@ -467,8 +467,8 @@ async def _format_drives_file_listing_msg(drives: list[structs.DirEntry], net_na
     # format as a standard listing so its uniform for the receiver
     # use special mime-types to flag that the content is drives and network computers
     out['listing'] = drives.copy()
-    for n in out['net_names']:  # key is the machine new (value is ip), so key is all we need
+    for n in out['net_names']:  # key is the machine name (value is tuple[DirEntry,ip:str]), get the DirEntry
         # NB: //SERVER/ is the format pathlib understands and can concatenate share names to
-        out['listing'].append(structs.DirEntry(n,True,pathlib.Path(f'//{n}/'),0.,0.,0,'labManager/net_name'))
+        out['listing'].append(out['net_names'][n][0])
 
     return out
