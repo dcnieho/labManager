@@ -1,10 +1,13 @@
 import enum
+import pathlib
 
 from aiosmb.commons.connection.factory import SMBConnectionFactory
 from aiosmb.commons.interfaces.machine import SMBMachine
 from aiosmb.commons.interfaces.share import SMBShare
 from aiosmb.commons.connection.target import SMBTarget
 from aiosmb.wintypes.access_mask import FileAccessMask
+
+from ..import structs
 
 class AccessLevel(enum.IntFlag):
     READ = enum.auto()
@@ -39,8 +42,8 @@ def _check_access(flags: FileAccessMask, level: AccessLevel):
     return access
 
 # convenience wrapper
-async def get_shares(server: str, user: str, password: str, domain='', check_access_level: AccessLevel=None, matching='', contains=None, remove_trailing='', ignored:list[str]=['IPC$']):
-    shares = []
+async def get_shares(server: str, user: str, password: str, domain='', check_access_level: AccessLevel=None, matching='', contains=None, remove_trailing='', ignored:list[str]=['IPC$']) -> list[structs.DirEntry]:
+    shares: list[structs.DirEntry] = []
 
     domain, user = get_domain_username(user, domain)
     stage = 1
@@ -62,7 +65,7 @@ async def get_shares(server: str, user: str, password: str, domain='', check_acc
             check_access = check_access_level is not None
             stage = 2
             async for share, err in SMBMachine(connection).list_shares():
-                share_name = share.name
+                share_name: str = share.name
 
                 # check if share is excluded
                 if share_name in ignored:
@@ -89,10 +92,11 @@ async def get_shares(server: str, user: str, password: str, domain='', check_acc
                     if share.tree_id is not None:
                         await connection.tree_disconnect(share.tree_id)
                     # check if we have access at requested level
-                    if _check_access(share.maximal_access, check_access_level):
-                        shares.append(share_name)
-                else:
-                    shares.append(share_name)
+                    if not _check_access(share.maximal_access, check_access_level):
+                        continue
+
+                # NB: //SERVER/ is the format pathlib understands and can concatenate share names to
+                shares.append(structs.DirEntry(share_name,True,pathlib.Path(f'//{server}/') / share_name,None,None,None,'labManager/net_share'))
     except Exception as exc:
         if stage==1:
             print(f'SMB: Error connecting using domain "{domain}", user "{user}" to {server}: {exc}')

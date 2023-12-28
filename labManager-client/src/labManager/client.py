@@ -291,13 +291,10 @@ class Client:
                     case message.Message.FILE_GET_SHARES:
                         out = msg
                         msg['net_name'] = msg['net_name'].strip('\\/')  # support SERVER, \\SERVER, \\SERVER\, //SERVER and //SERVER/
-                        out['share_names'] = await smb.get_shares(msg['net_name'], msg['user'], msg['password'], msg['domain'], check_access_level=msg['access_level'])
+                        out['listing'] = await smb.get_shares(msg['net_name'], msg['user'], msg['password'], msg['domain'], check_access_level=msg['access_level'])
                         del out['password']
                         out['path'] = f'\\\\{out["net_name"]}'
-                        out['listing'] = []
-                        for n in out['share_names']:
-                            # NB: //SERVER/ is the format pathlib understands and can concatenate share names to
-                            out['listing'].append(structs.DirEntry(n,True,pathlib.Path(f'//{msg["net_name"]}/') / n,0.,0.,0,None))
+                        out['share_names'] = [s.name for s in out['listing']]
                         await comms.typed_send(writer,
                                                message.Message.FILE_LISTING,
                                                out
