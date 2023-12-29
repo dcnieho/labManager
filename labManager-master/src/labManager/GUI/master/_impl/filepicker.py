@@ -190,9 +190,11 @@ class FilePicker:
 
         self.loc: pathlib.Path = None
         self.refreshing = False
+        self.new_loc = False
+        self.history: list[str|pathlib.Path] = []
+        self.history_loc = -1
         self.drive_refresh_tasks: set[asyncio.Future] = set()
         self.listing_refresh_tasks: set[asyncio.Future] = set()
-        self.new_loc = False
         self.predicate = None
         self.default_flags = custom_popup_flags or FilePicker.default_flags
         self.platform_is_windows = sys.platform.startswith("win")
@@ -224,7 +226,7 @@ class FilePicker:
             # select dropped items that match predicate (if any)
             self._select_paths(paths)
 
-    def goto(self, loc: str | pathlib.Path):
+    def goto(self, loc: str | pathlib.Path, add_history=True):
         if isinstance(loc, str):
             if loc.casefold=='my computer':
                 loc = 'root'
@@ -247,6 +249,12 @@ class FilePicker:
         if loc != self.loc:
             self.loc = loc
             self.new_loc = True
+            if add_history:
+                if self.history_loc>=0:
+                    # remove any history after current, as we're appending a new location
+                    del self.history[self.history_loc+1:]
+                self.history.append(self.loc)
+                self.history_loc += 1
             # changing location clears selection
             utils.set_all(self.selected, False)
             # load new directory
@@ -336,7 +344,27 @@ class FilePicker:
         if imgui.begin_popup_modal(self.title, True, flags=self.default_flags)[0]:
             cancelled = closed = utils.close_weak_popup(check_click_outside=False)
             imgui.begin_group()
+            # History back button
+            disabled = self.history_loc<=0
+            if disabled:
+                utils.push_disabled()
+            if imgui.button(icons_fontawesome.ICON_FA_ARROW_LEFT):
+                self.history_loc -= 1
+                self.goto(self.history[self.history_loc], add_history=False)
+            if disabled:
+                utils.pop_disabled()
+            # History forward button
+            imgui.same_line()
+            disabled = self.history_loc+1>=len(self.history)
+            if disabled:
+                utils.push_disabled()
+            if imgui.button(icons_fontawesome.ICON_FA_ARROW_RIGHT):
+                self.history_loc += 1
+                self.goto(self.history[self.history_loc], add_history=False)
+            if disabled:
+                utils.pop_disabled()
             # Up button
+            imgui.same_line()
             if imgui.button(icons_fontawesome.ICON_FA_ARROW_UP):
                 parent = self.loc.parent
                 if parent==self.loc:
