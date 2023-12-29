@@ -185,6 +185,12 @@ class FilePicker:
 
         self.goto(start_dir or '.')
 
+    def __del__(self):
+        for t in self.listing_refresh_tasks:
+            t.cancel()
+        for t in self.drive_refresh_tasks:
+            t.cancel()
+
     # if passed a single directory will show that directory
     # if passed a single file, or multiple files and/or directories, will
     # open the parent of those and select them (kinda like "show in folder")
