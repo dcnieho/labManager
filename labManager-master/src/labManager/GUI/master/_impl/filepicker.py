@@ -389,7 +389,7 @@ class FilePicker:
                 imgui.set_cursor_pos_x((imgui.get_content_region_avail().x - 2*spinner_radii[0]+lw)/2)
                 imspinner.spinner_ang_triple(f'loginSpinner', *spinner_radii, lw, c1=imgui.get_style().color_(imgui.Col_.text_selected_bg), c2=imgui.get_style().color_(imgui.Col_.text), c3=imgui.get_style().color_(imgui.Col_.text_selected_bg))
             elif self.msg:
-                imgui.text_unformatted(self.msg)
+                imgui.text_wrapped(self.msg)
             else:
                 table_flags = (
                     imgui.TableFlags_.scroll_x |
