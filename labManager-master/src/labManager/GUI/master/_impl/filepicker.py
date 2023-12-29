@@ -331,7 +331,11 @@ class FilePicker:
         if path=='root':
             loc_str = 'This PC'
         else:
-            loc_str = path
+            if (comp := is_net_computer(path)):
+                # pathlib.Path's str() doesn't do the right thing here, render it ourselves
+                loc_str = f'\\\\{comp}'
+            else:
+                loc_str = path
         return loc_str
 
     def tick(self):
