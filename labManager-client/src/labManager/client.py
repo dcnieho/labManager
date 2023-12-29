@@ -291,7 +291,11 @@ class Client:
                     case message.Message.FILE_GET_SHARES:
                         out = msg
                         msg['net_name'] = msg['net_name'].strip('\\/')  # support SERVER, \\SERVER, \\SERVER\, //SERVER and //SERVER/
-                        out['listing'] = await smb.get_shares(msg['net_name'], msg['user'], msg['password'], msg['domain'], check_access_level=msg['access_level'])
+                        try:
+                            out['listing'] = await smb.get_shares(msg['net_name'], msg['user'], msg['password'], msg['domain'], check_access_level=msg['access_level'])
+                        except Exception as exc:
+                            msg['error'] = exc
+                            msg['listing'] = []
                         del out['password']
                         out['path'] = f'\\\\{out["net_name"]}'
                         out['share_names'] = [s.name for s in out['listing']]

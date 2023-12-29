@@ -99,9 +99,9 @@ async def get_shares(server: str, user: str, password: str, domain='', check_acc
                 shares.append(structs.DirEntry(share_name,True,pathlib.Path(f'//{server}/') / share_name,None,None,None,'labManager/net_share'))
     except Exception as exc:
         if stage==1:
-            print(f'SMB: Error connecting using domain "{domain}", user "{user}" to {server}: {exc}')
+            raise RuntimeError(f'The system cannot find the specified network computer \\\\{server}, or cannot connect using the provided credentials (domain "{domain}", user "{user}"): {exc}')
         elif stage==2:
-            print(f'SMB: Error listing shares on server using {server} when connected using domain "{domain}", user "{user}": {exc}')
+            raise RuntimeError(f'Error listing shares on server {server} when connected using domain "{domain}", user "{user}": {exc}')
 
     return shares
 
