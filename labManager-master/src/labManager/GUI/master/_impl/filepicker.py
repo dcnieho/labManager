@@ -244,7 +244,9 @@ class FilePicker:
                     loc = loc.parent
                 if loc is None:
                     loc = pathlib.Path('.')
-                loc = loc.resolve()
+                if not str(loc).startswith('\\\\') or str(loc).startswith('//'):
+                    # don't call resolve on network paths
+                    loc = loc.resolve()
 
         if loc != self.loc:
             self.loc = loc
