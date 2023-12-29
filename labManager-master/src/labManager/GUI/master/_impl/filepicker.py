@@ -544,6 +544,7 @@ class FilePicker:
                                     selectable_clicked, selectable_out = imgui.selectable(f"##{iid}_hitbox", self.selected[iid], flags=imgui.SelectableFlags_.span_all_columns|imgui.SelectableFlags_.allow_overlap|imgui.internal.SelectableFlagsPrivate_.select_on_click, size=(0,frame_height+cell_padding_y))
                                     imgui.set_cursor_pos_y(cur_pos_y)   # instead of imgui.same_line(), we just need this part of its effect
                                     imgui.pop_style_var(3)
+                                    selectable_right_clicked = utils.handle_item_hitbox_events(iid, self.selected, context_menu=None)
                                     has_drawn_hitbox = True
 
                                 if ci==int(self.allow_multiple):
@@ -588,8 +589,9 @@ class FilePicker:
                                 imgui.pop_style_var()
 
                             # handle selection logic
+                            # NB: the part of this logic that has to do with right-clicks is in handle_item_hitbox_events()
                             # NB: any_selectable_clicked is just for handling clicks not on any item
-                            any_selectable_clicked = any_selectable_clicked or selectable_clicked
+                            any_selectable_clicked = any_selectable_clicked or selectable_clicked or selectable_right_clicked
                             self.last_clicked_id = utils.selectable_item_logic(
                                 iid, self.selected, self.last_clicked_id, self.sorted_items,
                                 selectable_clicked, selectable_out, allow_multiple=self.allow_multiple,
