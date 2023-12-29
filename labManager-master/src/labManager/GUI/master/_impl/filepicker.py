@@ -228,7 +228,7 @@ class FilePicker:
 
     def goto(self, loc: str | pathlib.Path, add_history=True):
         if isinstance(loc, str):
-            if loc.casefold=='my computer':
+            if loc.casefold()==self._get_path_display_name('root').casefold():
                 loc = 'root'
             is_root = loc=='root'
         else:
@@ -326,6 +326,14 @@ class FilePicker:
                 if not self.allow_multiple and got_one:
                     break
 
+    def _get_path_display_name(self, path):
+        path = str(path)
+        if path=='root':
+            loc_str = 'This PC'
+        else:
+            loc_str = path
+        return loc_str
+
     def tick(self):
         # Auto refresh
         self.elapsed += imgui.get_io().delta_time
@@ -410,10 +418,7 @@ class FilePicker:
             # Location bar
             imgui.same_line()
             imgui.set_next_item_width(imgui.get_content_region_avail().x)
-            if is_root:
-                loc_str = 'My Computer'
-            else:
-                loc_str = str(self.loc)
+            loc_str = self._get_path_display_name(self.loc)
             confirmed, loc = imgui.input_text("##location_bar", loc_str, flags=imgui.InputTextFlags_.enter_returns_true)
             if imgui.begin_popup_context_item(f"##location_context"):
                 if imgui.selectable(icons_fontawesome.ICON_FA_PASTE+" Paste", False)[0] and (loc := imgui.get_clipboard_text()):
