@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from typing import Callable
 
 from labManager.common import async_thread, dir_list, structs
-from labManager.common.network import net_names
+from labManager.common.network import net_names, smb
 from . import utils
 
 
@@ -61,6 +61,17 @@ class DirEntryWithCache(structs.DirEntry):
             self.size_str = None
 
 
+def is_net_computer(path: str|pathlib.Path):
+    path = str(path)
+    if path.startswith(('\\\\','//')):
+        # this is a network address
+        # determine if it is a network computer (\\SERVER) and not a path including share (\\SERVER\share)
+        path = path.strip('\\/').replace('\\','/')
+        net_comp = [s for s in str(path).split('/') if s]
+        if len(net_comp)==1:    # a single name entry, so thats just a computer
+            return net_comp[0]
+    return None
+
 class DirectoryProvider:
     def __init__(self, drive_callback: Callable[[list[str]|Exception, bool], None], listing_callback: Callable[[list[structs.DirEntry]|Exception, bool], None], network: str = None):
         self.listing_cache: dict[str, list[structs.DirEntry]] = {}
@@ -86,7 +97,14 @@ class DirectoryProvider:
         if path=='root':
             fut = self._get_drives('listing')
         else:
-            fut = async_thread.run(dir_list.get_dir_list(path), lambda f: self.action_done(f, path, 'listing'))
+            # check whether this is a path to a network computer (e.g. \\SERVER)
+            net_comp = is_net_computer(path)
+            if net_comp:
+                # network computer name, get its shares
+                fut = async_thread.run(smb.get_shares(net_comp,'Guest',''), lambda f: self.action_done(f, path, 'listing'))
+            else:
+                # normal directory or share on a network computer, no special handling needed
+                fut = async_thread.run(dir_list.get_dir_list(path), lambda f: self.action_done(f, path, 'listing'))
             self.waiters.add(fut)
         return fut   # can return any cache we may have. Understood to be potentially stale
 
@@ -213,13 +231,18 @@ class FilePicker:
             is_root = loc=='root'
         else:
             is_root = False
+
         if not is_root:
-            loc = pathlib.Path(loc)
-            if loc.is_file():
-                loc = loc.parent
-            if loc is None:
-                loc = pathlib.Path('.')
-            loc = loc.resolve()
+            if (comp := is_net_computer(loc)):
+                # ensure loc has the format //SERVER/, which is what pathlib understands
+                loc = pathlib.Path(f'//{comp}/')
+            else:
+                loc = pathlib.Path(loc)
+                if loc.is_file():
+                    loc = loc.parent
+                if loc is None:
+                    loc = pathlib.Path('.')
+                loc = loc.resolve()
 
         if loc != self.loc:
             self.loc = loc
