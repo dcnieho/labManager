@@ -116,11 +116,9 @@ class DirectoryProvider:
             return
         match which:
             case 'drives':
-                cb = self.drive_callback
+                self.drive_callback(self.listing_cache[key], True)
             case 'listing':
-                cb = self.listing_callback
-        if cb:
-            cb(self.listing_cache[key], True)
+                self.listing_callback(path, self.listing_cache[key], True)
 
     def action_done(self, fut: asyncio.Future, path: str|pathlib.Path, which: str):
         self.waiters.discard(fut)
@@ -144,11 +142,9 @@ class DirectoryProvider:
             # determine which callback to call
             match which:
                 case 'drives':
-                    cb = self.drive_callback
+                    self.drive_callback(result, False)
                 case 'listing':
-                    cb = self.listing_callback
-        if cb:
-            cb(result, False)
+                    self.listing_callback(path, result, False)
 
 
 class FilePicker:
@@ -176,8 +172,8 @@ class FilePicker:
 
         self.loc: pathlib.Path = None
         self.refreshing = False
-        self.drive_refresh_task: asyncio.Future = None
-        self.listing_refresh_task: asyncio.Future = None
+        self.drive_refresh_tasks: set[asyncio.Future] = set()
+        self.listing_refresh_tasks: set[asyncio.Future] = set()
         self.new_loc = False
         self.predicate = None
         self.default_flags = custom_popup_flags or FilePicker.default_flags
@@ -229,17 +225,18 @@ class FilePicker:
             self.refresh()
 
     def refresh(self):
-        # if there is an ongoing refresh, cancel it
-        if self.listing_refresh_task:
-            self.listing_refresh_task.cancel()
-        if self.drive_refresh_task:
-            self.drive_refresh_task.cancel()
+        # clean up finished tasks
+        self.listing_refresh_tasks = {t for t in self.listing_refresh_tasks if not t.done()}
+        self.drive_refresh_tasks   = {t for t in self.drive_refresh_tasks   if not t.done()}
         # launch refresh
         self.refreshing = True
-        self.listing_refresh_task = self.directory_service.get_listing(self.loc)
-        self.drive_refresh_task   = self.directory_service.get_drives()
+        self.listing_refresh_tasks.add(self.directory_service.get_listing(self.loc))
+        self.drive_refresh_tasks  .add(self.directory_service.get_drives())
 
-    def _refresh_path_done(self, items: list[structs.DirEntry]|Exception, from_cache: bool):
+    def _refresh_path_done(self, path: str|pathlib.Path, items: list[structs.DirEntry]|Exception, from_cache: bool):
+        if str(path)!=str(self.loc):
+            # stale or just one for the cache, ignore
+            return
         previously_selected = []
         with self.items_lock:
             if not self.new_loc:
