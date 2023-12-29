@@ -143,7 +143,7 @@ class ComputerList():
                         selectable_clicked, selectable_out = imgui.selectable(f"##{id}_hitbox", self.selected_items[id], flags=imgui.SelectableFlags_.span_all_columns|imgui.SelectableFlags_.allow_overlap|imgui.internal.SelectableFlagsPrivate_.select_on_click, size=(0,frame_height+cell_padding_y))
                         imgui.set_cursor_pos_y(cur_pos_y)   # instead of imgui.same_line(), we just need this part of its effect
                         imgui.pop_style_var(3)
-                        selectable_right_clicked = self._handle_item_hitbox_events(id)
+                        selectable_right_clicked = utils.handle_item_hitbox_events(id, self.selected_items, context_menu=None)
                         has_drawn_hitbox = True
 
                     if num_columns_drawn==1:
@@ -209,25 +209,6 @@ class ComputerList():
             # show menu when right-clicking the empty space
             # TODO
 
-    def _handle_item_hitbox_events(self, id: int):
-        right_clicked = False
-        # Right click = context menu
-        if imgui.begin_popup_context_item(f"##{id}_context"):
-            # update selected items. same logic as windows explorer:
-            # 1. if right-clicked on one of the selected items, regardless of what modifier is pressed, keep selection as is
-            # 2. if right-clicked elsewhere than on one of the selected items:
-            # 2a. if control is down pop up right-click menu for the selected items.
-            # 2b. if control not down, deselect everything except clicked item (if any)
-            # NB: popup not shown when shift or control are down, do not know why...
-            if not self.selected_items[id] and not imgui.get_io().key_ctrl:
-                utils.set_all(self.selected_items, False)
-                self.selected_items[id] = True
-
-            right_clicked = True
-            self._draw_item_context_menu(id)
-            imgui.end_popup()
-        return right_clicked
-
     def _draw_computer_info(self, client: structs.Client):
         is_online = client.online is not None
         et_is_on  = is_online and client.online.eye_tracker is not None and client.online.eye_tracker.online
@@ -280,9 +261,6 @@ class ComputerList():
 
     def _show_item_info(self, id):
         self.info_callback(self.items[id])
-
-    def _draw_item_context_menu(self, id):
-        pass
 
     def _get_image_name(self, item: structs.Client, output_if_no_name=''):
         if not item.online or not item.online.image_info:
