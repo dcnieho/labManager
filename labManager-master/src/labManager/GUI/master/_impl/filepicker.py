@@ -351,15 +351,16 @@ class FilePicker:
         if imgui.button(icons_fontawesome.ICON_FA_ARROW_LEFT):
             self.history_loc -= 1
             self.goto(self.history[self.history_loc], add_history=False)
-        if not disabled and imgui.is_item_hovered():
-            utils.draw_tooltip(self._get_path_display_name(self.history[self.history_loc-1]))
-        if imgui.begin_popup_context_item(f"##history_back_context"):
-            for i in range(self.history_loc-1,-1,-1):
-                p = self.history[i]
-                if imgui.selectable(self._get_path_display_name(p), False)[0]:
-                    self.history_loc = i
-                    self.goto(p, add_history=False)
-            imgui.end_popup()
+        if self.history_loc>0: # don't just use disabled var as we may have just changed self.history_loc
+            if imgui.is_item_hovered():
+                utils.draw_tooltip(self._get_path_display_name(self.history[self.history_loc-1]))
+            if imgui.begin_popup_context_item(f"##history_back_context"):
+                for i in range(self.history_loc-1,-1,-1):
+                    p = self.history[i]
+                    if imgui.selectable(self._get_path_display_name(p), False)[0]:
+                        self.history_loc = i
+                        self.goto(p, add_history=False)
+                imgui.end_popup()
         if disabled:
             utils.pop_disabled()
         # History forward button
@@ -370,15 +371,16 @@ class FilePicker:
         if imgui.button(icons_fontawesome.ICON_FA_ARROW_RIGHT):
             self.history_loc += 1
             self.goto(self.history[self.history_loc], add_history=False)
-        if not disabled and imgui.is_item_hovered():
-            utils.draw_tooltip(self._get_path_display_name(self.history[self.history_loc+1]))
-        if imgui.begin_popup_context_item(f"##history_forward_context"):
-            for i in range(self.history_loc+1,len(self.history)):
-                p = self.history[i]
-                if imgui.selectable(self._get_path_display_name(p), False)[0]:
-                    self.history_loc = i
-                    self.goto(p, add_history=False)
-            imgui.end_popup()
+        if self.history_loc+1<len(self.history): # don't just use disabled var as we may have just changed self.history_loc
+            if imgui.is_item_hovered():
+                utils.draw_tooltip(self._get_path_display_name(self.history[self.history_loc+1]))
+            if imgui.begin_popup_context_item(f"##history_forward_context"):
+                for i in range(self.history_loc+1,len(self.history)):
+                    p = self.history[i]
+                    if imgui.selectable(self._get_path_display_name(p), False)[0]:
+                        self.history_loc = i
+                        self.goto(p, add_history=False)
+                imgui.end_popup()
         if disabled:
             utils.pop_disabled()
         # Up button
