@@ -355,12 +355,17 @@ class FilePicker:
                 utils.pop_disabled()
             # Up button
             imgui.same_line()
+            disabled = self.loc=='root'
+            if disabled:
+                utils.push_disabled()
             if imgui.button(icons_fontawesome.ICON_FA_ARROW_UP):
                 parent = self.loc.parent
                 if parent==self.loc:
                     # we're in a drive root, one higher would be the drive list (denoted by root)
                     parent = 'root'
                 self.goto(parent)
+            if disabled:
+                utils.pop_disabled()
             # Refresh button
             imgui.same_line()
             if self.refreshing:
