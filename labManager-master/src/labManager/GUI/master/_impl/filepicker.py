@@ -73,11 +73,10 @@ def is_net_computer(path: str|pathlib.Path):
     return None
 
 class DirectoryProvider:
-    def __init__(self, drive_callback: Callable[[list[str]|Exception, bool], None], listing_callback: Callable[[list[structs.DirEntry]|Exception, bool], None], network: str = None):
+    def __init__(self, listing_callback: Callable[[list[structs.DirEntry]|Exception, bool], None], network: str = None):
         self.listing_cache: dict[str, list[structs.DirEntry]] = {}
         self.waiters: set[asyncio.Future] = set()
 
-        self.drive_callback: Callable[[list[str]|Exception, bool], None] = drive_callback
         self.listing_callback: Callable[[list[structs.DirEntry]|Exception, bool], None] = listing_callback
 
         self.network: str|None = network
@@ -93,28 +92,24 @@ class DirectoryProvider:
             w.cancel()
 
     def get_listing(self, path: str|pathlib.Path) -> tuple[list[structs.DirEntry],asyncio.Future]:
-        self.return_cache(path, 'listing')
+        self.return_cache(path)
         if path=='root':
-            fut = self._get_drives('listing')
+            fut = self._get_drives()
         else:
             # check whether this is a path to a network computer (e.g. \\SERVER)
             net_comp = is_net_computer(path)
             if net_comp:
                 # network computer name, get its shares
-                fut = async_thread.run(smb.get_shares(net_comp,'Guest',''), lambda f: self.action_done(f, path, 'listing'))
+                fut = async_thread.run(smb.get_shares(net_comp,'Guest',''), lambda f: self.action_done(f, path))
             else:
                 # normal directory or share on a network computer, no special handling needed
-                fut = async_thread.run(dir_list.get_dir_list(path), lambda f: self.action_done(f, path, 'listing'))
+                fut = async_thread.run(dir_list.get_dir_list(path), lambda f: self.action_done(f, path))
             self.waiters.add(fut)
         return fut   # can return any cache we may have. Understood to be potentially stale
 
-    def get_drives(self) -> tuple[list[str],asyncio.Future]:
-        fut = self._get_drives('drives')
-        return fut   # can return any cache we may have. Understood to be potentially stale
-
-    def _get_drives(self, action_type: str) -> asyncio.Future:
-        self.return_cache('root', action_type)
-        fut = async_thread.run(dir_list.get_drives(), lambda f: self.action_done(f, 'root', action_type))
+    def _get_drives(self) -> asyncio.Future:
+        self.return_cache('root')
+        fut = async_thread.run(dir_list.get_drives(), lambda f: self.action_done(f, 'root'))
         self.waiters.add(fut)
         return fut
 
@@ -128,17 +123,13 @@ class DirectoryProvider:
         except asyncio.CancelledError:
             pass    # we broke out of the loop: cancellation processed
 
-    def return_cache(self, path: str|pathlib.Path, which: str):
+    def return_cache(self, path: str|pathlib.Path):
         key = str(path)
         if not key in self.listing_cache:
             return
-        match which:
-            case 'drives':
-                self.drive_callback(self.listing_cache[key], True)
-            case 'listing':
-                self.listing_callback(path, self.listing_cache[key], True)
+        self.listing_callback(path, self.listing_cache[key], True)
 
-    def action_done(self, fut: asyncio.Future, path: str|pathlib.Path, which: str):
+    def action_done(self, fut: asyncio.Future, path: str|pathlib.Path):
         self.waiters.discard(fut)
         try:
             result = fut.result()
@@ -157,12 +148,8 @@ class DirectoryProvider:
                         result.append(self.network_computers[n][0]) # (value is tuple[DirEntry,ip:str]), get the DirEntry
             # add to cache
             self.listing_cache[key] = result
-            # determine which callback to call
-            match which:
-                case 'drives':
-                    self.drive_callback(result, False)
-                case 'listing':
-                    self.listing_callback(path, result, False)
+            # call callback
+            self.listing_callback(path, result, False)
 
 
 class FilePicker:
@@ -177,7 +164,7 @@ class FilePicker:
         self.callback = callback
         self.directory_service = directory_service
         if self.directory_service is None:
-            self.directory_service = DirectoryProvider(self._refresh_drives_done, self._refresh_path_done, network)
+            self.directory_service = DirectoryProvider(self._refresh_path_done, network)
 
         self.items: dict[int, DirEntryWithCache] = {}
         self.items_lock: threading.Lock = threading.Lock()
@@ -193,22 +180,15 @@ class FilePicker:
         self.new_loc = False
         self.history: list[str|pathlib.Path] = []
         self.history_loc = -1
-        self.drive_refresh_tasks: set[asyncio.Future] = set()
         self.listing_refresh_tasks: set[asyncio.Future] = set()
         self.predicate = None
         self.default_flags = custom_popup_flags or FilePicker.default_flags
         self.platform_is_windows = sys.platform.startswith("win")
-        # only relevant on Windows
-        self.drives_lock: threading.Lock = threading.Lock()
-        self.drives: list[DirEntryWithCache] = []
-        self.current_drive = -1
 
         self.goto(start_dir or '.')
 
     def __del__(self):
         for t in self.listing_refresh_tasks:
-            t.cancel()
-        for t in self.drive_refresh_tasks:
             t.cancel()
 
     # if passed a single directory will show that directory
@@ -260,17 +240,14 @@ class FilePicker:
             # changing location clears selection
             utils.set_all(self.selected, False)
             # load new directory
-            self._set_current_drive()   # update the drive selector already
             self.refresh()
 
     def refresh(self):
         # clean up finished tasks
         self.listing_refresh_tasks = {t for t in self.listing_refresh_tasks if not t.done()}
-        self.drive_refresh_tasks   = {t for t in self.drive_refresh_tasks   if not t.done()}
         # launch refresh
         self.refreshing = True
         self.listing_refresh_tasks.add(self.directory_service.get_listing(self.loc))
-        self.drive_refresh_tasks  .add(self.directory_service.get_drives())
 
     def _refresh_path_done(self, path: str|pathlib.Path, items: list[structs.DirEntry]|Exception, from_cache: bool):
         if str(path)!=str(self.loc):
@@ -299,21 +276,6 @@ class FilePicker:
         if not from_cache:
             self.refreshing = False
             self.elapsed = 0.0
-
-    def _refresh_drives_done(self, drives: list[structs.DirEntry]|Exception, from_cache: bool):
-        # refresh drives and set up directory selector
-        if isinstance(drives, Exception):
-            return
-        with self.drives_lock:
-            self.drives = [DirEntryWithCache(item) for item in drives]
-        self._set_current_drive()
-
-    def _set_current_drive(self):
-        with self.drives_lock:
-            for i,d in enumerate(self.drives):
-                if str(self.loc).startswith(d.name):
-                    self.current_drive = i
-                    break
 
     def _select_paths(self, paths: list[pathlib.Path]):
         got_one = False
@@ -418,23 +380,6 @@ class FilePicker:
             else:
                 if imgui.button(icons_fontawesome.ICON_FA_REDO):
                     self.refresh()
-            # Drive selector
-            is_root = self.loc=='root'
-            if self.drives:
-                imgui.same_line()
-                imgui.set_next_item_width(imgui.get_font_size() * 4)
-                with self.drives_lock:
-                    if is_root:
-                        drive_list = [('','')]
-                        current_drive = 0
-                    else:
-                        drive_list = []
-                        current_drive = self.current_drive
-                    drive_list.extend([(d.display_name,d.full_path) for d in self.drives])
-
-                changed, value = imgui.combo("##drive_selector", current_drive, [d[0] for d in drive_list])
-                if changed:
-                    self.goto(drive_list[value][1])
             # Location bar
             imgui.same_line()
             imgui.set_next_item_width(imgui.get_content_region_avail().x)
