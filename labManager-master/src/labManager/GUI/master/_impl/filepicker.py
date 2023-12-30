@@ -335,10 +335,7 @@ class FilePicker:
 
         self.draw_top_bar()
 
-        # directory listing
-        button_text_size = imgui.calc_text_size(icons_fontawesome.ICON_FA_BAN+" Cancel")
-        bottom_margin = button_text_size.y+imgui.get_style().frame_padding.y*2+imgui.get_style().item_spacing.y
-        closed = self.draw_listing(size=(imgui.get_item_rect_size().x, -bottom_margin))
+        closed = self.draw_listing(leave_space_for_bottom_bar=True)
 
         cancelled, closed2 = self.draw_bottom_bar()
         closed = closed or closed2
@@ -458,9 +455,13 @@ class FilePicker:
 
         return cancelled, closed
 
-    def draw_listing(self, size):
+    def draw_listing(self, leave_space_for_bottom_bar):
         closed = False
-
+        size = imgui.ImVec2(imgui.get_item_rect_size().x, 0)
+        if leave_space_for_bottom_bar:
+            button_text_size = imgui.calc_text_size(icons_fontawesome.ICON_FA_BAN+" Cancel")
+            bottom_margin = button_text_size.y+imgui.get_style().frame_padding.y*2+imgui.get_style().item_spacing.y
+            size.y = -bottom_margin
         imgui.begin_child("##folder_contents", size=size)
         if self.refreshing and self.new_loc:
             string = 'loading directory...'
