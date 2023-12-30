@@ -79,7 +79,6 @@ def get_net_computer(path: str|pathlib.Path):
 
 class DirectoryProvider:
     def __init__(self, listing_callback: Callable[[list[structs.DirEntry]|Exception, bool], None], network: str = None):
-        self.listing_cache: dict[str, list[structs.DirEntry]] = {}
         self.waiters: set[asyncio.Future] = set()
 
         self.listing_callback: Callable[[list[structs.DirEntry]|Exception, bool], None] = listing_callback
@@ -97,7 +96,6 @@ class DirectoryProvider:
             w.cancel()
 
     def get_listing(self, path: str|pathlib.Path) -> tuple[list[structs.DirEntry],asyncio.Future]:
-        self.return_cache(path)
         if path=='root':
             fut = self._get_drives()
         else:
@@ -113,7 +111,6 @@ class DirectoryProvider:
         return fut   # can return any cache we may have. Understood to be potentially stale
 
     def _get_drives(self) -> asyncio.Future:
-        self.return_cache('root')
         fut = async_thread.run(dir_list.get_drives(), lambda f: self.action_done(f, 'root'))
         self.waiters.add(fut)
         return fut
@@ -128,12 +125,6 @@ class DirectoryProvider:
         except asyncio.CancelledError:
             pass    # we broke out of the loop: cancellation processed
 
-    def return_cache(self, path: str|pathlib.Path):
-        key = str(path)
-        if not key in self.listing_cache:
-            return
-        self.listing_callback(path, self.listing_cache[key], True)
-
     def action_done(self, fut: asyncio.Future, path: str|pathlib.Path):
         self.waiters.discard(fut)
         try:
@@ -144,17 +135,14 @@ class DirectoryProvider:
             result = exc
 
         if result is not None:
-            key = str(path)
-            if key=='root':
+            if isinstance(path,str) and path=='root':
                 # add network computers
                 names = [n.name for n in result]
                 for n in self.network_computers:    # indexed by name, so can just use n
                     if n not in names:
                         result.append(self.network_computers[n][0]) # (value is tuple[DirEntry,ip:str]), get the DirEntry
-            # add to cache
-            self.listing_cache[key] = result
             # call callback
-            self.listing_callback(path, result, False)
+            self.listing_callback(path, result)
 
 
 class FilePicker:
@@ -169,7 +157,9 @@ class FilePicker:
         self.callback = callback
         self.directory_service = directory_service
         if self.directory_service is None:
-            self.directory_service = DirectoryProvider(self._refresh_path_done, network)
+            self.directory_service = DirectoryProvider(self._listing_done, network)
+
+        self._listing_cache: dict[str|pathlib.Path, dict[int,DirEntryWithCache]] = {}
 
         self.items: dict[int, DirEntryWithCache] = {}
         self.items_lock: threading.Lock = threading.Lock()
@@ -185,7 +175,7 @@ class FilePicker:
         self.new_loc = False
         self.history: list[str|pathlib.Path] = []
         self.history_loc = -1
-        self.listing_refresh_tasks: set[asyncio.Future] = set()
+        self._listing_tasks: set[asyncio.Future] = set()
         self.predicate = None
         self.default_flags = custom_popup_flags or FilePicker.default_flags
         self.platform_is_windows = sys.platform.startswith("win")
@@ -193,7 +183,7 @@ class FilePicker:
         self.goto(start_dir or '.')
 
     def __del__(self):
-        for t in self.listing_refresh_tasks:
+        for t in self._listing_tasks:
             t.cancel()
 
     # if passed a single directory will show that directory
@@ -244,20 +234,32 @@ class FilePicker:
                 self.history_loc += 1
             # changing location clears selection
             utils.set_all(self.selected, False)
+            # load from cache if available
+            if self.loc in self._listing_cache:
+                self._update_listing(self.loc, True)
             # load new directory
             self.refresh()
 
     def refresh(self):
-        # clean up finished tasks
-        self.listing_refresh_tasks = {t for t in self.listing_refresh_tasks if not t.done()}
         # launch refresh
         self.refreshing = True
-        self.listing_refresh_tasks.add(self.directory_service.get_listing(self.loc))
+        self._request_listing(self.loc)
 
-    def _refresh_path_done(self, path: str|pathlib.Path, items: list[structs.DirEntry]|Exception, from_cache: bool):
-        if str(path)!=str(self.loc):
-            # stale or just one for the cache, ignore
-            return
+    def _request_listing(self, path: str|pathlib.Path):
+        # clean up finished tasks
+        self._listing_tasks = {t for t in self._listing_tasks if not t.done()}
+        self._listing_tasks.add(self.directory_service.get_listing(path))
+
+    def _listing_done(self, path: str|pathlib.Path, items: list[structs.DirEntry]|Exception):
+        # deal with cache
+        if not isinstance(items, Exception):
+            items = {i:DirEntryWithCache(item) for i,item in enumerate(items)}
+        self._listing_cache[path] = items
+
+        if str(path)==str(self.loc):
+            self._update_listing(path, False)
+
+    def _update_listing(self, path: str|pathlib.Path, from_cache: bool):
         previously_selected = []
         with self.items_lock:
             if not self.new_loc:
@@ -265,10 +267,11 @@ class FilePicker:
             self.items.clear()
             self.selected.clear()
             self.msg = None
+            items = self._listing_cache[path]
             if isinstance(items, Exception):
                 self.msg = f"Cannot open this folder!\n:{items}"
             else:
-                self.items = {i:DirEntryWithCache(item) for i,item in enumerate(items)}
+                self.items = items.copy()
                 self.selected = {k:False for k in self.items}
                 if not self.items:
                     self.msg = "This folder is empty!"
