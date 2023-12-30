@@ -355,6 +355,8 @@ class FilePicker:
             if imgui.button(icons_fontawesome.ICON_FA_ARROW_LEFT):
                 self.history_loc -= 1
                 self.goto(self.history[self.history_loc], add_history=False)
+            if not disabled and imgui.is_item_hovered():
+                utils.draw_tooltip(self._get_path_display_name(self.history[self.history_loc-1]))
             if imgui.begin_popup_context_item(f"##history_back_context"):
                 for i in range(self.history_loc-1,-1,-1):
                     p = self.history[i]
@@ -372,6 +374,8 @@ class FilePicker:
             if imgui.button(icons_fontawesome.ICON_FA_ARROW_RIGHT):
                 self.history_loc += 1
                 self.goto(self.history[self.history_loc], add_history=False)
+            if not disabled and imgui.is_item_hovered():
+                utils.draw_tooltip(self._get_path_display_name(self.history[self.history_loc+1]))
             if imgui.begin_popup_context_item(f"##history_forward_context"):
                 for i in range(self.history_loc+1,len(self.history)):
                     p = self.history[i]
@@ -389,6 +393,8 @@ class FilePicker:
                 utils.push_disabled()
             if imgui.button(icons_fontawesome.ICON_FA_ARROW_UP):
                 self.goto(self._get_parent(self.loc))
+            if not disabled and imgui.is_item_hovered():
+                utils.draw_tooltip(self._get_path_display_name(parent))
             if disabled:
                 utils.pop_disabled()
             # Refresh button
