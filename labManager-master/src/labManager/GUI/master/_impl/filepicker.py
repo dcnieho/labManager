@@ -415,19 +415,114 @@ class FilePicker:
         # Location bar
         imgui.same_line()
         imgui.set_next_item_width(-250*hello_imgui.dpi_window_size_factor())
-        loc_str = self._get_path_display_name(self.loc)
-        confirmed, loc = imgui.input_text("##location_bar", loc_str, flags=imgui.InputTextFlags_.enter_returns_true)
-        if imgui.begin_popup_context_item(f"##location_context"):
-            if imgui.selectable(icons_fontawesome.ICON_FA_PASTE+" Paste", False)[0] and (loc := imgui.get_clipboard_text()):
-                confirmed = True
-            imgui.end_popup()
-        if confirmed:
-            self.goto(loc)
+        self.draw_path_bar()
         # search box
         imgui.same_line()
         imgui.set_next_item_width(imgui.get_content_region_avail().x)
         imgui.input_text_with_hint('##search_box','Search','')
         imgui.end_group()
+
+    def draw_path_bar(self):
+        # modeled after PathBar of ImFileDialog, but logic for changing bar to inputtext is from
+        # ImGui::DragScalar
+        ctx = imgui.get_current_context()
+        iid = imgui.get_id('##path_bar')
+        w = imgui.calc_item_width()
+        ts = imgui.calc_text_size('x')
+        start_pos = imgui.get_cursor_pos()
+        cur_pos = imgui.get_cursor_screen_pos()
+        bb = imgui.internal.ImRect(cur_pos, (cur_pos.x+w, cur_pos.y+ts.y+2*imgui.get_style().frame_padding.y))
+        imgui.internal.item_size(bb)
+        if not imgui.internal.item_add(bb, iid, bb, imgui.internal.ItemFlags_.inputable):
+            return False
+
+        hovered = imgui.internal.item_hoverable(bb, iid, ctx.last_item_data.in_flags)
+        temp_input_is_active = ctx.active_id==iid and ctx.temp_input_id==iid    # imgui.internal.temp_input_is_active(iid)
+        if not temp_input_is_active:
+            # single-clicking on the frame (but not its buttons) changes it into an input_text
+            clicked = hovered and imgui.internal.is_mouse_clicked(imgui.MouseButton_.left, iid)
+            double_clicked = hovered and ctx.io.mouse_clicked_count[imgui.MouseButton_.left]==2 and imgui.internal.test_key_owner(imgui.Key.mouse_left, iid)
+            make_active = clicked or double_clicked or ctx.nav_activate_id==iid
+            if make_active:
+                if clicked or double_clicked:
+                    imgui.internal.set_key_owner(imgui.Key.mouse_left, iid)
+                # handle ctrl+click, double click, etc
+                if (clicked and ctx.io.key_ctrl) or double_clicked or (ctx.nav_activate_id==iid and imgui.internal.ActivateFlags_.prefer_input in ctx.nav_activate_flags):
+                    temp_input_is_active = True
+
+            # handle single click
+            if ctx.active_id==iid and hovered and ctx.io.mouse_released[imgui.MouseButton_.left]:
+                ctx.nav_activate_id = iid
+                ctx.nav_activate_flags = imgui.internal.ActivateFlags_.prefer_input
+                temp_input_is_active = True
+
+            if make_active and not temp_input_is_active:
+                win = imgui.internal.get_current_window()
+                imgui.internal.set_active_id(iid, win)
+                imgui.internal.set_focus_id(iid, win)
+                imgui.internal.focus_window(win)
+                ctx.active_id_using_nav_dir_mask = (1 << int(imgui.Dir_.left)) | (1 << int(imgui.Dir_.right))
+
+        if temp_input_is_active:
+            pass    # TODO: need imgui.internal.temp_input_text()
+            return False
+
+        # draw frame
+        col = imgui.Col_.frame_bg
+        if ctx.active_id==iid:
+            col = imgui.Col_.frame_bg_active
+        elif hovered:
+            col = imgui.Col_.frame_bg_hovered
+        frame_col = imgui.get_color_u32(col)
+        imgui.internal.render_nav_highlight(bb,iid)
+        imgui.internal.render_frame(bb.min,bb.max,frame_col,True,imgui.get_style().frame_rounding)
+
+        # get path components
+        separator = '>'
+        separator_w = imgui.calc_text_size(separator).x
+        btn_list = []
+        loc = self.loc
+        while loc:
+            disp_name = None
+            if isinstance(loc, pathlib.Path):
+                if (net_comps := split_network_path(loc)):
+                    if len(net_comps)==1:
+                        disp_name = f'\\\\{net_comps[0]}'
+                    else:
+                        disp_name = net_comps[-1]
+                else:
+                    disp_name = loc.name
+                    if not disp_name:
+                        # disk root
+                        disp_name = str(loc)
+            else:
+                # special string
+                disp_name = self._get_path_display_name(loc)
+            btn_list.append((loc, disp_name, imgui.calc_text_size(disp_name).x))
+            btn_list.append(('sep', separator, separator_w))
+            loc = self._get_parent(loc)
+        btn_list.append(('machine', icons_fontawesome.ICON_FA_DESKTOP, imgui.calc_text_size(icons_fontawesome.ICON_FA_DESKTOP).x))
+        btn_list = list(reversed(btn_list))
+
+        # check if whole path fits, else shorten
+        total_width = sum([b[2] for b in btn_list]) + len(btn_list)*2*imgui.get_style().frame_padding.x
+        if total_width>w:
+            pass
+
+        # draw buttons on the frame
+        imgui.set_cursor_pos(start_pos)
+        imgui.push_style_var(imgui.StyleVar_.item_spacing, (0, imgui.get_style().item_spacing.y))
+        imgui.push_style_var(imgui.StyleVar_.frame_border_size, 0)
+        for i,b in enumerate(btn_list):
+            id_str      = f'###path_comp_{i}'
+            if imgui.button(b[1]+id_str):
+                print(b[1])
+            imgui.same_line()
+
+        imgui.pop_style_var(2)
+        # allocate space
+        imgui.set_cursor_pos(start_pos)
+        imgui.internal.item_size(bb)
 
     def draw_bottom_bar(self):
         cancelled = closed = False
