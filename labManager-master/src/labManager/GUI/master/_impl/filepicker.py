@@ -1,6 +1,6 @@
 import pathlib
 import typing
-from imgui_bundle import imgui, icons_fontawesome, imspinner
+from imgui_bundle import hello_imgui, imgui, icons_fontawesome, imspinner
 import sys
 import natsort
 import re
@@ -387,7 +387,7 @@ class FilePicker:
                     self.refresh()
             # Location bar
             imgui.same_line()
-            imgui.set_next_item_width(imgui.get_content_region_avail().x)
+            imgui.set_next_item_width(-250*hello_imgui.dpi_window_size_factor())
             loc_str = self._get_path_display_name(self.loc)
             confirmed, loc = imgui.input_text("##location_bar", loc_str, flags=imgui.InputTextFlags_.enter_returns_true)
             if imgui.begin_popup_context_item(f"##location_context"):
@@ -396,6 +396,10 @@ class FilePicker:
                 imgui.end_popup()
             if confirmed:
                 self.goto(loc)
+            # search box
+            imgui.same_line()
+            imgui.set_next_item_width(imgui.get_content_region_avail().x)
+            imgui.input_text_with_hint('##search_box','Search','')
             imgui.end_group()
 
             # entry list
