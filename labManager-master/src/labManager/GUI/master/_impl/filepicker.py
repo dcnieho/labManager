@@ -61,15 +61,20 @@ class DirEntryWithCache(structs.DirEntry):
             self.size_str = None
 
 
-def is_net_computer(path: str|pathlib.Path):
+def split_network_path(path: str|pathlib.Path) -> list[str]:
     path = str(path)
-    if path.startswith(('\\\\','//')):
-        # this is a network address
-        # determine if it is a network computer (\\SERVER) and not a path including share (\\SERVER\share)
-        path = path.strip('\\/').replace('\\','/')
-        net_comp = [s for s in str(path).split('/') if s]
-        if len(net_comp)==1:    # a single name entry, so thats just a computer
-            return net_comp[0]
+    if not path.startswith(('\\\\','//')):
+        return []
+    # this is a network address
+    # split into components
+    path = path.strip('\\/').replace('\\','/')
+    return [s for s in str(path).split('/') if s]
+
+def get_net_computer(path: str|pathlib.Path):
+    # determine if it is a network computer (\\SERVER) and not a path including share (\\SERVER\share)
+    net_comp = split_network_path(path)
+    if len(net_comp)==1:    # a single name entry, so thats just a computer
+        return net_comp[0]
     return None
 
 class DirectoryProvider:
@@ -97,7 +102,7 @@ class DirectoryProvider:
             fut = self._get_drives()
         else:
             # check whether this is a path to a network computer (e.g. \\SERVER)
-            net_comp = is_net_computer(path)
+            net_comp = get_net_computer(path)
             if net_comp:
                 # network computer name, get its shares
                 fut = async_thread.run(smb.get_shares(net_comp,'Guest',''), lambda f: self.action_done(f, path))
@@ -215,7 +220,7 @@ class FilePicker:
             is_root = False
 
         if not is_root:
-            if (comp := is_net_computer(loc)):
+            if (comp := get_net_computer(loc)):
                 # ensure loc has the format //SERVER/, which is what pathlib understands
                 loc = pathlib.Path(f'//{comp}/')
             else:
@@ -290,12 +295,35 @@ class FilePicker:
                 if not self.allow_multiple and got_one:
                     break
 
+    def _get_parent(self, path: str | pathlib.Path):
+        if isinstance(path,str) and path=='root':
+            return None
+        if not isinstance(path,pathlib.Path):
+            path = pathlib.Path(path)
+        parent = path.parent
+        if parent==path:
+            if isinstance(path,pathlib.PureWindowsPath):
+                if (net_comps := split_network_path(path)):
+                    if len(net_comps)==1:
+                        # network computer, one higher is list of drives and
+                        # visible network computers, i.e., root
+                        parent = 'root'
+                    else:
+                        parent = pathlib.Path(f'//{"/".join(net_comps[:-1])}/')
+                else:
+                    # if a normal local path, then this means we're in a drive root
+                    parent = 'root'
+            else:
+                # TODO
+                parent = 'root'
+        return parent
+
     def _get_path_display_name(self, path):
         path = str(path)
         if path=='root':
             loc_str = 'This PC'
         else:
-            if (comp := is_net_computer(path)):
+            if (comp := get_net_computer(path)):
                 # pathlib.Path's str() doesn't do the right thing here, render it ourselves
                 loc_str = f'\\\\{comp}'
             else:
@@ -355,15 +383,12 @@ class FilePicker:
                 utils.pop_disabled()
             # Up button
             imgui.same_line()
-            disabled = self.loc=='root'
+            parent = self._get_parent(self.loc)
+            disabled = parent is not None and self.loc==parent
             if disabled:
                 utils.push_disabled()
             if imgui.button(icons_fontawesome.ICON_FA_ARROW_UP):
-                parent = self.loc.parent
-                if parent==self.loc:
-                    # we're in a drive root, one higher would be the drive list (denoted by root)
-                    parent = 'root'
-                self.goto(parent)
+                self.goto(self._get_parent(self.loc))
             if disabled:
                 utils.pop_disabled()
             # Refresh button
