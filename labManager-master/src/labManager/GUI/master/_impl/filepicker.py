@@ -259,6 +259,15 @@ class FilePicker:
         self._listing_cache[path] = items
 
         if str(path)==str(self.loc):
+            # also load all parent paths if not in cache already, so path bar
+            # drop downs work
+            loc = self.loc
+            while loc:
+                if loc not in self._listing_cache:
+                    self._request_listing(loc)
+                loc = self._get_parent(loc)
+
+            # and update the shown listing
             self._update_listing(path, False)
 
     def _update_listing(self, path: str|pathlib.Path, from_cache: bool):
