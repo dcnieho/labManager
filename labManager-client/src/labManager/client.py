@@ -9,7 +9,7 @@ import json
 import threading
 from dataclasses import dataclass, field
 
-from labManager.common import async_thread, config, dir_list, eye_tracker, message, share, structs, task
+from labManager.common import async_thread, config, eye_tracker, file_actions, message, share, structs, task
 from labManager.common.network import comms, ifs, keepalive, net_names, smb, ssdp
 
 
@@ -307,7 +307,7 @@ class Client:
                         msg = {'path': str(msg['path'])}
                         try:
                             pathvalidate.validate_filepath(msg['path'], "auto")
-                            msg['listing'] = await dir_list.get_dir_list(msg['path'])
+                            msg['listing'] = await file_actions.get_dir_list(msg['path'])
                         except Exception as exc:
                             if isinstance(exc,pathvalidate.ValidationError):
                                 exc = str(exc)  # these don't unpickle well, also can't assume receiver to have the same package installed
@@ -322,13 +322,11 @@ class Client:
                         out = msg
                         out['action'] = msg_type
 
-                        path = aiopath.AsyncPath(msg['path'])
                         try:
-                            pathvalidate.validate_filepath(msg['path'], "auto")
                             if msg['is_dir']:
-                                await path.mkdir()
+                                await file_actions.make_dir(msg['path'])
                             else:
-                                await path.touch()
+                                await file_actions.make_file(msg['path'])
                         except Exception as exc:
                             if isinstance(exc,pathvalidate.ValidationError):
                                 exc = str(exc)  # these don't unpickle well, also can't assume receiver to have the same package installed
@@ -346,9 +344,7 @@ class Client:
                         out['action'] = msg_type
 
                         try:
-                            pathvalidate.validate_filepath(msg['old_path'], "auto")
-                            pathvalidate.validate_filepath(msg['new_path'], "auto")
-                            return_path = await aiopath.AsyncPath(msg['old_path']).rename(msg['new_path'])
+                            return_path = await file_actions.rename_path(msg['old_path'], msg['new_path'])
                         except Exception as exc:
                             if isinstance(exc,pathvalidate.ValidationError):
                                 exc = str(exc)  # these don't unpickle well, also can't assume receiver to have the same package installed
@@ -366,18 +362,11 @@ class Client:
                         out = msg
                         out['action'] = msg_type
 
-                        source_path = aiopath.AsyncPath(msg['source_path'])
-                        dest_path   = aiopath.AsyncPath(msg['dest_path'])
                         try:
-                            pathvalidate.validate_filepath(msg['source_path'], "auto")
-                            pathvalidate.validate_filepath(msg['dest_path'], "auto")
                             if msg['is_move']:
-                                return_path = await aioshutil.move(source_path, dest_path)
+                                return_path = await file_actions.move_path(msg['source_path'], msg['dest_path'])
                             else:
-                                if await source_path.is_dir():
-                                    return_path = await aioshutil.copytree(source_path, dest_path)
-                                else:
-                                    return_path = await aioshutil.copy2(source_path, dest_path)
+                                return_path = await file_actions.copy_path(msg['source_path'], msg['dest_path'])
                         except Exception as exc:
                             if isinstance(exc,pathvalidate.ValidationError):
                                 exc = str(exc)  # these don't unpickle well, also can't assume receiver to have the same package installed
@@ -395,13 +384,8 @@ class Client:
                         out = msg
                         out['action'] = msg_type
 
-                        path = aiopath.AsyncPath(msg['path'])
                         try:
-                            pathvalidate.validate_filepath(msg['path'], "auto")
-                            if await path.is_dir():
-                                await aioshutil.rmtree(path,ignore_errors=True)
-                            else:
-                                await path.unlink()
+                            await file_actions.delete_path(msg['path'])
                         except Exception as exc:
                             if isinstance(exc,pathvalidate.ValidationError):
                                 exc = str(exc)  # these don't unpickle well, also can't assume receiver to have the same package installed
@@ -436,7 +420,7 @@ class Client:
     async def _poll_for_netnames(self):
         try:
             while True:
-                self._drives    = await dir_list.get_drives()
+                self._drives    = await file_actions.get_drives()
                 self._net_names = await net_names.get_network_computers(self.network)
 
                 # when done, broadcast to any connected clients so they stay up to date

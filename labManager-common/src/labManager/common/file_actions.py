@@ -2,7 +2,9 @@ import pathlib
 import mimetypes
 import asyncio
 import aiopath
+import aioshutil
 import string
+import pathvalidate
 
 from . import structs
 
@@ -67,3 +69,43 @@ async def get_dir_list(path: pathlib.Path) -> list[structs.DirEntry]:
                                     mimetypes.guess_type(e)[0]))
 
     return out
+
+async def make_dir(path: str | pathlib.Path):
+    pathvalidate.validate_filepath(path, "auto")
+    path = aiopath.AsyncPath(path)
+    await path.mkdir()
+
+async def make_file(path: str | pathlib.Path):
+    pathvalidate.validate_filepath(path, "auto")
+    path = aiopath.AsyncPath(path)
+    await path.touch()
+
+async def rename_path(old_path: str | pathlib.Path, new_path: str | pathlib.Path):
+    pathvalidate.validate_filepath(old_path, "auto")
+    pathvalidate.validate_filepath(new_path, "auto")
+    return await aiopath.AsyncPath(old_path).rename(new_path)
+
+async def copy_path(source_path: str | pathlib.Path, dest_path: str | pathlib.Path):
+    pathvalidate.validate_filepath(source_path, "auto")
+    pathvalidate.validate_filepath(dest_path, "auto")
+    source_path = aiopath.AsyncPath(source_path)
+    dest_path   = aiopath.AsyncPath(dest_path)
+    if await source_path.is_dir():
+        return await aioshutil.copytree(source_path, dest_path)
+    else:
+        return await aioshutil.copy2(source_path, dest_path)
+
+async def move_path(source_path: str | pathlib.Path, dest_path: str | pathlib.Path):
+    pathvalidate.validate_filepath(source_path, "auto")
+    pathvalidate.validate_filepath(dest_path, "auto")
+    source_path = aiopath.AsyncPath(source_path)
+    dest_path   = aiopath.AsyncPath(dest_path)
+    return await aioshutil.move(source_path, dest_path)
+
+async def delete_path(path: str | pathlib.Path):
+    pathvalidate.validate_filepath(path, "auto")
+    path = aiopath.AsyncPath(path)
+    if await path.is_dir():
+        await aioshutil.rmtree(path, ignore_errors=True)
+    else:
+        await path.unlink()

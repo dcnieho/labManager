@@ -9,7 +9,7 @@ import threading
 from dataclasses import dataclass
 from typing import Any, Callable
 
-from labManager.common import async_thread, dir_list, structs
+from labManager.common import async_thread, file_actions, structs
 from labManager.common.network import net_names, smb
 from . import utils
 
@@ -101,12 +101,12 @@ class DirectoryProvider:
                 fut = async_thread.run(smb.get_shares(net_comp,'Guest',''), lambda f: self.action_done(f, path))
             else:
                 # normal directory or share on a network computer, no special handling needed
-                fut = async_thread.run(dir_list.get_dir_list(path), lambda f: self.action_done(f, path))
+                fut = async_thread.run(file_actions.get_dir_list(path), lambda f: self.action_done(f, path))
             self.waiters.add(fut)
         return fut   # can return any cache we may have. Understood to be potentially stale
 
     def _get_drives(self) -> None:
-        self.action_done(dir_list.get_drives(), 'root')
+        self.action_done(file_actions.get_drives(), 'root')
 
     async def _get_network_computers(self):
         try:
