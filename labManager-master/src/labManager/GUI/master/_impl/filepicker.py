@@ -161,6 +161,7 @@ class FilePicker:
         self.selected: dict[int, bool] = {}
         self.allow_multiple = allow_multiple
         self.msg: str = None
+        self.filter_box_text = ''
         self.require_sort = False
         self.sorted_items: list[int] = []
         self.last_clicked_id: int = None
@@ -230,6 +231,8 @@ class FilePicker:
                 self.history_loc += 1
             # changing location clears selection
             utils.set_all(self.selected, False)
+            # changing location clear filter box
+            self.filter_box_text = ''
             # load from cache if available
             if self.loc in self._listing_cache:
                 self._update_listing(self.loc, True)
@@ -445,10 +448,13 @@ class FilePicker:
         imgui.same_line()
         imgui.set_next_item_width(-250*hello_imgui.dpi_window_size_factor())
         self.draw_path_bar()
-        # search box
+        # filter box
         imgui.same_line()
         imgui.set_next_item_width(imgui.get_content_region_avail().x)
-        imgui.input_text_with_hint('##search_box',f'Search {self._get_path_leaf_display_name(self.loc)}','')
+        _, value = imgui.input_text_with_hint('##filter_box', f'Filter {self._get_path_leaf_display_name(self.loc)}', self.filter_box_text)
+        if value != self.filter_box_text:
+            self.filter_box_text = value
+            self.require_sort = True
         imgui.end_group()
 
     def draw_path_bar(self):
@@ -844,5 +850,15 @@ class FilePicker:
                 # finally, always sort dirs first
                 ids.sort(key=lambda iid: self.items[iid].is_dir, reverse=True)
                 self.sorted_items = ids
+
+                # apply filter, if any
+                if self.filter_box_text:
+                    search = self.filter_box_text.casefold()
+                    def key(iid):
+                        item = self.items[iid]
+                        return search in item.display_name.casefold()
+                    self.sorted_items = list(filter(key, self.sorted_items))
+
+                # we're done
                 sort_specs_in.specs_dirty = False
                 self.require_sort = False
