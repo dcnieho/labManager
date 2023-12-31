@@ -388,11 +388,11 @@ class FilePicker:
         # Up button
         imgui.same_line()
         parent = self._get_parent(self.loc)
-        disabled = parent is not None and self.loc==parent
+        disabled = parent is None or self.loc==parent
         if disabled:
             utils.push_disabled()
         if imgui.button(icons_fontawesome.ICON_FA_ARROW_UP):
-            self.goto(self._get_parent(self.loc))
+            self.goto(parent)
         if not disabled and imgui.is_item_hovered():
             utils.draw_tooltip(self._get_path_display_name(parent))
         if disabled:
