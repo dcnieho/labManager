@@ -57,8 +57,6 @@ class DirEntryWithCache(structs.DirEntry):
                     break
                 orig = new
             self.size_str = new
-        else:
-            self.size_str = None
 
 
 def split_network_path(path: str|pathlib.Path) -> list[str]:
@@ -79,13 +77,13 @@ def get_net_computer(path: str|pathlib.Path):
 
 class DirectoryProvider:
     def __init__(self, listing_callback: Callable[[list[structs.DirEntry]|Exception, bool], None], network: str = None):
-        self.waiters: set[asyncio.Future] = set()
+        self.waiters: set[concurrent.futures.Future] = set()
 
         self.listing_callback: Callable[[list[structs.DirEntry]|Exception, bool], None] = listing_callback
 
         self.network: str|None = network
         self.network_computers: dict[str,tuple[structs.DirEntry,str]] = {}
-        self.network_computer_getter: asyncio.Future = None
+        self.network_computer_getter: concurrent.futures.Future = None
         if self.network:
             self.network_computer_getter = async_thread.run(self._get_network_computers())
 
@@ -95,7 +93,7 @@ class DirectoryProvider:
         for w in self.waiters:
             w.cancel()
 
-    def get_listing(self, path: str|pathlib.Path) -> tuple[list[structs.DirEntry],asyncio.Future]:
+    def get_listing(self, path: str|pathlib.Path) -> tuple[list[structs.DirEntry], concurrent.futures.Future]:
         if path=='root':
             fut = self._get_drives()
         else:
@@ -110,10 +108,8 @@ class DirectoryProvider:
             self.waiters.add(fut)
         return fut   # can return any cache we may have. Understood to be potentially stale
 
-    def _get_drives(self) -> asyncio.Future:
-        fut = async_thread.run(dir_list.get_drives(), lambda f: self.action_done(f, 'root'))
-        self.waiters.add(fut)
-        return fut
+    def _get_drives(self) -> None:
+        self.action_done(dir_list.get_drives(), 'root')
 
     async def _get_network_computers(self):
         try:
@@ -122,25 +118,26 @@ class DirectoryProvider:
 
                 # rate-limit to every x seconds
                 await asyncio.sleep(30)
-        except asyncio.CancelledError:
+        except concurrent.futures.CancelledError:
             pass    # we broke out of the loop: cancellation processed
 
-    def action_done(self, fut: asyncio.Future, path: str|pathlib.Path):
-        self.waiters.discard(fut)
-        try:
-            result = fut.result()
-        except concurrent.futures.CancelledError:
-            return  # nothing more to do
-        except Exception as exc:
-            result = exc
+    def action_done(self, fut: concurrent.futures.Future|list[structs.DirEntry], path: str|pathlib.Path):
+        if isinstance(fut,concurrent.futures.Future):
+            self.waiters.discard(fut)
+            try:
+                result = fut.result()
+            except concurrent.futures.CancelledError:
+                return  # nothing more to do
+            except Exception as exc:
+                result = exc
+        else:
+            result = fut
 
         if result is not None:
             if isinstance(path,str) and path=='root':
                 # add network computers
-                names = [n.name for n in result]
                 for n in self.network_computers:    # indexed by name, so can just use n
-                    if n not in names:
-                        result.append(self.network_computers[n][0]) # (value is tuple[DirEntry,ip:str]), get the DirEntry
+                    result.append(self.network_computers[n][0]) # (value is tuple[DirEntry,ip:str]), get the DirEntry
             # call callback
             self.listing_callback(path, result)
 
@@ -175,7 +172,7 @@ class FilePicker:
         self.new_loc = False
         self.history: list[str|pathlib.Path] = []
         self.history_loc = -1
-        self._listing_tasks: set[asyncio.Future] = set()
+        self._listing_tasks: set[concurrent.futures.Future] = set()
         self.predicate = None
         self.default_flags = custom_popup_flags or FilePicker.default_flags
         self.platform_is_windows = sys.platform.startswith("win")
@@ -248,7 +245,9 @@ class FilePicker:
     def _request_listing(self, path: str|pathlib.Path):
         # clean up finished tasks
         self._listing_tasks = {t for t in self._listing_tasks if not t.done()}
-        self._listing_tasks.add(self.directory_service.get_listing(path))
+        fut = self.directory_service.get_listing(path)
+        if fut:
+            self._listing_tasks.add(fut)
 
     def _listing_done(self, path: str|pathlib.Path, items: list[structs.DirEntry]|Exception):
         # deal with cache
