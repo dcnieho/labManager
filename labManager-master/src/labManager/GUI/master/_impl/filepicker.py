@@ -520,23 +520,24 @@ class FilePicker:
                 button_pos  = imgui.get_cursor_screen_pos()
                 lbl = b[1]
                 if 'which' in self.path_bar_popup and \
-                    self.path_bar_popup['which']==i+1 and \
+                    self.path_bar_popup['which']==i-1 and \
                     imgui.is_popup_open('##dir_list_popup'):
                     lbl = 'v'
                 if imgui.button(lbl+id_str):
                     if isinstance(b[0],str):
-                        if b[0]=='sep':
+                        if i<2:
+                            # machine or first separator: nothing to do
+                            pass
+                        elif b[0]=='sep':
                             # path separator button, queue to open dropdown
-                            self.path_bar_popup['loc'] = btn_list[i+1][0]
-                            self.path_bar_popup['which'] = i+1
+                            self.path_bar_popup['loc'] = btn_list[i-1][0]
+                            self.path_bar_popup['which'] = i-1
                             self.path_bar_popup['pos'] = button_pos
                             open_popup = True
                         elif b[0]=='ellipsis':
                             # draw dropdown with removed paths
                             # btn_removed
                             pass
-                        elif b[0].startswith('machine'):
-                            self.goto('root')
                         else:
                             self.goto(b[0])
                     else:
