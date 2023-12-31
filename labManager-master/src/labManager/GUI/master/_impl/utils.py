@@ -202,6 +202,24 @@ def push_popup(gui, *args, bottom=False, **kwargs):
     return popup_func
 
 
+def handle_popup_stack(popup_stack: list):
+    # this pane is always visible, so we handle popups here
+    fix_popup_transparency()
+    open_popup_count = 0
+    for popup in popup_stack:
+        if hasattr(popup, "tick"):
+            popup_func = popup.tick
+        else:
+            popup_func = popup
+        opened, closed = popup_func()
+        if closed:
+            popup_stack.remove(popup)
+        open_popup_count += opened
+    # Popups are closed all at the end to allow stacking
+    for _ in range(open_popup_count):
+        imgui.end_popup()
+
+
 def my_checkbox(label: str, state: bool, frame_size: tuple=None, do_vertical_align=True):
     style = imgui.get_style()
     if state:

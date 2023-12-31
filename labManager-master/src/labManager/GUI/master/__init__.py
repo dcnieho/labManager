@@ -1379,20 +1379,7 @@ class MainGUI:
 
     def _computer_pane(self):
         # this pane is always visible, so we handle popups here
-        utils.fix_popup_transparency()
-        open_popup_count = 0
-        for popup in self.popup_stack:
-            if hasattr(popup, "tick"):
-                popup_func = popup.tick
-            else:
-                popup_func = popup
-            opened, closed = popup_func()
-            if closed:
-                self.popup_stack.remove(popup)
-            open_popup_count += opened
-        # Popups are closed all at the end to allow stacking
-        for _ in range(open_popup_count):
-            imgui.end_popup()
+        utils.handle_popup_stack(self.popup_stack)
 
         # now render actual pane
         if self.proj_select_state!=ActionState.Done and not self.no_login_mode:
