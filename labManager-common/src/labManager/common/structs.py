@@ -86,6 +86,7 @@ class DirEntry:
     mtime: float
     size: int
     mime_type: str
+    extra: dict = field(default_factory=dict)
 
     def __post_init__(self):
         if self.ctime is not None and not isinstance(self.ctime, datetime.datetime):

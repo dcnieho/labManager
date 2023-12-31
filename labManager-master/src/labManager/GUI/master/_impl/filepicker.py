@@ -24,13 +24,13 @@ FILE_ICON = icons_fontawesome.ICON_FA_FILE
 @dataclass
 class DirEntryWithCache(structs.DirEntry):
     # display fields
-    display_name: str
-    ctime_str: str
-    mtime_str: str
-    size_str: str
+    display_name: str = ''
+    ctime_str: str = None
+    mtime_str: str = None
+    size_str: str = None
 
     def __init__(self, item: structs.DirEntry):
-        super().__init__(item.name, item.is_dir, item.full_path, item.ctime, item.mtime, item.size, item.mime_type)
+        super().__init__(item.name, item.is_dir, item.full_path, item.ctime, item.mtime, item.size, item.mime_type, item.extra)
 
         # prep display strings
         if self.mime_type=='labManager/drive':
