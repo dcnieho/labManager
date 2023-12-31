@@ -319,7 +319,7 @@ class FilePicker:
                 parent = 'root'
         return parent
 
-    def _get_path_display_name(self, path):
+    def _get_path_display_name(self, path: str | pathlib.Path):
         path_str = str(path)
         if path_str=='root':
             loc_str = 'This PC'
@@ -338,6 +338,24 @@ class FilePicker:
                 else:
                     loc_str = path_str
         return loc_str
+
+    def _get_path_leaf_display_name(self, path: str | pathlib.Path):
+        if isinstance(path, pathlib.Path) and self._get_parent(path)!='root':
+            if (net_comps := split_network_path(path)):
+                if len(net_comps)==1:
+                    disp_name = f'\\\\{net_comps[0]}'
+                else:
+                    disp_name = net_comps[-1]
+            else:
+                disp_name = path.name
+                if not disp_name:
+                    # disk root
+                    disp_name = str(path)
+        else:
+            # special string
+            disp_name = self._get_path_display_name(path)
+        return disp_name
+
 
     def draw(self):
         cancelled = closed = False
@@ -430,7 +448,7 @@ class FilePicker:
         # search box
         imgui.same_line()
         imgui.set_next_item_width(imgui.get_content_region_avail().x)
-        imgui.input_text_with_hint('##search_box','Search','')
+        imgui.input_text_with_hint('##search_box',f'Search {self._get_path_leaf_display_name(self.loc)}','')
         imgui.end_group()
 
     def draw_path_bar(self):
@@ -465,22 +483,7 @@ class FilePicker:
             btn_list = []
             loc = self.loc
             while loc:
-                disp_name = None
-                if isinstance(loc, pathlib.Path) and self._get_parent(loc)!='root':
-                    if (net_comps := split_network_path(loc)):
-                        if len(net_comps)==1:
-                            disp_name = f'\\\\{net_comps[0]}'
-                        else:
-                            disp_name = net_comps[-1]
-                    else:
-                        disp_name = loc.name
-                        if not disp_name:
-                            # disk root
-                            disp_name = str(loc)
-                else:
-                    # special string
-                    disp_name = self._get_path_display_name(loc)
-                btn_list.append(make_elem(disp_name, loc))
+                btn_list.append(make_elem(self._get_path_leaf_display_name(loc), loc))
                 btn_list.append(make_elem(separator, 'sep'))
                 loc = self._get_parent(loc)
             btn_list.append(('machine: local', icons_fontawesome.ICON_FA_DESKTOP, imgui.calc_text_size(icons_fontawesome.ICON_FA_DESKTOP).x))
