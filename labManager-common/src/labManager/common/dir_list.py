@@ -6,18 +6,52 @@ import string
 
 from . import structs
 
-async def get_drives() -> list[pathlib.Path]:
+def get_drives() -> list[structs.DirEntry]:
+    import ctypes
     drives = []
+    bitmask = ctypes.windll.kernel32.GetLogicalDrives()
     for letter in string.ascii_uppercase:
-        drive = f"{letter}:\\"
-        if await aiopath.AsyncPath(drive).exists():
-            drives.append(pathlib.Path(drive))
+        if bitmask & 1:
+            drive = f'{letter}:\\'
+            entry = structs.DirEntry(drive,True,pathlib.Path(drive),None,None,None,None)
+            # get name of drive
+            drive_name = ctypes.create_unicode_buffer(1024)
+            if not ctypes.windll.kernel32.GetVolumeInformationW(drive,drive_name,ctypes.sizeof(drive_name),None,None,None,None,0):
+                raise ctypes.WinError(ctypes.get_last_error())
+            entry.extra['drive_name'] = drive_name.value
+            # get drive type
+            match ctypes.windll.kernel32.GetDriveTypeW(drive):
+                case 0 | 1:     # DRIVE_UNKNOWN, DRIVE_NO_ROOT_DIR
+                    # we skip these
+                    continue
+                case 2:     # DRIVE_REMOVABLE
+                    # like a USB drive
+                    entry.mime_type = 'labManager/drive_removable'
+                case 3:     # DRIVE_FIXED
+                    entry.mime_type = 'labManager/drive'
+                case 4:     # DRIVE_REMOTE
+                    entry.mime_type = 'labManager/drive_network'
+                    network_path = ctypes.create_unicode_buffer(1024)
+                    ctypes.windll.mpr.WNetGetUniversalNameW(drive, 1, network_path, ctypes.sizeof(network_path)) # 1: UNIVERSAL_NAME_INFO_LEVEL
+                    print(network_path)
+                    todo    # let it crash
+                case 5:     # DRIVE_CDROM
+                    entry.mime_type = 'labManager/drive_cdrom'
+                case 6:     # DRIVE_RAMDISK
+                    entry.mime_type = 'labManager/drive_ramdisk'
+            # get size information
+            total, free = ctypes.wintypes.ULARGE_INTEGER(), ctypes.wintypes.ULARGE_INTEGER()
+            if not ctypes.windll.kernel32.GetDiskFreeSpaceExW(drive,None,ctypes.byref(total),ctypes.byref(free)):
+                raise ctypes.WinError(ctypes.get_last_error())
+            entry.size = total.value
+            entry.extra['free_space'] = free.value
 
-    # pack into DirEntry
-    # use special mime-types to flag that the content is drives
-    return [structs.DirEntry(str(d),True,d,None,None,None,'labManager/drive') for d in drives]
+            drives.append(entry)
+        bitmask >>= 1
 
-async def get_dir_list(path: pathlib.Path) -> list[structs.DirEntry] | None:
+    return drives
+
+async def get_dir_list(path: pathlib.Path) -> list[structs.DirEntry]:
     # will throw when path doesn't exist or is not a directory
     path = aiopath.AsyncPath(path)
     out = []
