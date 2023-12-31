@@ -8,7 +8,7 @@ import asyncio
 import concurrent
 import threading
 from dataclasses import dataclass
-from typing import Callable
+from typing import Any, Callable
 
 from labManager.common import async_thread, dir_list, structs
 from labManager.common.network import net_names, smb
@@ -171,6 +171,7 @@ class FilePicker:
         self.new_loc = False
         self.history: list[str|pathlib.Path] = []
         self.history_loc = -1
+        self.path_bar_popup: dict[str,Any] = {}
         self._listing_tasks: set[concurrent.futures.Future] = set()
         self.predicate = None
         self.default_flags = custom_popup_flags or FilePicker.default_flags
@@ -513,13 +514,23 @@ class FilePicker:
             # draw buttons on the frame
             imgui.push_style_var(imgui.StyleVar_.item_spacing, (0, imgui.get_style().item_spacing.y))
             imgui.push_style_var(imgui.StyleVar_.frame_border_size, 0)
+            open_popup = False
             for i,b in enumerate(btn_list):
                 id_str      = f'###path_comp_{i}'
-                if imgui.button(b[1]+id_str):
+                button_pos  = imgui.get_cursor_screen_pos()
+                lbl = b[1]
+                if 'which' in self.path_bar_popup and \
+                    self.path_bar_popup['which']==i+1 and \
+                    imgui.is_popup_open('##dir_list_popup'):
+                    lbl = 'v'
+                if imgui.button(lbl+id_str):
                     if isinstance(b[0],str):
                         if b[0]=='sep':
-                            # path separator button, TODO: open dropdown
-                            pass
+                            # path separator button, queue to open dropdown
+                            self.path_bar_popup['loc'] = btn_list[i+1][0]
+                            self.path_bar_popup['which'] = i+1
+                            self.path_bar_popup['pos'] = button_pos
+                            open_popup = True
                         elif b[0]=='ellipsis':
                             # draw dropdown with removed paths
                             # btn_removed
@@ -534,6 +545,23 @@ class FilePicker:
                 imgui.same_line()
             imgui.pop_style_var(2)
             imgui.pop_clip_rect()
+
+            if open_popup:
+                if self.path_bar_popup['loc'] in self._listing_cache:
+                    imgui.open_popup('##dir_list_popup')
+                    # move y down
+                    self.path_bar_popup['pos'].y += imgui.calc_text_size('x').y+2*imgui.get_style().frame_padding.y+imgui.get_style().item_spacing.y
+                    imgui.set_next_window_pos(self.path_bar_popup['pos'])
+            if imgui.begin_popup('##dir_list_popup'):
+                items = self._listing_cache[self.path_bar_popup['loc']]
+                items = [items[i] for i in items if items[i].is_dir]
+                display_names = [self._get_path_leaf_display_name(i.full_path) for i in items]
+                changed, idx = imgui.list_box('##dir_list_popup_select',-1,display_names)
+                if changed:
+                    self.goto(items[idx].full_path)
+                    imgui.close_current_popup()
+                imgui.end_popup()
+
 
             # click state
             if not path_element_hc and clicked:
