@@ -33,7 +33,7 @@ class DirEntryWithCache(structs.DirEntry):
         super().__init__(item.name, item.is_dir, item.full_path, item.ctime, item.mtime, item.size, item.mime_type, item.extra)
 
         # prep display strings
-        if self.mime_type=='labManager/drive':
+        if self.mime_type and self.mime_type.startswith('labManager/drive'):
             icon = DRIVE_ICON
         elif self.mime_type=='labManager/net_name':
             icon = SERVER_ICON
@@ -47,7 +47,7 @@ class DirEntryWithCache(structs.DirEntry):
         self.mtime_str      = self.mtime.strftime("%Y-%m-%d %H:%M:%S") if self.mtime else None
 
         # size
-        if not self.is_dir:
+        if not self.is_dir or (self.mime_type and self.mime_type.startswith('labManager/drive')):
             unit = 1024**2
             orig = "%.1f KiB" % ((1024 * self.size / unit))
             while True:
