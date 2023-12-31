@@ -48,15 +48,13 @@ class DirEntryWithCache(structs.DirEntry):
 
         # size
         if not self.is_dir or (self.mime_type and self.mime_type.startswith('labManager/drive')):
-            unit = 1024**2
-            orig = "%.1f KiB" % ((1024 * self.size / unit))
-            while True:
-                # add commas as thousands separators, if any are needed
-                new = re.sub(r"^(-?\d+)(\d{3})", r"\g<1>,\g<2>", orig)
-                if orig == new:
-                    break
-                orig = new
-            self.size_str = new
+            i = 0
+            units = ['B', 'KiB', 'MiB', 'GiB', 'TiB']
+            size = self.size
+            while size>1024:
+                i+=1
+                size /= 1024
+            self.size_str = f'{size:.1f} {units[i]}'
 
 
 def split_network_path(path: str|pathlib.Path) -> list[str]:
