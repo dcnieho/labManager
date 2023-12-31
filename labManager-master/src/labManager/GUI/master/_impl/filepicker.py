@@ -3,7 +3,6 @@ import typing
 from imgui_bundle import hello_imgui, imgui, icons_fontawesome, imspinner
 import sys
 import natsort
-import re
 import asyncio
 import concurrent
 import threading
@@ -155,6 +154,7 @@ class FilePicker:
             self.directory_service = DirectoryProvider(self._listing_done, network)
 
         self._listing_cache: dict[str|pathlib.Path, dict[int,DirEntryWithCache]] = {}
+        self.popup_stack = []
 
         self.items: dict[int, DirEntryWithCache] = {}
         self.items_lock: threading.Lock = threading.Lock()
@@ -663,6 +663,11 @@ class FilePicker:
         elif self.msg:
             imgui.text_wrapped(self.msg)
         else:
+            # do we have context menus?
+            # not for special paths (which are strings) and not for share overviews of a network computer
+            net_comps = get_net_computer(self.loc)
+            has_context_menu = not isinstance(self.loc, str) and (not net_comps or len(net_comps)>1)
+
             table_flags = (
                 imgui.TableFlags_.scroll_x |
                 imgui.TableFlags_.scroll_y |
@@ -765,7 +770,7 @@ class FilePicker:
                                 selectable_clicked, selectable_out = imgui.selectable(f"##{iid}_hitbox", self.selected[iid], flags=imgui.SelectableFlags_.span_all_columns|imgui.SelectableFlags_.allow_overlap|imgui.internal.SelectableFlagsPrivate_.select_on_click, size=(0,frame_height+cell_padding_y))
                                 imgui.set_cursor_pos_y(cur_pos_y)   # instead of imgui.same_line(), we just need this part of its effect
                                 imgui.pop_style_var(3)
-                                selectable_right_clicked = utils.handle_item_hitbox_events(iid, self.selected, context_menu=None)
+                                selectable_right_clicked = utils.handle_item_hitbox_events(iid, self.selected, context_menu=self._item_context_menu if has_context_menu else None)
                                 has_drawn_hitbox = True
 
                             if ci==int(self.allow_multiple):
@@ -840,11 +845,52 @@ class FilePicker:
                 # deselect all, and if right click, show popup
                 # check mouse is below bottom of last drawn row so that clicking on the one pixel empty space between selectables
                 # does not cause everything to unselect or popup to open
-                if imgui.is_item_clicked() and not any_selectable_clicked and imgui.get_io().mouse_pos.y>last_y:  # left mouse click (NB: table header is not signalled by is_item_clicked(), so this works correctly)
-                    utils.set_all(self.selected, False)
+                if not any_selectable_clicked and imgui.get_io().mouse_pos.y>last_y:
+                    if imgui.is_item_clicked(imgui.MouseButton_.left):  # left mouse click (NB: table header is not signalled by is_item_clicked(), so this works correctly)
+                        utils.set_all(self.selected, False)
+                    # show menu when right-clicking the empty space
+                    if imgui.is_item_clicked(imgui.MouseButton_.right): # NB: mouse down
+                        utils.set_all(self.selected, False)  # deselect on right mouse click as well
+                    if has_context_menu and imgui.begin_popup_context_item("##file_list_context"):   # NB: mouse up
+                        if imgui.selectable(f"New folder##button", False)[0]:
+                            self._show_new_folder_dialog('yo')
+                        imgui.end_popup()
 
         imgui.end_child()
         return closed
+
+    def _item_context_menu(self, iid: int):
+        if imgui.selectable(f"Rename##button", False)[0]:
+            pass
+        if imgui.selectable(f"Delete##button", False)[0]:
+            pass
+        if imgui.selectable(f"New folder##button", False)[0]:
+            self._show_new_folder_dialog('yo')
+    def _show_new_folder_dialog(self, parent_path: pathlib.Path):
+        new_folder_name = ''
+        def _new_folder_popup():
+            nonlocal new_folder_name
+            imgui.dummy((30*imgui.calc_text_size('x').x,0))
+            enter_pressed = False
+            if imgui.begin_table("##new_folder",2):
+                imgui.table_setup_column("##new_folder_left", imgui.TableColumnFlags_.width_fixed)
+                imgui.table_setup_column("##new_folder_right", imgui.TableColumnFlags_.width_stretch)
+                imgui.table_next_row()
+                imgui.table_next_column()
+                imgui.align_text_to_frame_padding()
+                imgui.text("Folder name")
+                imgui.table_next_column()
+                imgui.set_next_item_width(-1)
+                _,new_folder_name = imgui.input_text("##new_folder_name", new_folder_name)
+                enter_pressed = imgui.is_item_deactivated_after_edit()
+                imgui.end_table()
+            return 0 if enter_pressed else None
+
+        buttons = {
+            icons_fontawesome.ICON_FA_CHECK+" Make folder": None,
+            icons_fontawesome.ICON_FA_BAN+" Cancel": None
+        }
+        utils.push_popup(self, lambda: utils.popup("Make folder", _new_folder_popup, buttons = buttons, closable=True))
 
     def tick(self):
         # Auto refresh
@@ -872,6 +918,8 @@ class FilePicker:
             if not cancelled and self.callback:
                 selected = [self.items[iid].full_path for iid in self.items if iid in self.selected and self.selected[iid]]
                 self.callback(selected if selected else None)
+
+        utils.handle_popup_stack(self.popup_stack)
         return opened, closed
 
     def sort_items(self, sort_specs_in: imgui.TableSortSpecs):
