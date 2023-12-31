@@ -176,6 +176,7 @@ class FilePicker:
         self.platform_is_windows = sys.platform.startswith("win")
 
         self.goto(start_dir or '.')
+        self._request_listing('root')   # request root listing so we have the drive names
 
     def __del__(self):
         for t in self._listing_tasks:
@@ -319,15 +320,23 @@ class FilePicker:
         return parent
 
     def _get_path_display_name(self, path):
-        path = str(path)
-        if path=='root':
+        path_str = str(path)
+        if path_str=='root':
             loc_str = 'This PC'
         else:
-            if (comp := get_net_computer(path)):
+            if (comp := get_net_computer(path_str)):
                 # pathlib.Path's str() doesn't do the right thing here, render it ourselves
                 loc_str = f'\\\\{comp}'
             else:
-                loc_str = path
+                if isinstance(path,pathlib.Path) and self._get_parent(path)=='root' and 'root' in self._listing_cache:
+                    # this is a drive root, lookup name of this drive
+                    for i in self._listing_cache['root']:
+                        if self._listing_cache['root'][i].full_path==path:
+                            loc_str = self._listing_cache['root'][i].name
+                        else:
+                            loc_str = path.drive
+                else:
+                    loc_str = path_str
         return loc_str
 
     def draw(self):
@@ -457,7 +466,7 @@ class FilePicker:
             loc = self.loc
             while loc:
                 disp_name = None
-                if isinstance(loc, pathlib.Path):
+                if isinstance(loc, pathlib.Path) and self._get_parent(loc)!='root':
                     if (net_comps := split_network_path(loc)):
                         if len(net_comps)==1:
                             disp_name = f'\\\\{net_comps[0]}'
