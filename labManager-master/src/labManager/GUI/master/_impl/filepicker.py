@@ -853,7 +853,7 @@ class FilePicker:
                         utils.set_all(self.selected, False)  # deselect on right mouse click as well
                     if has_context_menu and imgui.begin_popup_context_item("##file_list_context"):   # NB: mouse up
                         if imgui.selectable(f"New folder##button", False)[0]:
-                            self._show_new_folder_dialog('yo')
+                            self._show_new_folder_dialog()
                         imgui.end_popup()
 
         imgui.end_child()
@@ -861,12 +861,42 @@ class FilePicker:
 
     def _item_context_menu(self, iid: int):
         if imgui.selectable(f"Rename##button", False)[0]:
-            pass
+            item_name = self.items[iid].full_path.name
+            def _rename_item_popup():
+                nonlocal item_name
+                imgui.dummy((30*imgui.calc_text_size('x').x,0))
+                enter_pressed = False
+                if imgui.begin_table("##rename_item",2):
+                    imgui.table_setup_column("##rename_item_left", imgui.TableColumnFlags_.width_fixed)
+                    imgui.table_setup_column("##rename_item_right", imgui.TableColumnFlags_.width_stretch)
+                    imgui.table_next_row()
+                    imgui.table_next_column()
+                    imgui.align_text_to_frame_padding()
+                    imgui.text("Item name")
+                    imgui.table_next_column()
+                    imgui.set_next_item_width(-1)
+                    _,item_name = imgui.input_text("##new_rename_item", item_name)
+                    enter_pressed = imgui.is_item_deactivated_after_edit()
+                    imgui.end_table()
+                return 0 if enter_pressed else None
+
+            buttons = {
+                icons_fontawesome.ICON_FA_CHECK+" Rename": None,
+                icons_fontawesome.ICON_FA_BAN+" Cancel": None
+            }
+            utils.push_popup(self, lambda: utils.popup("Rename item", _rename_item_popup, buttons = buttons, closable=True))
         if imgui.selectable(f"Delete##button", False)[0]:
-            pass
+            def _delete_item_popup():
+                imgui.dummy((30*imgui.calc_text_size('x').x,0))
+                imgui.text(f'Are you sure you want to delete {self.items[iid].full_path.name}?')
+            buttons = {
+                icons_fontawesome.ICON_FA_TRASH+" Delete": None,
+                icons_fontawesome.ICON_FA_BAN+" Cancel": None
+            }
+            utils.push_popup(self, lambda: utils.popup("Delete item", _delete_item_popup, buttons = buttons, closable=True))
         if imgui.selectable(f"New folder##button", False)[0]:
             self._show_new_folder_dialog('yo')
-    def _show_new_folder_dialog(self, parent_path: pathlib.Path):
+    def _show_new_folder_dialog(self):
         new_folder_name = ''
         def _new_folder_popup():
             nonlocal new_folder_name
