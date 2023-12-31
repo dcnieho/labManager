@@ -545,8 +545,10 @@ class FilePicker:
                             open_popup = True
                         elif b[0]=='ellipsis':
                             # draw dropdown with removed paths
-                            # btn_removed
-                            pass
+                            self.path_bar_popup['loc'] = 'ellipsis'
+                            self.path_bar_popup['which'] = None
+                            self.path_bar_popup['pos'] = button_pos
+                            open_popup = True
                         else:
                             self.goto(b[0])
                     else:
@@ -557,18 +559,26 @@ class FilePicker:
             imgui.pop_clip_rect()
 
             if open_popup:
-                if self.path_bar_popup['loc'] in self._listing_cache:
+                if (isinstance(self.path_bar_popup['loc'],str) and self.path_bar_popup['loc']=='ellipsis') or \
+                    self.path_bar_popup['loc'] in self._listing_cache:
                     imgui.open_popup('##dir_list_popup')
                     # move y down
                     self.path_bar_popup['pos'].y += imgui.calc_text_size('x').y+2*imgui.get_style().frame_padding.y+imgui.get_style().item_spacing.y
                     imgui.set_next_window_pos(self.path_bar_popup['pos'])
             if imgui.begin_popup('##dir_list_popup'):
-                items = self._listing_cache[self.path_bar_popup['loc']]
-                items = [items[i] for i in items if items[i].is_dir]
-                display_names = [self._get_path_leaf_display_name(i.full_path) for i in items]
+                if self.path_bar_popup['loc'] in self._listing_cache:
+                    items = self._listing_cache[self.path_bar_popup['loc']]
+                    items = [items[i] for i in items if items[i].is_dir]
+                    paths         = [i.full_path for i in items]
+                    display_names = [self._get_path_leaf_display_name(p) for p in paths]
+                elif isinstance(self.path_bar_popup['loc'],str) and self.path_bar_popup['loc']=='ellipsis':
+                    display_names = [b[1] for b in btn_removed]
+                    paths = [b[0] for b in btn_removed]
+                    display_names.reverse()
+                    paths.reverse()
                 changed, idx = imgui.list_box('##dir_list_popup_select',-1,display_names)
                 if changed:
-                    self.goto(items[idx].full_path)
+                    self.goto(paths[idx])
                     imgui.close_current_popup()
                 imgui.end_popup()
 
