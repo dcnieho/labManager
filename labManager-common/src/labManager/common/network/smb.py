@@ -131,9 +131,9 @@ async def check_share(server: str, user: str, password: str, share_name: str, do
 
     except Exception as exc:
         if stage==1:
-            print(f'SMB: Error connecting using domain "{domain}", user "{user}" to {server}: {exc}')
+            raise RuntimeError(f'The system cannot find the specified network computer \\\\{server}, or cannot connect using the provided credentials (domain "{domain}", user "{user}"): {exc}')
         elif stage==2:
-            print(f'SMB: Error connecting to share "{share_name}" on server using {server} when connected using domain "{domain}", user "{user}": {exc}')
+            raise RuntimeError(f'Error connecting to share "{share_name}" on server {server} when connected using domain "{domain}", user "{user}": {exc}')
 
     return False
 
