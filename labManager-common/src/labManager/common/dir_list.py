@@ -25,8 +25,10 @@ def get_drives() -> list[structs.DirEntry]:
                     # we skip these
                     continue
                 case 2:     # DRIVE_REMOVABLE
-                    # like a USB drive
+                    # assume a USB drive, by far most likely. getting what it truly is seems complicated
                     entry.mime_type = 'labManager/drive_removable'
+                    display_name = drive_name.value if drive_name.value else 'USB Drive'
+                    entry.name = f'{display_name} ({drive[0:-1]})'
                 case 3:     # DRIVE_FIXED
                     entry.mime_type = 'labManager/drive'
                     display_name = drive_name.value if drive_name.value else 'Local Disk'
