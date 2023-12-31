@@ -13,7 +13,7 @@ def get_drives() -> list[structs.DirEntry]:
     for letter in string.ascii_uppercase:
         if bitmask & 1:
             drive = f'{letter}:\\'
-            entry = structs.DirEntry(drive,True,pathlib.Path(drive),None,None,None,None)
+            entry = structs.DirEntry(drive[0:-1],True,pathlib.Path(drive),None,None,None,None)
             # get name of drive
             drive_name = ctypes.create_unicode_buffer(1024)
             if not ctypes.windll.kernel32.GetVolumeInformationW(drive,drive_name,ctypes.sizeof(drive_name),None,None,None,None,0):
@@ -29,12 +29,15 @@ def get_drives() -> list[structs.DirEntry]:
                     entry.mime_type = 'labManager/drive_removable'
                 case 3:     # DRIVE_FIXED
                     entry.mime_type = 'labManager/drive'
+                    display_name = drive_name.value if drive_name.value else 'Local Disk'
+                    entry.name = f'{display_name} ({drive[0:-1]})'
                 case 4:     # DRIVE_REMOTE
                     entry.mime_type = 'labManager/drive_network'
                     network_path = ctypes.create_unicode_buffer(1024)
                     ctypes.windll.mpr.WNetGetUniversalNameW(drive, 1, network_path, ctypes.sizeof(network_path)) # 1: UNIVERSAL_NAME_INFO_LEVEL
                     print(network_path)
                     todo    # let it crash
+                    # TODO: display name should be 'share_name (net_name) (drive)'
                 case 5:     # DRIVE_CDROM
                     entry.mime_type = 'labManager/drive_cdrom'
                 case 6:     # DRIVE_RAMDISK
