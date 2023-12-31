@@ -460,8 +460,8 @@ class FilePicker:
             imgui.internal.render_frame(bb.min,bb.max,frame_col,True,imgui.get_style().frame_rounding)
 
             # get path components
+            make_elem = lambda x, lbl: (lbl, x, imgui.calc_text_size(x).x)
             separator = '>'
-            separator_w = imgui.calc_text_size(separator).x
             btn_list = []
             loc = self.loc
             while loc:
@@ -480,16 +480,26 @@ class FilePicker:
                 else:
                     # special string
                     disp_name = self._get_path_display_name(loc)
-                btn_list.append((loc, disp_name, imgui.calc_text_size(disp_name).x))
-                btn_list.append(('sep', separator, separator_w))
+                btn_list.append(make_elem(disp_name, loc))
+                btn_list.append(make_elem(separator, 'sep'))
                 loc = self._get_parent(loc)
             btn_list.append(('machine: local', icons_fontawesome.ICON_FA_DESKTOP, imgui.calc_text_size(icons_fontawesome.ICON_FA_DESKTOP).x))
-            btn_list = list(reversed(btn_list))
+            btn_list.reverse()
 
             # check if whole path fits, else shorten
-            total_width = sum([b[2] for b in btn_list]) + len(btn_list)*2*imgui.get_style().frame_padding.x
+            get_total_width = lambda x: sum([b[2] for b in x]) + len(btn_list)*2*imgui.get_style().frame_padding.x
+            total_width = get_total_width(btn_list)
+            btn_removed = []
             if total_width>w:
-                pass
+                ellipsis = make_elem('···', 'ellipsis')
+                btn_list.insert(2, ellipsis)
+                while total_width>w:
+                    if len(btn_list)==4:
+                        # nothing more that can be removed
+                        break
+                    btn_removed.append(btn_list.pop(3))
+                    del btn_list[3] # also remove separator that follows
+                    total_width = get_total_width(btn_list)
 
             # draw buttons on the frame
             imgui.push_style_var(imgui.StyleVar_.item_spacing, (0, imgui.get_style().item_spacing.y))
@@ -500,6 +510,10 @@ class FilePicker:
                     if isinstance(b[0],str):
                         if b[0]=='sep':
                             # path separator button, TODO: open dropdown
+                            pass
+                        elif b[0]=='ellipsis':
+                            # draw dropdown with removed paths
+                            # btn_removed
                             pass
                         elif b[0].startswith('machine'):
                             self.goto('root')
