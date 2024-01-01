@@ -420,7 +420,7 @@ class Client:
     async def _poll_for_netnames(self):
         try:
             while True:
-                self._drives    = await file_actions.get_drives()
+                self._drives    = file_actions.get_drives()
                 self._net_names = await net_names.get_network_computers(self.network)
 
                 # when done, broadcast to any connected clients so they stay up to date
