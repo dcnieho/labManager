@@ -452,12 +452,15 @@ class FilePicker:
         return cancelled, closed
 
     def draw_top_bar(self):
+        enable_keyboard_nav = not self.popup_stack  # no keyboard navigation in this GUI if a popup is open
+        backspace_released = imgui.is_key_released(imgui.Key.backspace)
+        shift_down = imgui.is_key_down(imgui.Key.im_gui_mod_shift)
         imgui.begin_group()
         # History back button
         disabled = self.history_loc<=0
         if disabled:
             utils.push_disabled()
-        if imgui.button(icons_fontawesome.ICON_FA_ARROW_LEFT) or (not disabled and imgui.is_key_released(imgui.Key.backspace) and not imgui.is_key_down(imgui.Key.im_gui_mod_shift)):
+        if imgui.button(icons_fontawesome.ICON_FA_ARROW_LEFT) or (not disabled and enable_keyboard_nav and backspace_released and not shift_down):
             self.history_loc -= 1
             self.goto(self.history[self.history_loc], add_history=False)
         if self.history_loc>0: # don't just use disabled var as we may have just changed self.history_loc
@@ -477,7 +480,7 @@ class FilePicker:
         disabled = self.history_loc+1>=len(self.history)
         if disabled:
             utils.push_disabled()
-        if imgui.button(icons_fontawesome.ICON_FA_ARROW_RIGHT) or (not disabled and imgui.is_key_released(imgui.Key.backspace) and imgui.is_key_down(imgui.Key.im_gui_mod_shift)):
+        if imgui.button(icons_fontawesome.ICON_FA_ARROW_RIGHT) or (not disabled and enable_keyboard_nav and backspace_released and shift_down):
             self.history_loc += 1
             self.goto(self.history[self.history_loc], add_history=False)
         if self.history_loc+1<len(self.history): # don't just use disabled var as we may have just changed self.history_loc
