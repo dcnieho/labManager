@@ -8,6 +8,25 @@ import pathvalidate
 
 from . import structs
 
+def get_thispc_listing() -> list[structs.DirEntry]:
+    # TODO: not implemented
+    import ctypes
+    SHGFP_TYPE_CURRENT = 0   # Get current, not default value
+
+    CSIDL_DESKTOP = 0
+    CSIDL_MYDOCUMENTS = 5               # AKA CSIDL_PERSONAL
+    CSIDL_DESKTOPDIRECTORY = 16
+    CSIDL_DRIVES           = 17         # My Computer
+    CSIDL_NETWORK          = 18
+    
+
+    buf= ctypes.create_unicode_buffer(ctypes.wintypes.MAX_PATH)
+    ctypes.windll.shell32.SHGetFolderPathW(None, CSIDL_MYDOCUMENTS, None, SHGFP_TYPE_CURRENT, buf)
+
+    entries = []
+    entry = structs.DirEntry(drive[0:-1],True,pathlib.Path(drive),None,None,None,None)
+
+
 def get_drives() -> list[structs.DirEntry]:
     import ctypes
     drives = []
