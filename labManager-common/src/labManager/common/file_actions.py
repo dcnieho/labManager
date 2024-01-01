@@ -17,7 +17,7 @@ def get_drives() -> list[structs.DirEntry]:
             drive = f'{letter}:\\'
             entry = structs.DirEntry(drive[0:-1],True,pathlib.Path(drive),None,None,None,None)
             # get name of drive
-            drive_name = ctypes.create_unicode_buffer(1024)
+            drive_name = ctypes.create_unicode_buffer(ctypes.wintypes.MAX_PATH)
             if not ctypes.windll.kernel32.GetVolumeInformationW(drive,drive_name,ctypes.sizeof(drive_name),None,None,None,None,0):
                 raise ctypes.WinError(ctypes.get_last_error())
             entry.extra['drive_name'] = drive_name.value
@@ -37,7 +37,7 @@ def get_drives() -> list[structs.DirEntry]:
                     entry.name = f'{display_name} ({drive[0:-1]})'
                 case 4:     # DRIVE_REMOTE
                     entry.mime_type = 'labManager/drive_network'
-                    network_path = ctypes.create_unicode_buffer(1024)
+                    network_path = ctypes.create_unicode_buffer(ctypes.wintypes.MAX_PATH)
                     ctypes.windll.mpr.WNetGetUniversalNameW(drive, 1, network_path, ctypes.sizeof(network_path)) # 1: UNIVERSAL_NAME_INFO_LEVEL
                     print(network_path)
                     todo    # let it crash
