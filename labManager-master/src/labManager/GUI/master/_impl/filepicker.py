@@ -908,6 +908,13 @@ class FilePicker:
                                     imgui.close_current_popup()
                                     closed = True
 
+                    # handle action keys
+                    selected_ids = [iid for iid in self.selected if self.selected[iid]]
+                    if num_selected==1 and imgui.is_key_pressed(imgui.Key.f2, repeat=False):
+                        self._show_rename_path_dialog(self.items[selected_ids[0]].full_path)
+                    if imgui.is_key_pressed(imgui.Key.delete, repeat=False):
+                        self._show_delete_path_dialog(selected_ids)
+
                 if new_loc:
                     self.goto(new_loc)
                 last_y = imgui.get_cursor_screen_pos().y
@@ -936,33 +943,7 @@ class FilePicker:
         if disabled:
             utils.push_disabled()
         if imgui.selectable(f"Rename##button", False)[0]:
-            item = self.items[iids[0]].full_path
-            item_name = item.name
-            setup_done = False
-            def _rename_item_popup():
-                nonlocal item_name, setup_done
-                imgui.dummy((30*imgui.calc_text_size('x').x,0))
-                if imgui.begin_table("##rename_item",2):
-                    imgui.table_setup_column("##rename_item_left", imgui.TableColumnFlags_.width_fixed)
-                    imgui.table_setup_column("##rename_item_right", imgui.TableColumnFlags_.width_stretch)
-                    imgui.table_next_row()
-                    imgui.table_next_column()
-                    imgui.align_text_to_frame_padding()
-                    imgui.text("Item name")
-                    imgui.table_next_column()
-                    imgui.set_next_item_width(-1)
-                    if not setup_done:
-                        imgui.set_keyboard_focus_here()
-                        setup_done = True
-                    _,item_name = imgui.input_text("##new_rename_item", item_name)
-                    imgui.end_table()
-                return 0 if imgui.is_key_released(imgui.Key.enter) else None
-
-            buttons = {
-                icons_fontawesome.ICON_FA_CHECK+" Rename": lambda: self._launch_action('rename_path', item, item.parent / item_name),
-                icons_fontawesome.ICON_FA_BAN+" Cancel": None
-            }
-            utils.push_popup(self, lambda: utils.popup("Rename item", _rename_item_popup, buttons = buttons, closable=True))
+            self._show_rename_path_dialog(self.items[iids[0]].full_path)
         if disabled:
             utils.pop_disabled()
         if imgui.selectable(f"Delete##button", False)[0]:
@@ -990,12 +971,37 @@ class FilePicker:
                 _,new_folder_name = imgui.input_text("##new_folder_name", new_folder_name)
                 imgui.end_table()
             return 0 if imgui.is_key_released(imgui.Key.enter) else None
-
         buttons = {
             icons_fontawesome.ICON_FA_CHECK+" Make folder": lambda: self._launch_action('make_dir',parent/new_folder_name),
             icons_fontawesome.ICON_FA_BAN+" Cancel": None
         }
         utils.push_popup(self, lambda: utils.popup("Make folder", _new_folder_popup, buttons = buttons, closable=True))
+    def _show_rename_path_dialog(self, item: pathlib.Path):
+        item_name = item.name
+        setup_done = False
+        def _rename_item_popup():
+            nonlocal item_name, setup_done
+            imgui.dummy((30*imgui.calc_text_size('x').x,0))
+            if imgui.begin_table("##rename_item",2):
+                imgui.table_setup_column("##rename_item_left", imgui.TableColumnFlags_.width_fixed)
+                imgui.table_setup_column("##rename_item_right", imgui.TableColumnFlags_.width_stretch)
+                imgui.table_next_row()
+                imgui.table_next_column()
+                imgui.align_text_to_frame_padding()
+                imgui.text("Item name")
+                imgui.table_next_column()
+                imgui.set_next_item_width(-1)
+                if not setup_done:
+                    imgui.set_keyboard_focus_here()
+                    setup_done = True
+                _,item_name = imgui.input_text("##new_rename_item", item_name)
+                imgui.end_table()
+            return 0 if imgui.is_key_released(imgui.Key.enter) else None
+        buttons = {
+            icons_fontawesome.ICON_FA_CHECK+" Rename": lambda: self._launch_action('rename_path', item, item.parent / item_name),
+            icons_fontawesome.ICON_FA_BAN+" Cancel": None
+        }
+        utils.push_popup(self, lambda: utils.popup("Rename item", _rename_item_popup, buttons = buttons, closable=True))
     def _show_delete_path_dialog(self, iids: list[int]):
         # NB: assume items lock acquired when this is called
         paths = [self.items[iid].full_path for iid in iids]
