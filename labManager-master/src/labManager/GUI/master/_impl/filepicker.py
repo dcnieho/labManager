@@ -194,8 +194,8 @@ class FilePicker:
         self.popup_stack = []
 
         self.items: dict[int, DirEntryWithCache] = {}
-        self.items_lock: threading.Lock = threading.Lock()
         self.selected: dict[int, bool] = {}
+        self.items_lock: threading.Lock = threading.Lock()  # for self.items and self.selected
         self.allow_multiple = allow_multiple
         self.msg: str = None
         self.filter_box_text = ''
@@ -268,7 +268,8 @@ class FilePicker:
                 self.history.append(self.loc)
                 self.history_loc += 1
             # changing location clears selection
-            utils.set_all(self.selected, False)
+            with self.items_lock:
+                utils.set_all(self.selected, False)
             # changing location clear filter box
             self.filter_box_text = ''
             # load from cache if available
@@ -692,7 +693,8 @@ class FilePicker:
             cancelled = closed = True
         # Ok button
         imgui.same_line()
-        num_selected = sum([self.selected[iid] for iid in self.selected])
+        with self.items_lock:
+            num_selected = sum([self.selected[iid] for iid in self.selected])
         disable_ok = not num_selected or (self.refreshing and self.new_loc)
         if disable_ok:
             imgui.internal.push_item_flag(imgui.internal.ItemFlags_.disabled, True)
@@ -792,7 +794,8 @@ class FilePicker:
                         imgui.internal.pop_item_flag()
 
                     if clicked:
-                        utils.set_all(self.selected, new_state, subset = self.sorted_items, predicate=self.predicate)
+                        with self.items_lock:
+                            utils.set_all(self.selected, new_state, subset = self.sorted_items, predicate=self.predicate)
 
                 for i in range(5):
                     imgui.table_set_column_index(i+self.allow_multiple)
@@ -1015,7 +1018,8 @@ class FilePicker:
             cancelled = closed = True
         if closed:
             if not cancelled and self.callback:
-                selected = [self.items[iid].full_path for iid in self.items if iid in self.selected and self.selected[iid]]
+                with self.items_lock:
+                    selected = [self.items[iid].full_path for iid in self.items if iid in self.selected and self.selected[iid]]
                 self.callback(selected if selected else None)
 
         utils.handle_popup_stack(self.popup_stack)
