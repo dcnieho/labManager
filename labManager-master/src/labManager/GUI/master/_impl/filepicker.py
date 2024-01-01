@@ -842,7 +842,7 @@ class FilePicker:
                                 selectable_clicked, selectable_out = imgui.selectable(f"##{iid}_hitbox", self.selected[iid], flags=imgui.SelectableFlags_.span_all_columns|imgui.SelectableFlags_.allow_overlap|imgui.internal.SelectableFlagsPrivate_.select_on_click, size=(0,frame_height+cell_padding_y))
                                 imgui.set_cursor_pos_y(cur_pos_y)   # instead of imgui.same_line(), we just need this part of its effect
                                 imgui.pop_style_var(3)
-                                selectable_right_clicked = utils.handle_item_hitbox_events(iid, self.selected, context_menu=lambda _: self._item_context_menu([iid for iid in self.selected if self.selected[iid]]) if has_context_menu else None)
+                                selectable_right_clicked = utils.handle_item_hitbox_events(iid, self.selected, context_menu=lambda _: self._item_context_menu([iid for iid in self.sorted_items if self.selected[iid]]) if has_context_menu else None)
                                 has_drawn_hitbox = True
 
                             if ci==int(self.allow_multiple):
@@ -909,7 +909,7 @@ class FilePicker:
                                     closed = True
 
                     # handle action keys
-                    selected_ids = [iid for iid in self.selected if self.selected[iid]]
+                    selected_ids = [iid for iid in self.sorted_items if self.selected[iid]]
                     if num_selected==1 and imgui.is_key_pressed(imgui.Key.f2, repeat=False):
                         self._show_rename_path_dialog(self.items[selected_ids[0]].full_path)
                     if imgui.is_key_pressed(imgui.Key.delete, repeat=False):
