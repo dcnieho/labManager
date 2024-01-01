@@ -127,7 +127,11 @@ class FileActionProvider:
         fut = None
         if is_local:
             if path=='root':
-                self._listing_done(file_actions.get_drives(), machine, 'root')
+                try:
+                    result = file_actions.get_drives()
+                except Exception as exc:
+                    result = exc
+                self._listing_done(result, machine, 'root')
             else:
                 # check whether this is a path to a network computer (e.g. \\SERVER)
                 net_comp = get_net_computer(path)
@@ -136,7 +140,11 @@ class FileActionProvider:
                     fut = async_thread.run(smb.get_shares(net_comp,'Guest',''), lambda f: self._listing_done(f, machine, path))
                 else:
                     # normal directory or share on a network computer, no special handling needed
-                    self._listing_done(file_actions.get_dir_list_sync(path), machine, path)
+                    try:
+                        result = file_actions.get_dir_list_sync(path)
+                    except Exception as exc:
+                        result = exc
+                    self._listing_done(result, machine, path)
         if fut:
             self.waiters.add(fut)
         return fut
