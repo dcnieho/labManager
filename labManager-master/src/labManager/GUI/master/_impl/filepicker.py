@@ -11,7 +11,7 @@ from typing import Any, Callable
 
 from labManager.common import async_thread, file_actions, structs
 from labManager.common.network import net_names, smb
-from . import utils
+from . import msgbox, utils
 
 
 DRIVE_ICON = icons_fontawesome.ICON_FA_HDD
@@ -76,10 +76,11 @@ def get_net_computer(path: str|pathlib.Path):
     return None
 
 class FileActionProvider:
-    def __init__(self, listing_callback: Callable[[list[structs.DirEntry]|Exception, bool], None], network: str = None):
+    def __init__(self, listing_callback: Callable[[list[structs.DirEntry]|Exception, bool], None], action_callback: Callable[[pathlib.Path, str, pathlib.Path|Exception], None], network: str = None):
         self.waiters: set[concurrent.futures.Future] = set()
 
         self.listing_callback: Callable[[list[structs.DirEntry]|Exception, bool], None] = listing_callback
+        self.action_callback:  Callable[[pathlib.Path|Exception, str], None] = action_callback
 
         self.network: str|None = network
         self.network_computers: dict[str,tuple[structs.DirEntry,str]] = {}
@@ -123,27 +124,52 @@ class FileActionProvider:
 
     def listing_done(self, fut: concurrent.futures.Future|list[structs.DirEntry], path: str|pathlib.Path):
         result = self._get_result_from_future(fut)
-        if result is None:
+        if result=='cancelled':
             return  # nothing more to do
 
-        if result is not None:
-            if isinstance(path,str) and path=='root':
-                # add network computers
-                for n in self.network_computers:    # indexed by name, so can just use n
-                    result.append(self.network_computers[n][0]) # (value is tuple[DirEntry,ip:str]), get the DirEntry
-            # call callback
-            self.listing_callback(path, result)
+        if result is None or self.listing_callback is None:
+            return
 
-    def action_done(self, fut: concurrent.futures.Future|list[structs.DirEntry]):
-        pass
+        if isinstance(result,list) and isinstance(path,str) and path=='root':
+            # add network computers
+            for n in self.network_computers:    # indexed by name, so can just use n
+                result.append(self.network_computers[n][0]) # (value is tuple[DirEntry,ip:str]), get the DirEntry
+        # call callback
+        self.listing_callback(path, result)
+
+    def make_dir(self, path: pathlib.Path):
+        fut = async_thread.run(file_actions.make_dir(path), lambda f: self.action_done(f, path, 'make_dir'))
+        self.waiters.add(fut)
+        return fut
+
+    def rename_path(self, old_path: pathlib.Path, new_path: pathlib.Path):
+        fut = async_thread.run(file_actions.rename_path(old_path, new_path), lambda f: self.action_done(f, old_path, 'rename_path'))
+        self.waiters.add(fut)
+        return fut
+
+    def delete_path(self, path: pathlib.Path):
+        fut = async_thread.run(file_actions.delete_path(path), lambda f: self.action_done(f, path, 'delete_path'))
+        self.waiters.add(fut)
+        return fut
+
+    def action_done(self, fut: concurrent.futures.Future, path: pathlib.Path, action: str):
+        result = self._get_result_from_future(fut)
+        if result=='cancelled':
+            return  # nothing more to do
+
+        if self.action_callback is None:
+            return
+
+        # call callback
+        self.action_callback(path, action, result)
 
     def _get_result_from_future(self, fut: concurrent.futures.Future|list[structs.DirEntry]) -> list[structs.DirEntry]:
-        if isinstance(fut,concurrent.futures.Future):
+        if isinstance(fut, concurrent.futures.Future):
             self.waiters.discard(fut)
             try:
                 return fut.result()
             except concurrent.futures.CancelledError:
-                return None
+                return 'cancelled'
             except Exception as exc:
                 return exc
         else:
@@ -162,7 +188,7 @@ class FilePicker:
         self.callback = callback
         self.file_action_provider = file_action_provider
         if self.file_action_provider is None:
-            self.file_action_provider = FileActionProvider(self._listing_done, network)
+            self.file_action_provider = FileActionProvider(self._listing_done, self._action_done, network)
 
         self._listing_cache: dict[str|pathlib.Path, dict[int,DirEntryWithCache]] = {}
         self.popup_stack = []
@@ -183,7 +209,7 @@ class FilePicker:
         self.history: list[str|pathlib.Path] = []
         self.history_loc = -1
         self.path_bar_popup: dict[str,Any] = {}
-        self._listing_tasks: set[concurrent.futures.Future] = set()
+        self._listing_action_tasks: set[concurrent.futures.Future] = set()
         self.predicate = None
         self.default_flags = custom_popup_flags or FilePicker.default_flags
         self.platform_is_windows = sys.platform.startswith("win")
@@ -192,7 +218,7 @@ class FilePicker:
         self._request_listing('root')   # request root listing so we have the drive names
 
     def __del__(self):
-        for t in self._listing_tasks:
+        for t in self._listing_action_tasks:
             t.cancel()
 
     # if passed a single directory will show that directory
@@ -258,10 +284,10 @@ class FilePicker:
 
     def _request_listing(self, path: str|pathlib.Path):
         # clean up finished tasks
-        self._listing_tasks = {t for t in self._listing_tasks if not t.done()}
+        self._listing_action_tasks = {t for t in self._listing_action_tasks if not t.done()}
         fut = self.file_action_provider.get_listing(path)
         if fut:
-            self._listing_tasks.add(fut)
+            self._listing_action_tasks.add(fut)
 
     def _listing_done(self, path: str|pathlib.Path, items: list[structs.DirEntry]|Exception):
         # deal with cache
@@ -306,6 +332,37 @@ class FilePicker:
         if not from_cache:
             self.refreshing = False
             self.elapsed = 0.0
+
+    def _launch_action(self, action: str, path: str|pathlib.Path, path2: str|pathlib.Path = None):
+        # clean up finished tasks
+        self._listing_action_tasks = {t for t in self._listing_action_tasks if not t.done()}
+        match action:
+            case 'make_dir':
+                fut = self.file_action_provider.make_dir(path)
+            case 'rename_path':
+                fut = self.file_action_provider.rename_path(path, path2)
+            case 'delete_path':
+                fut = self.file_action_provider.delete_path(path)
+        if fut:
+            self._listing_action_tasks.add(fut)
+
+    def _action_done(self, path: pathlib.Path, action: str, result: None|pathlib.Path|Exception):
+        if isinstance(result, Exception):
+            match action:
+                case 'make_dir':
+                    action_lbl = 'making'
+                case 'rename_path':
+                    action_lbl = 'renaming'
+                case 'delete_path':
+                    action_lbl = 'deleting'
+            utils.push_popup(self, msgbox.msgbox, "Action error", f"Something went wrong {action_lbl} the directory {path}:\n{result}", msgbox.MsgBox.error)
+
+        # trigger refresh of parent path where actions occurred
+        self._request_listing(path.parent)
+        # if there is a result path and it has a different parent than the action path, refresh that one too
+        if isinstance(result, pathlib.Path) and result.parent!=path.parent:
+            self._request_listing(result.parent)
+
 
     def _select_paths(self, paths: list[pathlib.Path]):
         got_one = False
@@ -864,7 +921,7 @@ class FilePicker:
                         utils.set_all(self.selected, False)  # deselect on right mouse click as well
                     if has_context_menu and imgui.begin_popup_context_item("##file_list_context"):   # NB: mouse up
                         if imgui.selectable(f"New folder##button", False)[0]:
-                            self._show_new_folder_dialog()
+                            self._show_new_folder_dialog(self.loc)
                         imgui.end_popup()
 
         imgui.end_child()
@@ -892,7 +949,7 @@ class FilePicker:
                 return 0 if enter_pressed else None
 
             buttons = {
-                icons_fontawesome.ICON_FA_CHECK+" Rename": None,
+                icons_fontawesome.ICON_FA_CHECK+" Rename": lambda: self._launch_action('rename_path', self.items[iid].full_path, self.items[iid].full_path.parent / item_name),
                 icons_fontawesome.ICON_FA_BAN+" Cancel": None
             }
             utils.push_popup(self, lambda: utils.popup("Rename item", _rename_item_popup, buttons = buttons, closable=True))
@@ -900,14 +957,15 @@ class FilePicker:
             def _delete_item_popup():
                 imgui.dummy((30*imgui.calc_text_size('x').x,0))
                 imgui.text(f'Are you sure you want to delete {self.items[iid].full_path.name}?')
+                return 0 if imgui.is_key_released(imgui.Key.enter) else None
             buttons = {
-                icons_fontawesome.ICON_FA_TRASH+" Delete": None,
+                icons_fontawesome.ICON_FA_TRASH+" Delete": lambda: self._launch_action('delete_path', self.items[iid].full_path),
                 icons_fontawesome.ICON_FA_BAN+" Cancel": None
             }
             utils.push_popup(self, lambda: utils.popup("Delete item", _delete_item_popup, buttons = buttons, closable=True))
         if imgui.selectable(f"New folder##button", False)[0]:
-            self._show_new_folder_dialog('yo')
-    def _show_new_folder_dialog(self):
+            self._show_new_folder_dialog(self.items[iid].full_path.parent)
+    def _show_new_folder_dialog(self, parent=pathlib.Path):
         new_folder_name = ''
         def _new_folder_popup():
             nonlocal new_folder_name
@@ -928,7 +986,7 @@ class FilePicker:
             return 0 if enter_pressed else None
 
         buttons = {
-            icons_fontawesome.ICON_FA_CHECK+" Make folder": None,
+            icons_fontawesome.ICON_FA_CHECK+" Make folder": lambda: self._launch_action('make_dir',parent/new_folder_name),
             icons_fontawesome.ICON_FA_BAN+" Cancel": None
         }
         utils.push_popup(self, lambda: utils.popup("Make folder", _new_folder_popup, buttons = buttons, closable=True))
