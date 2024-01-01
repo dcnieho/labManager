@@ -951,7 +951,7 @@ class FilePicker:
         if imgui.selectable(f"New folder here##button", False)[0]:
             self._show_new_folder_dialog(self.items[iids[0]].full_path.parent)
     def _show_new_folder_dialog(self, parent=pathlib.Path):
-        new_folder_name = ''
+        new_folder_name = 'New folder'
         setup_done = False
         def _new_folder_popup():
             nonlocal new_folder_name, setup_done
