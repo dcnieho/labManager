@@ -252,21 +252,6 @@ class FilePicker:
         for t in self._listing_action_tasks:
             t.cancel()
 
-    # if passed a single directory will show that directory
-    # if passed a single file, or multiple files and/or directories, will
-    # open the parent of those and select them (kinda like "show in folder")
-    def set_dir(self, paths: pathlib.Path | list[pathlib.Path]):
-        if not isinstance(paths,list):
-            paths = [paths]
-        paths = [pathlib.Path(p) for p in paths]
-
-        if len(paths)==1 and paths[0].is_dir():
-            self.goto(paths[0])
-        else:
-            self.goto(paths[0].parent)
-            # select dropped items that match predicate (if any)
-            self._select_paths(paths)
-
     def goto(self, loc: str | pathlib.Path, add_history=True):
         is_root = False
         if isinstance(loc, str):
