@@ -105,25 +105,35 @@ class FileActionProvider:
             remotes = {c:self.master.clients[c].name for c in self.master.clients if self.master.clients[c].online}
         return remotes
 
-    def _resolve_machine(self, machine: str|None) -> tuple[str, bool, int|None]:
+    remote_prefix = 'machine: remote: '
+    @staticmethod
+    def get_full_machine_name(name: str):
+        if name=='local':
+            return 'machine: local'
+        else:
+            # assume remote
+            return FileActionProvider.remote_prefix + name.strip()
+
+    def resolve_machine(self, machine: str|None) -> tuple[str, bool, int|None]:
         is_local = True
         client_id = None
-        if machine is None or machine=='local':
-            machine = 'machine: local'
-        elif machine!='machine: local':
-            machine = machine.removeprefix('machine: remote: ')
+        local_name = self.get_full_machine_name('local')
+        if machine in [None,'local',local_name]:
+            machine = local_name
+        else:
+            machine = machine.removeprefix(self.remote_prefix).strip()
             for cid, name in self.get_remotes().items():
                 if name==machine:
                     client_id = cid
-            if cid is None:
+            if client_id is None:
                 raise ValueError(f"Machine {machine} was not found among connected machines")
             is_local = False
-            machine = 'machine: remote: ' + machine
+            machine = self.get_full_machine_name(machine)
         return machine, is_local, client_id
 
 
     def get_listing(self, machine: str, path: str|pathlib.Path) -> list[structs.DirEntry]|concurrent.futures.Future:
-        machine, is_local, client_id = self._resolve_machine(machine)
+        machine, is_local, client_id = self.resolve_machine(machine)
         fut = None
         if is_local:
             if path=='root':
@@ -145,6 +155,10 @@ class FileActionProvider:
                     except Exception as exc:
                         result = exc
                     self._listing_done(result, machine, path)
+        else:
+            if path=='root':
+                async_thread.run(self.master.get_client_drives(self.master.clients[client_id]))
+                fut = async_thread.run(asyncio.wait_for(self.master.add_waiter('file-listing', 'root'), timeout=None), lambda f: self._listing_done(f, machine, path))
         if fut:
             self.waiters.add(fut)
         return fut
@@ -167,10 +181,15 @@ class FileActionProvider:
         if result is None or self.listing_callback is None:
             return
 
-        if isinstance(result,list) and isinstance(path,str) and path=='root':
-            # add network computers
-            for n in self.network_computers:    # indexed by name, so can just use n
-                result.append(self.network_computers[n][0]) # (value is tuple[DirEntry,ip:str]), get the DirEntry
+        machine, is_local, client_id = self.resolve_machine(machine)
+        if is_local:
+            if isinstance(result,list) and isinstance(path,str) and path=='root':
+                # add network computers
+                for n in self.network_computers:    # indexed by name, so can just use n
+                    result.append(self.network_computers[n][0]) # (value is tuple[DirEntry,ip:str]), get the DirEntry
+        else:
+            # retrieve result
+            result = self.master.clients[client_id].online.file_listings[path]
         # call callback
         self.listing_callback(machine, path, result)
 
@@ -241,7 +260,7 @@ class FilePicker:
         self.sorted_items: list[int] = []
         self.last_clicked_id: int = None
 
-        self.machine: str = 'machine: local'
+        self.machine: str = None
         self.loc: pathlib.Path = None
         self.refreshing = False
         self.new_loc = False
@@ -253,7 +272,7 @@ class FilePicker:
         self.default_flags = custom_popup_flags or FilePicker.default_flags
         self.platform_is_windows = sys.platform.startswith("win")
 
-        self.goto(self.machine, start_dir or '.')
+        self.goto('local', start_dir or '.')
         self._request_listing(self.machine, 'root')   # request root listing so we have the drive names
 
     def __del__(self):
@@ -282,7 +301,7 @@ class FilePicker:
                     path = path.resolve()
 
         if machine!=self.machine or path!=self.loc:
-            self.machine = machine
+            self.machine = self.file_action_provider.resolve_machine(machine)[0]
             self.loc = path
             self.new_loc = True
             if add_history:
@@ -609,7 +628,7 @@ class FilePicker:
                 btn_list.append(make_elem(self._get_path_leaf_display_name(self.machine,loc), loc))
                 btn_list.append(make_elem(separator, 'sep'))
                 loc = self._get_parent(loc)
-            btn_list.append(('machine: local', icons_fontawesome.ICON_FA_DESKTOP, imgui.calc_text_size(icons_fontawesome.ICON_FA_DESKTOP).x))
+            btn_list.append((self.machine, icons_fontawesome.ICON_FA_DESKTOP, imgui.calc_text_size(icons_fontawesome.ICON_FA_DESKTOP).x))
             btn_list.reverse()
 
             # check if whole path fits, else shorten
@@ -630,7 +649,7 @@ class FilePicker:
             # draw buttons on the frame
             imgui.push_style_var(imgui.StyleVar_.item_spacing, (0, imgui.get_style().item_spacing.y))
             imgui.push_style_var(imgui.StyleVar_.frame_border_size, 0)
-            open_popup = False
+            open_popup = 0
             for i,b in enumerate(btn_list):
                 id_str      = f'###path_comp_{i}'
                 button_pos  = imgui.get_cursor_screen_pos()
@@ -641,22 +660,27 @@ class FilePicker:
                     lbl = 'v'
                 if imgui.button(lbl+id_str):
                     if isinstance(b[0],str):
-                        if i<2:
-                            # machine or first separator: nothing to do
+                        if i==0:
+                            # machine, enqueue opening machine selection dropdown
+                            open_popup = 1
+                            self.path_bar_popup['pos'] = button_pos
+                            self.path_bar_popup['which_selected'] = self.machine
+                        elif i==1:
+                            # first separator: nothing to do
                             pass
                         elif b[0]=='sep':
-                            # path separator button, queue to open dropdown
+                            # path separator button, enqueue opening path selection dropdown
                             self.path_bar_popup['loc'] = btn_list[i-1][0]
                             self.path_bar_popup['which'] = i-1
                             self.path_bar_popup['which_selected'] = btn_list[i+1][1]
                             self.path_bar_popup['pos'] = button_pos
-                            open_popup = True
+                            open_popup = 2
                         elif b[0]=='ellipsis':
                             # draw dropdown with removed paths
                             self.path_bar_popup['loc'] = 'ellipsis'
                             self.path_bar_popup['which'] = None
                             self.path_bar_popup['pos'] = button_pos
-                            open_popup = True
+                            open_popup = 2
                         else:
                             self.goto(self.machine, b[0])
                     else:
@@ -666,13 +690,31 @@ class FilePicker:
             imgui.pop_style_var(2)
             imgui.pop_clip_rect()
 
-            if open_popup:
+            do_open_popup = False
+            if open_popup==1:
+                # machine selector
+                imgui.open_popup('##machine_list_popup')
+                do_open_popup = True
+            elif open_popup==2:
+                # directory selector
                 if (isinstance(self.path_bar_popup['loc'],str) and self.path_bar_popup['loc']=='ellipsis') or \
                     (self.machine,self.path_bar_popup['loc']) in self._listing_cache:
                     imgui.open_popup('##dir_list_popup')
-                    # move y down
-                    self.path_bar_popup['pos'].y += imgui.calc_text_size('x').y+2*imgui.get_style().frame_padding.y+imgui.get_style().item_spacing.y
-                    imgui.set_next_window_pos(self.path_bar_popup['pos'])
+                    do_open_popup = True
+            if do_open_popup:
+                # position popup: move button height down so it pops under the button
+                self.path_bar_popup['pos'].y += imgui.calc_text_size('x').y+2*imgui.get_style().frame_padding.y+imgui.get_style().item_spacing.y
+                imgui.set_next_window_pos(self.path_bar_popup['pos'])
+            if imgui.begin_popup('##machine_list_popup'):
+                display_names = ['local']+list(self.file_action_provider.get_remotes().values())
+                machines = [self.file_action_provider.get_full_machine_name(r) for r in display_names]
+                idx = machines.index(self.machine)
+
+                changed, idx = imgui.list_box('##machine_list_popup_select',idx,display_names)
+                if changed:
+                    self.goto(machines[idx], 'root')
+                    imgui.close_current_popup()
+                imgui.end_popup()
             if imgui.begin_popup('##dir_list_popup'):
                 key = (self.machine,self.path_bar_popup['loc'])
                 if key in self._listing_cache:
