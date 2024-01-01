@@ -100,41 +100,46 @@ class FileActionProvider:
     def supports_remote(self):
         return True if self.master else False
 
-    def get_remotes(self):
+    def get_remotes(self) -> dict[int,str]:
         with self.master.clients_lock:
-            remotes = [self.master.clients[c].name for c in self.master.clients if self.master.clients[c].online]
+            remotes = {c:self.master.clients[c].name for c in self.master.clients if self.master.clients[c].online}
         return remotes
 
-    def _resolve_machine(self, machine: str|None):
-        if machine is None:
+    def _resolve_machine(self, machine: str|None) -> tuple[str, bool, int|None]:
+        is_local = True
+        client_id = None
+        if machine is None or machine=='local':
             machine = 'machine: local'
         elif machine!='machine: local':
-            remotes = self.get_remotes()
-            if machine not in remotes:
+            machine = machine.removeprefix('machine: remote: ')
+            for cid, name in self.get_remotes().items():
+                if name==machine:
+                    client_id = cid
+            if cid is None:
                 raise ValueError(f"Machine {machine} was not found among connected machines")
+            is_local = False
             machine = 'machine: remote: ' + machine
-        return machine
+        return machine, is_local, client_id
 
 
     def get_listing(self, machine: str, path: str|pathlib.Path) -> list[structs.DirEntry]|concurrent.futures.Future:
-        machine = self._resolve_machine(machine)
-        if path=='root':
-            fut = self._get_drives(machine)
-        else:
-            # check whether this is a path to a network computer (e.g. \\SERVER)
-            net_comp = get_net_computer(path)
-            if net_comp:
-                # network computer name, get its shares
-                fut = async_thread.run(smb.get_shares(net_comp,'Guest',''), lambda f: self._listing_done(f, machine, path))
+        machine, is_local, client_id = self._resolve_machine(machine)
+        fut = None
+        if is_local:
+            if path=='root':
+                self._listing_done(file_actions.get_drives(), machine, 'root')
             else:
-                # normal directory or share on a network computer, no special handling needed
-                fut = async_thread.run(file_actions.get_dir_list(path), lambda f: self._listing_done(f, machine, path))
+                # check whether this is a path to a network computer (e.g. \\SERVER)
+                net_comp = get_net_computer(path)
+                if net_comp:
+                    # network computer name, get its shares
+                    fut = async_thread.run(smb.get_shares(net_comp,'Guest',''), lambda f: self._listing_done(f, machine, path))
+                else:
+                    # normal directory or share on a network computer, no special handling needed
+                    self._listing_done(file_actions.get_dir_list_sync(path), machine, path)
         if fut:
             self.waiters.add(fut)
         return fut
-
-    def _get_drives(self, machine: str) -> None:
-        self._listing_done(file_actions.get_drives(), machine, 'root')
 
     async def _get_network_computers(self):
         try:
