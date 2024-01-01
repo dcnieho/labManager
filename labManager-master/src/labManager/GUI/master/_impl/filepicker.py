@@ -53,7 +53,10 @@ class DirEntryWithCache(structs.DirEntry):
             while size>1024:
                 i+=1
                 size /= 1024
-            self.size_str = f'{size:.1f} {units[i]}'
+            if i==0:
+                self.size_str = f'{size:.0f} {units[i]}'
+            else:
+                self.size_str = f'{size:.1f} {units[i]}'
 
 
 def split_network_path(path: str|pathlib.Path) -> list[str]:
