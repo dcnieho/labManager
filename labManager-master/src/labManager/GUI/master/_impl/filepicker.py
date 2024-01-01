@@ -942,7 +942,6 @@ class FilePicker:
             def _rename_item_popup():
                 nonlocal item_name, setup_done
                 imgui.dummy((30*imgui.calc_text_size('x').x,0))
-                enter_pressed = False
                 if imgui.begin_table("##rename_item",2):
                     imgui.table_setup_column("##rename_item_left", imgui.TableColumnFlags_.width_fixed)
                     imgui.table_setup_column("##rename_item_right", imgui.TableColumnFlags_.width_stretch)
@@ -956,9 +955,8 @@ class FilePicker:
                         imgui.set_keyboard_focus_here()
                         setup_done = True
                     _,item_name = imgui.input_text("##new_rename_item", item_name)
-                    enter_pressed = imgui.is_item_deactivated_after_edit()
                     imgui.end_table()
-                return 0 if enter_pressed else None
+                return 0 if imgui.is_key_released(imgui.Key.enter) else None
 
             buttons = {
                 icons_fontawesome.ICON_FA_CHECK+" Rename": lambda: self._launch_action('rename_path', item, item.parent / item_name),
@@ -977,7 +975,6 @@ class FilePicker:
         def _new_folder_popup():
             nonlocal new_folder_name, setup_done
             imgui.dummy((30*imgui.calc_text_size('x').x,0))
-            enter_pressed = False
             if imgui.begin_table("##new_folder",2):
                 imgui.table_setup_column("##new_folder_left", imgui.TableColumnFlags_.width_fixed)
                 imgui.table_setup_column("##new_folder_right", imgui.TableColumnFlags_.width_stretch)
@@ -991,9 +988,8 @@ class FilePicker:
                     imgui.set_keyboard_focus_here()
                     setup_done = True
                 _,new_folder_name = imgui.input_text("##new_folder_name", new_folder_name)
-                enter_pressed = imgui.is_item_deactivated_after_edit()
                 imgui.end_table()
-            return 0 if enter_pressed else None
+            return 0 if imgui.is_key_released(imgui.Key.enter) else None
 
         buttons = {
             icons_fontawesome.ICON_FA_CHECK+" Make folder": lambda: self._launch_action('make_dir',parent/new_folder_name),

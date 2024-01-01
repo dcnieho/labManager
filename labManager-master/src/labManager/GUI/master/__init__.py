@@ -861,7 +861,6 @@ class MainGUI:
                 def _add_image_popup():
                     nonlocal new_image_name
                     imgui.dummy((30*imgui.calc_text_size('x').x,0))
-                    enter_pressed = False
                     if imgui.begin_table("##new_image_info",2):
                         imgui.table_setup_column("##new_image_infos_left", imgui.TableColumnFlags_.width_fixed)
                         imgui.table_setup_column("##new_image_infos_right", imgui.TableColumnFlags_.width_stretch)
@@ -872,9 +871,8 @@ class MainGUI:
                         imgui.table_next_column()
                         imgui.set_next_item_width(-1)
                         _,new_image_name = imgui.input_text("##new_image_name",new_image_name)
-                        enter_pressed = imgui.is_item_deactivated_after_edit()
                         imgui.end_table()
-                    return 0 if enter_pressed else None
+                    return 0 if imgui.is_key_released(imgui.Key.enter) else None
 
                 buttons = {
                     icons_fontawesome.ICON_FA_CHECK+" Add image": lambda: async_thread.run(self.master.toems_create_disk_image(new_image_name),
@@ -921,7 +919,6 @@ class MainGUI:
                                 def _rename_image_popup():
                                     nonlocal new_image_name
                                     imgui.dummy((30*imgui.calc_text_size('x').x,0))
-                                    enter_pressed = False
                                     if imgui.begin_table("##edit_image",2):
                                         imgui.table_setup_column("##edit_image_left", imgui.TableColumnFlags_.width_fixed)
                                         imgui.table_setup_column("##edit_image_right", imgui.TableColumnFlags_.width_stretch)
@@ -932,9 +929,8 @@ class MainGUI:
                                         imgui.table_next_column()
                                         imgui.set_next_item_width(-1)
                                         _,new_image_name = imgui.input_text("##edited_image_name",new_image_name)
-                                        enter_pressed = imgui.is_item_deactivated_after_edit()
                                         imgui.end_table()
-                                    return 0 if enter_pressed else None
+                                    return 0 if imgui.is_key_released(imgui.Key.enter) else None
 
                                 buttons = {
                                     icons_fontawesome.ICON_FA_CHECK+" Rename image": lambda: async_thread.run(self.master.toems_update_disk_image(im['Name'],{'Name':self.master.project + '_' + new_image_name}),
@@ -1359,11 +1355,9 @@ class MainGUI:
                     if tsk.interactive and tsk.status==structs.Status.Running and ((item.id, tid[1]) not in self._computer_GUI_interactive_sent_finish or not self._computer_GUI_interactive_sent_finish[(item.id, tid[1])]):
                         if (item.id, tid[1]) not in self._computer_GUI_interactive_tasks:
                             self._computer_GUI_interactive_tasks[(item.id, tid[1])] = ''
-                        _, self._computer_GUI_interactive_tasks[(item.id, tid[1])] = \
-                            imgui.input_text(f'##interactive_input{item.id},{tid[1]}', self._computer_GUI_interactive_tasks[(item.id, tid[1])], flags=imgui.InputTextFlags_.escape_clears_all)
-                        enter_pressed = False
-                        if imgui.is_item_deactivated_after_edit():
-                            enter_pressed = True
+                        enter_pressed, self._computer_GUI_interactive_tasks[(item.id, tid[1])] = \
+                            imgui.input_text(f'##interactive_input{item.id},{tid[1]}', self._computer_GUI_interactive_tasks[(item.id, tid[1])], flags=imgui.InputTextFlags_.enter_returns_true|imgui.InputTextFlags_.escape_clears_all)
+                        if enter_pressed:
                             imgui.set_keyboard_focus_here(-1)   # refocus above input_text box
                         if (disabled := not self._computer_GUI_interactive_tasks[(item.id, tid[1])]):
                             utils.push_disabled()
