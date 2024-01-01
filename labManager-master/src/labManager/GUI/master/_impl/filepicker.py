@@ -178,11 +178,13 @@ class FileActionProvider:
         if result=='cancelled':
             return  # nothing more to do
 
-        if result is None or self.listing_callback is None:
+        if self.listing_callback is None:
             return
 
         machine, is_local, client_id = self.resolve_machine(machine)
         if is_local:
+            if result is None:
+                return
             if isinstance(result,list) and isinstance(path,str) and path=='root':
                 # add network computers
                 for n in self.network_computers:    # indexed by name, so can just use n
