@@ -12,6 +12,7 @@ from typing import Any, Callable
 from labManager.common import async_thread, file_actions, structs
 from labManager.common.network import net_names, smb
 from . import msgbox, utils
+from .... import master
 
 
 DRIVE_ICON = icons_fontawesome.ICON_FA_HDD
@@ -76,11 +77,13 @@ def get_net_computer(path: str|pathlib.Path):
     return None
 
 class FileActionProvider:
-    def __init__(self, listing_callback: Callable[[list[structs.DirEntry]|Exception, bool], None], action_callback: Callable[[pathlib.Path, str, pathlib.Path|Exception], None], network: str = None):
+    def __init__(self, listing_callback: Callable[[str, str|pathlib.Path, list[structs.DirEntry]|Exception], None], action_callback: Callable[[str, pathlib.Path, str, pathlib.Path|Exception], None], master: master.Master, network: str = None):
         self.waiters: set[concurrent.futures.Future] = set()
 
         self.listing_callback: Callable[[list[structs.DirEntry]|Exception, bool], None] = listing_callback
         self.action_callback:  Callable[[pathlib.Path|Exception, str], None] = action_callback
+
+        self.master = master
 
         self.network: str|None = network
         self.network_computers: dict[str,tuple[structs.DirEntry,str]] = {}
@@ -94,23 +97,44 @@ class FileActionProvider:
         for w in self.waiters:
             w.cancel()
 
-    def get_listing(self, path: str|pathlib.Path) -> tuple[list[structs.DirEntry], concurrent.futures.Future]:
+    def supports_remote(self):
+        return True if self.master else False
+
+    def get_remotes(self):
+        with self.master.clients_lock:
+            remotes = [self.master.clients[c].name for c in self.clients if self.clients[c].online]
+        return remotes
+
+    def _resolve_machine(self, machine: str|None):
+        if machine is None:
+            machine = 'machine: local'
+        else:
+            remotes = self.get_remotes()
+            if machine not in remotes:
+                raise ValueError(f"Machine {machine} was not found among connected machines")
+            machine = 'machine: remote: ' + machine
+        return machine
+
+
+    def get_listing(self, machine: str, path: str|pathlib.Path) -> list[structs.DirEntry]|concurrent.futures.Future:
+        machine = self._resolve_machine(machine)
         if path=='root':
-            fut = self._get_drives()
+            fut = self._get_drives(machine)
         else:
             # check whether this is a path to a network computer (e.g. \\SERVER)
             net_comp = get_net_computer(path)
             if net_comp:
                 # network computer name, get its shares
-                fut = async_thread.run(smb.get_shares(net_comp,'Guest',''), lambda f: self.listing_done(f, path))
+                fut = async_thread.run(smb.get_shares(net_comp,'Guest',''), lambda f: self._listing_done(f, machine, path))
             else:
                 # normal directory or share on a network computer, no special handling needed
-                fut = async_thread.run(file_actions.get_dir_list(path), lambda f: self.listing_done(f, path))
+                fut = async_thread.run(file_actions.get_dir_list(path), lambda f: self._listing_done(f, machine, path))
+        if fut:
             self.waiters.add(fut)
-        return fut   # can return any cache we may have. Understood to be potentially stale
+        return fut
 
-    def _get_drives(self) -> None:
-        self.listing_done(file_actions.get_drives(), 'root')
+    def _get_drives(self, machine: str) -> None:
+        self._listing_done(file_actions.get_drives(), machine, 'root')
 
     async def _get_network_computers(self):
         try:
@@ -122,7 +146,7 @@ class FileActionProvider:
         except concurrent.futures.CancelledError:
             pass    # we broke out of the loop: cancellation processed
 
-    def listing_done(self, fut: concurrent.futures.Future|list[structs.DirEntry], path: str|pathlib.Path):
+    def _listing_done(self, fut: concurrent.futures.Future|list[structs.DirEntry], machine: str, path: str|pathlib.Path):
         result = self._get_result_from_future(fut)
         if result=='cancelled':
             return  # nothing more to do
@@ -135,24 +159,24 @@ class FileActionProvider:
             for n in self.network_computers:    # indexed by name, so can just use n
                 result.append(self.network_computers[n][0]) # (value is tuple[DirEntry,ip:str]), get the DirEntry
         # call callback
-        self.listing_callback(path, result)
+        self.listing_callback(machine, path, result)
 
-    def make_dir(self, path: pathlib.Path):
-        fut = async_thread.run(file_actions.make_dir(path), lambda f: self.action_done(f, path, 'make_dir'))
+    def make_dir(self, machine: str, path: pathlib.Path):
+        fut = async_thread.run(file_actions.make_dir(path), lambda f: self._action_done(f, machine, path, 'make_dir'))
         self.waiters.add(fut)
         return fut
 
-    def rename_path(self, old_path: pathlib.Path, new_path: pathlib.Path):
-        fut = async_thread.run(file_actions.rename_path(old_path, new_path), lambda f: self.action_done(f, old_path, 'rename_path'))
+    def rename_path(self, machine: str, old_path: pathlib.Path, new_path: pathlib.Path):
+        fut = async_thread.run(file_actions.rename_path(old_path, new_path), lambda f: self._action_done(f, machine, old_path, 'rename_path'))
         self.waiters.add(fut)
         return fut
 
-    def delete_path(self, path: pathlib.Path):
-        fut = async_thread.run(file_actions.delete_path(path), lambda f: self.action_done(f, path, 'delete_path'))
+    def delete_path(self, machine: str, path: pathlib.Path):
+        fut = async_thread.run(file_actions.delete_path(path), lambda f: self._action_done(f, machine, path, 'delete_path'))
         self.waiters.add(fut)
         return fut
 
-    def action_done(self, fut: concurrent.futures.Future, path: pathlib.Path, action: str):
+    def _action_done(self, fut: concurrent.futures.Future, machine: str, path: pathlib.Path, action: str):
         result = self._get_result_from_future(fut)
         if result=='cancelled':
             return  # nothing more to do
@@ -161,7 +185,7 @@ class FileActionProvider:
             return
 
         # call callback
-        self.action_callback(path, action, result)
+        self.action_callback(machine, path, action, result)
 
     def _get_result_from_future(self, fut: concurrent.futures.Future|list[structs.DirEntry]) -> list[structs.DirEntry]:
         if isinstance(fut, concurrent.futures.Future):
@@ -182,13 +206,14 @@ class FilePicker:
         imgui.WindowFlags_.no_saved_settings
     )
 
-    def __init__(self, title="File picker", start_dir: str | pathlib.Path = None, callback: typing.Callable = None, allow_multiple = True, file_action_provider=None, network: str = None, custom_popup_flags=0):
+    def __init__(self, title="File picker", start_dir: str | pathlib.Path = None, callback: typing.Callable = None, allow_multiple = True, file_action_provider_args=None, custom_popup_flags=0):
         self.title = title
         self.elapsed = 0.0
         self.callback = callback
-        self.file_action_provider = file_action_provider
-        if self.file_action_provider is None:
-            self.file_action_provider = FileActionProvider(self._listing_done, self._action_done, network)
+        if file_action_provider_args:
+            self.file_action_provider = FileActionProvider(self._listing_done, self._action_done, **file_action_provider_args)
+        else:
+            self.file_action_provider = FileActionProvider(self._listing_done, self._action_done)
 
         self._listing_cache: dict[str|pathlib.Path, dict[int,DirEntryWithCache]] = {}
         self.popup_stack = []
@@ -286,11 +311,11 @@ class FilePicker:
     def _request_listing(self, path: str|pathlib.Path):
         # clean up finished tasks
         self._listing_action_tasks = {t for t in self._listing_action_tasks if not t.done()}
-        fut = self.file_action_provider.get_listing(path)
+        fut = self.file_action_provider.get_listing(None, path)
         if fut:
             self._listing_action_tasks.add(fut)
 
-    def _listing_done(self, path: str|pathlib.Path, items: list[structs.DirEntry]|Exception):
+    def _listing_done(self, machine: str, path: str|pathlib.Path, items: list[structs.DirEntry]|Exception):
         # deal with cache
         if not isinstance(items, Exception):
             items = {i:DirEntryWithCache(item) for i,item in enumerate(items)}
@@ -339,15 +364,15 @@ class FilePicker:
         self._listing_action_tasks = {t for t in self._listing_action_tasks if not t.done()}
         match action:
             case 'make_dir':
-                fut = self.file_action_provider.make_dir(path)
+                fut = self.file_action_provider.make_dir(None, path)
             case 'rename_path':
-                fut = self.file_action_provider.rename_path(path, path2)
+                fut = self.file_action_provider.rename_path(None, path, path2)
             case 'delete_path':
-                fut = self.file_action_provider.delete_path(path)
+                fut = self.file_action_provider.delete_path(None, path)
         if fut:
             self._listing_action_tasks.add(fut)
 
-    def _action_done(self, path: pathlib.Path, action: str, result: None|pathlib.Path|Exception):
+    def _action_done(self, machine: str, path: pathlib.Path, action: str, result: None|pathlib.Path|Exception):
         if isinstance(result, Exception):
             match action:
                 case 'make_dir':
