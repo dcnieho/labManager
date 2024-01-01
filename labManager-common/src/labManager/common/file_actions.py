@@ -94,6 +94,23 @@ async def get_dir_list(path: pathlib.Path) -> list[structs.DirEntry]:
 
     return out
 
+def get_dir_list_sync(path: pathlib.Path) -> list[structs.DirEntry]:
+    # will throw when path doesn't exist or is not a directory
+    path = pathlib.Path(path)
+    out = []
+    for e in path.iterdir():
+        try:
+            stat = e.stat()
+            item = structs.DirEntry(e.name, e.is_dir(), pathlib.Path(e),
+                                    stat.st_ctime, stat.st_mtime, stat.st_size,
+                                    mimetypes.guess_type(e)[0])
+        except:
+            pass
+        else:
+            out.append(item)
+
+    return out
+
 async def make_dir(path: str | pathlib.Path):
     pathvalidate.validate_filepath(path, "auto")
     path = aiopath.AsyncPath(path)
