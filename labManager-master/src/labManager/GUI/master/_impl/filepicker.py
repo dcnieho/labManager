@@ -765,50 +765,48 @@ class FilePicker:
                 imgui.table_setup_column("Size")  # 5
                 imgui.table_setup_scroll_freeze(int(self.allow_multiple), 1)  # Sticky column headers and selector row
 
-                sort_specs = imgui.table_get_sort_specs()
-                self.sort_items(sort_specs)
+                with self.items_lock:
+                    sort_specs = imgui.table_get_sort_specs()
+                    self.sort_items(sort_specs)
 
-                # Headers
-                imgui.table_next_row(imgui.TableRowFlags_.headers)
-                # checkbox column: reflects whether all, some or none of visible recordings are selected, and allows selecting all or none
-                num_selected = sum([self.selected[iid] for iid in self.selected])
-                if self.allow_multiple:
-                    imgui.table_set_column_index(0)
-                    # determine state
-                    if self.predicate:
-                        with self.items_lock:
+                    # Headers
+                    imgui.table_next_row(imgui.TableRowFlags_.headers)
+                    # checkbox column: reflects whether all, some or none of visible recordings are selected, and allows selecting all or none
+                    num_selected = sum([self.selected[iid] for iid in self.selected])
+                    if self.allow_multiple:
+                        imgui.table_set_column_index(0)
+                        # determine state
+                        if self.predicate:
                             num_items = sum([self.predicate(iid) for iid in self.items])
-                    else:
-                        num_items = len(self.items)
-                    if num_selected==0:
-                        # none selected
-                        multi_selected_state = -1
-                    elif num_selected==num_items:
-                        # all selected
-                        multi_selected_state = 1
-                    else:
-                        # some selected
-                        multi_selected_state = 0
+                        else:
+                            num_items = len(self.items)
+                        if num_selected==0:
+                            # none selected
+                            multi_selected_state = -1
+                        elif num_selected==num_items:
+                            # all selected
+                            multi_selected_state = 1
+                        else:
+                            # some selected
+                            multi_selected_state = 0
 
-                    if multi_selected_state==0:
-                        imgui.internal.push_item_flag(imgui.internal.ItemFlags_.mixed_value, True)
-                    clicked, new_state = utils.my_checkbox(f"##header_checkbox", multi_selected_state==1, frame_size=(0,0), do_vertical_align=False)
-                    if multi_selected_state==0:
-                        imgui.internal.pop_item_flag()
+                        if multi_selected_state==0:
+                            imgui.internal.push_item_flag(imgui.internal.ItemFlags_.mixed_value, True)
+                        clicked, new_state = utils.my_checkbox(f"##header_checkbox", multi_selected_state==1, frame_size=(0,0), do_vertical_align=False)
+                        if multi_selected_state==0:
+                            imgui.internal.pop_item_flag()
 
-                    if clicked:
-                        with self.items_lock:
+                        if clicked:
                             utils.set_all(self.selected, new_state, subset = self.sorted_items, predicate=self.predicate)
 
-                for i in range(5):
-                    imgui.table_set_column_index(i+self.allow_multiple)
-                    imgui.table_header(imgui.table_get_column_name(i+self.allow_multiple))
+                    for i in range(5):
+                        imgui.table_set_column_index(i+self.allow_multiple)
+                        imgui.table_header(imgui.table_get_column_name(i+self.allow_multiple))
 
 
-                # Loop rows
-                any_selectable_clicked = False
-                new_loc = None
-                with self.items_lock:
+                    # Loop rows
+                    any_selectable_clicked = False
+                    new_loc = None
                     if self.sorted_items and self.last_clicked_id not in self.sorted_items:
                         # default to topmost if last_clicked unknown, or no longer on screen due to filter
                         self.last_clicked_id = self.sorted_items[0]
@@ -1051,37 +1049,36 @@ class FilePicker:
 
     def sort_items(self, sort_specs_in: imgui.TableSortSpecs):
         if sort_specs_in.specs_dirty or self.require_sort:
-            with self.items_lock:
-                ids = list(self.items)
-                sort_specs = [sort_specs_in.get_specs(i) for i in range(sort_specs_in.specs_count)]
-                for sort_spec in reversed(sort_specs):
-                    match sort_spec.column_index+int(not self.allow_multiple):
-                        case 2:     # Date created
-                            key = lambda iid: self.items[iid].ctime
-                        case 3:     # Date modified
-                            key = lambda iid: self.items[iid].mtime
-                        case 4:     # Type
-                            key = lambda iid: m if (m:=self.items[iid].mime_type) else ''
-                        case 5:     # Size
-                            key = lambda iid: self.items[iid].size
+            ids = list(self.items)
+            sort_specs = [sort_specs_in.get_specs(i) for i in range(sort_specs_in.specs_count)]
+            for sort_spec in reversed(sort_specs):
+                match sort_spec.column_index+int(not self.allow_multiple):
+                    case 2:     # Date created
+                        key = lambda iid: self.items[iid].ctime
+                    case 3:     # Date modified
+                        key = lambda iid: self.items[iid].mtime
+                    case 4:     # Type
+                        key = lambda iid: m if (m:=self.items[iid].mime_type) else ''
+                    case 5:     # Size
+                        key = lambda iid: self.items[iid].size
 
-                        case _:     # Name and all others
-                            key = natsort.os_sort_keygen(key=lambda iid: self.items[iid].full_path)
+                    case _:     # Name and all others
+                        key = natsort.os_sort_keygen(key=lambda iid: self.items[iid].full_path)
 
-                    ids.sort(key=key, reverse=bool(sort_spec.get_sort_direction() - 1))
+                ids.sort(key=key, reverse=bool(sort_spec.get_sort_direction() - 1))
 
-                # finally, always sort dirs first
-                ids.sort(key=lambda iid: self.items[iid].is_dir, reverse=True)
-                self.sorted_items = ids
+            # finally, always sort dirs first
+            ids.sort(key=lambda iid: self.items[iid].is_dir, reverse=True)
+            self.sorted_items = ids
 
-                # apply filter, if any
-                if self.filter_box_text:
-                    search = self.filter_box_text.casefold()
-                    def key(iid):
-                        item = self.items[iid]
-                        return search in item.display_name.casefold()
-                    self.sorted_items = list(filter(key, self.sorted_items))
+            # apply filter, if any
+            if self.filter_box_text:
+                search = self.filter_box_text.casefold()
+                def key(iid):
+                    item = self.items[iid]
+                    return search in item.display_name.casefold()
+                self.sorted_items = list(filter(key, self.sorted_items))
 
-                # we're done
-                sort_specs_in.specs_dirty = False
-                self.require_sort = False
+            # we're done
+            sort_specs_in.specs_dirty = False
+            self.require_sort = False
