@@ -228,7 +228,7 @@ class FilePicker:
         else:
             self.file_action_provider = FileActionProvider(self._listing_done, self._action_done)
 
-        self._listing_cache: dict[str|pathlib.Path, dict[int,DirEntryWithCache]] = {}
+        self._listing_cache: dict[tuple(str,str|pathlib.Path), dict[int,DirEntryWithCache]] = {}
         self.popup_stack = []
 
         self.items: dict[int, DirEntryWithCache] = {}
@@ -245,7 +245,7 @@ class FilePicker:
         self.loc: pathlib.Path = None
         self.refreshing = False
         self.new_loc = False
-        self.history: list[str|pathlib.Path] = []
+        self.history: list[tuple[str,str|pathlib.Path]] = []
         self.history_loc = -1
         self.path_bar_popup: dict[str,Any] = {}
         self._listing_action_tasks: set[concurrent.futures.Future] = set()
@@ -253,42 +253,43 @@ class FilePicker:
         self.default_flags = custom_popup_flags or FilePicker.default_flags
         self.platform_is_windows = sys.platform.startswith("win")
 
-        self.goto(start_dir or '.')
+        self.goto(self.machine, start_dir or '.')
         self._request_listing(self.machine, 'root')   # request root listing so we have the drive names
 
     def __del__(self):
         for t in self._listing_action_tasks:
             t.cancel()
 
-    def goto(self, loc: str | pathlib.Path, add_history=True):
+    def goto(self, machine: str, path: str | pathlib.Path, add_history=True):
         is_root = False
-        if isinstance(loc, str):
-            if loc.casefold()==self._get_path_display_name('root').casefold():
-                loc = 'root'
-            is_root = loc=='root'
+        if isinstance(path, str):
+            if path.casefold()==self._get_path_display_name(machine, 'root').casefold():
+                path = 'root'
+            is_root = path=='root'
 
         if not is_root:
-            if (comp := get_net_computer(loc)):
+            if (comp := get_net_computer(path)):
                 # ensure loc has the format //SERVER/, which is what pathlib understands
-                loc = pathlib.Path(f'//{comp}/')
+                path = pathlib.Path(f'//{comp}/')
             else:
-                loc = pathlib.Path(loc)
-                if loc.is_file():
-                    loc = loc.parent
-                if loc is None:
-                    loc = pathlib.Path('.')
-                if not str(loc).startswith('\\\\') or str(loc).startswith('//'):
+                path = pathlib.Path(path)
+                if path.is_file():
+                    path = path.parent
+                if path is None:
+                    path = pathlib.Path('.')
+                if not str(path).startswith('\\\\') or str(path).startswith('//'):
                     # don't call resolve on network paths
-                    loc = loc.resolve()
+                    path = path.resolve()
 
-        if loc != self.loc:
-            self.loc = loc
+        if machine!=self.machine or path!=self.loc:
+            self.machine = machine
+            self.loc = path
             self.new_loc = True
             if add_history:
                 if self.history_loc>=0:
                     # remove any history after current, as we're appending a new location
                     del self.history[self.history_loc+1:]
-                self.history.append(self.loc)
+                self.history.append((self.machine,self.loc))
                 self.history_loc += 1
             # changing location clears selection
             with self.items_lock:
@@ -296,8 +297,8 @@ class FilePicker:
             # changing location clear filter box
             self.filter_box_text = ''
             # load from cache if available
-            if self.loc in self._listing_cache:
-                self._update_listing(self.loc, True)
+            if (self.machine,self.loc) in self._listing_cache:
+                self._update_listing(self.machine, self.loc, True)
             # load new directory
             self.refresh()
 
@@ -317,21 +318,21 @@ class FilePicker:
         # deal with cache
         if not isinstance(items, Exception):
             items = {i:DirEntryWithCache(item) for i,item in enumerate(items)}
-        self._listing_cache[path] = items
+        self._listing_cache[(machine,path)] = items
 
         if str(path)==str(self.loc):
             # also load all parent paths if not in cache already, so path bar
             # drop downs work
             loc = self.loc
             while loc:
-                if loc not in self._listing_cache:
+                if (machine,loc) not in self._listing_cache:
                     self._request_listing(machine, loc)
                 loc = self._get_parent(loc)
 
             # and update the shown listing
-            self._update_listing(path, False)
+            self._update_listing(machine, path, False)
 
-    def _update_listing(self, path: str|pathlib.Path, from_cache: bool):
+    def _update_listing(self, machine: str, path: str|pathlib.Path, from_cache: bool):
         previously_selected = []
         with self.items_lock:
             if not self.new_loc:
@@ -339,7 +340,7 @@ class FilePicker:
             self.items.clear()
             self.selected.clear()
             self.msg = None
-            items = self._listing_cache[path]
+            items = self._listing_cache[(machine,path)]
             if isinstance(items, Exception):
                 self.msg = f"Cannot open this folder!\n:{items}"
             else:
@@ -424,7 +425,7 @@ class FilePicker:
                 parent = 'root'
         return parent
 
-    def _get_path_display_name(self, path: str | pathlib.Path):
+    def _get_path_display_name(self, machine: str, path: str | pathlib.Path):
         path_str = str(path)
         if path_str=='root':
             loc_str = 'This PC'
@@ -433,18 +434,19 @@ class FilePicker:
                 # pathlib.Path's str() doesn't do the right thing here, render it ourselves
                 loc_str = f'\\\\{comp}'
             else:
-                if isinstance(path,pathlib.Path) and self._get_parent(path)=='root' and 'root' in self._listing_cache:
+                if isinstance(path,pathlib.Path) and self._get_parent(path)=='root' and (machine,'root') in self._listing_cache:
                     # this is a drive root, lookup name of this drive
-                    for i in self._listing_cache['root']:
-                        if self._listing_cache['root'][i].full_path==path:
-                            loc_str = self._listing_cache['root'][i].name
-                        else:
-                            loc_str = path.drive
+                    loc_str = None
+                    for _,l in self._listing_cache[(machine,'root')].items():
+                        if l.full_path==path:
+                            loc_str = l.name
+                    if loc_str is None:
+                        loc_str = path.drive
                 else:
                     loc_str = path_str
         return loc_str
 
-    def _get_path_leaf_display_name(self, path: str | pathlib.Path):
+    def _get_path_leaf_display_name(self, machine: str, path: str | pathlib.Path):
         if isinstance(path, pathlib.Path) and self._get_parent(path)!='root':
             if (net_comps := split_network_path(path)):
                 if len(net_comps)==1:
@@ -458,7 +460,7 @@ class FilePicker:
                     disp_name = str(path)
         else:
             # special string
-            disp_name = self._get_path_display_name(path)
+            disp_name = self._get_path_display_name(machine, path)
         return disp_name
 
     def _get_machine_display_name(self, machine: str):
@@ -495,16 +497,16 @@ class FilePicker:
             utils.push_disabled()
         if imgui.button(icons_fontawesome.ICON_FA_ARROW_LEFT) or (not disabled and enable_keyboard_nav and backspace_released and not shift_down):
             self.history_loc -= 1
-            self.goto(self.history[self.history_loc], add_history=False)
+            self.goto(*self.history[self.history_loc], add_history=False)
         if self.history_loc>0: # don't just use disabled var as we may have just changed self.history_loc
             if imgui.is_item_hovered():
-                utils.draw_tooltip(self._get_path_display_name(self.history[self.history_loc-1]))
+                utils.draw_tooltip(self._get_path_display_name(*self.history[self.history_loc-1]))
             if imgui.begin_popup_context_item(f"##history_back_context"):
                 for i in range(self.history_loc-1,-1,-1):
-                    p = self.history[i]
-                    if imgui.selectable(self._get_path_display_name(p), False)[0]:
+                    m,p = self.history[i]
+                    if imgui.selectable(self._get_path_display_name(m,p), False)[0]:
                         self.history_loc = i
-                        self.goto(p, add_history=False)
+                        self.goto(m,p, add_history=False)
                 imgui.end_popup()
         if disabled:
             utils.pop_disabled()
@@ -515,16 +517,16 @@ class FilePicker:
             utils.push_disabled()
         if imgui.button(icons_fontawesome.ICON_FA_ARROW_RIGHT) or (not disabled and enable_keyboard_nav and backspace_released and shift_down):
             self.history_loc += 1
-            self.goto(self.history[self.history_loc], add_history=False)
+            self.goto(*self.history[self.history_loc], add_history=False)
         if self.history_loc+1<len(self.history): # don't just use disabled var as we may have just changed self.history_loc
             if imgui.is_item_hovered():
-                utils.draw_tooltip(self._get_path_display_name(self.history[self.history_loc+1]))
+                utils.draw_tooltip(self._get_path_display_name(*self.history[self.history_loc+1]))
             if imgui.begin_popup_context_item(f"##history_forward_context"):
                 for i in range(self.history_loc+1,len(self.history)):
-                    p = self.history[i]
-                    if imgui.selectable(self._get_path_display_name(p), False)[0]:
+                    m,p = self.history[i]
+                    if imgui.selectable(self._get_path_display_name(m,p), False)[0]:
                         self.history_loc = i
-                        self.goto(p, add_history=False)
+                        self.goto(m,p, add_history=False)
                 imgui.end_popup()
         if disabled:
             utils.pop_disabled()
@@ -535,9 +537,9 @@ class FilePicker:
         if disabled:
             utils.push_disabled()
         if imgui.button(icons_fontawesome.ICON_FA_ARROW_UP):
-            self.goto(parent)
+            self.goto(self.machine,parent)
         if not disabled and imgui.is_item_hovered():
-            utils.draw_tooltip(self._get_path_display_name(parent))
+            utils.draw_tooltip(self._get_path_display_name(self.machine,parent))
         if disabled:
             utils.pop_disabled()
         # Refresh button
@@ -566,7 +568,7 @@ class FilePicker:
         # filter box
         imgui.same_line()
         imgui.set_next_item_width(imgui.get_content_region_avail().x)
-        _, value = imgui.input_text_with_hint('##filter_box', f'Filter {self._get_path_leaf_display_name(self.loc)}', self.filter_box_text)
+        _, value = imgui.input_text_with_hint('##filter_box', f'Filter {self._get_path_leaf_display_name(self.machine,self.loc)}', self.filter_box_text)
         if value != self.filter_box_text:
             self.filter_box_text = value
             self.require_sort = True
@@ -604,7 +606,7 @@ class FilePicker:
             btn_list = []
             loc = self.loc
             while loc:
-                btn_list.append(make_elem(self._get_path_leaf_display_name(loc), loc))
+                btn_list.append(make_elem(self._get_path_leaf_display_name(self.machine,loc), loc))
                 btn_list.append(make_elem(separator, 'sep'))
                 loc = self._get_parent(loc)
             btn_list.append(('machine: local', icons_fontawesome.ICON_FA_DESKTOP, imgui.calc_text_size(icons_fontawesome.ICON_FA_DESKTOP).x))
@@ -655,9 +657,9 @@ class FilePicker:
                             self.path_bar_popup['pos'] = button_pos
                             open_popup = True
                         else:
-                            self.goto(b[0])
+                            self.goto(self.machine, b[0])
                     else:
-                        self.goto(b[0])
+                        self.goto(self.machine, b[0])
                 path_element_hc = path_element_hc or imgui.is_item_hovered() or imgui.is_item_clicked()
                 imgui.same_line()
             imgui.pop_style_var(2)
@@ -665,25 +667,26 @@ class FilePicker:
 
             if open_popup:
                 if (isinstance(self.path_bar_popup['loc'],str) and self.path_bar_popup['loc']=='ellipsis') or \
-                    self.path_bar_popup['loc'] in self._listing_cache:
+                    (self.machine,self.path_bar_popup['loc']) in self._listing_cache:
                     imgui.open_popup('##dir_list_popup')
                     # move y down
                     self.path_bar_popup['pos'].y += imgui.calc_text_size('x').y+2*imgui.get_style().frame_padding.y+imgui.get_style().item_spacing.y
                     imgui.set_next_window_pos(self.path_bar_popup['pos'])
             if imgui.begin_popup('##dir_list_popup'):
-                if self.path_bar_popup['loc'] in self._listing_cache:
-                    items = self._listing_cache[self.path_bar_popup['loc']]
+                key = (self.machine,self.path_bar_popup['loc'])
+                if key in self._listing_cache:
+                    items = self._listing_cache[key]
                     items = [items[i] for i in items if items[i].is_dir]
                     paths         = [i.full_path for i in items]
-                    display_names = [self._get_path_leaf_display_name(p) for p in paths]
-                elif isinstance(self.path_bar_popup['loc'],str) and self.path_bar_popup['loc']=='ellipsis':
+                    display_names = [self._get_path_leaf_display_name(self.machine,p) for p in paths]
+                elif isinstance(key,str) and key=='ellipsis':
                     display_names = [b[1] for b in btn_removed]
                     paths = [b[0] for b in btn_removed]
                     display_names.reverse()
                     paths.reverse()
                 changed, idx = imgui.list_box('##dir_list_popup_select',-1,display_names)
                 if changed:
-                    self.goto(paths[idx])
+                    self.goto(self.machine, paths[idx])
                     imgui.close_current_popup()
                 imgui.end_popup()
 
@@ -711,10 +714,10 @@ class FilePicker:
                 if not imgui.is_mouse_clicked(imgui.MouseButton_.left):
                     state |= 0b100
 
-            loc_str = self._get_path_display_name(self.loc)
+            loc_str = self._get_path_display_name(self.machine, self.loc)
             confirmed, loc = imgui.input_text("##pathbox_input",loc_str,imgui.InputTextFlags_.enter_returns_true)
             if confirmed:
-                self.goto(loc)
+                self.goto(self.machine, loc)
             if not skip_active_check and not imgui.is_item_active():
                 state &= 0b010
 
@@ -949,7 +952,7 @@ class FilePicker:
                         self._show_delete_path_dialog(selected_ids)
 
                 if new_loc:
-                    self.goto(new_loc)
+                    self.goto(self.machine, new_loc)
                 last_y = imgui.get_cursor_screen_pos().y
                 imgui.end_table()
 
