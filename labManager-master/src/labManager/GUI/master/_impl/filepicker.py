@@ -102,13 +102,13 @@ class FileActionProvider:
 
     def get_remotes(self):
         with self.master.clients_lock:
-            remotes = [self.master.clients[c].name for c in self.clients if self.clients[c].online]
+            remotes = [self.master.clients[c].name for c in self.master.clients if self.master.clients[c].online]
         return remotes
 
     def _resolve_machine(self, machine: str|None):
         if machine is None:
             machine = 'machine: local'
-        else:
+        elif machine!='machine: local':
             remotes = self.get_remotes()
             if machine not in remotes:
                 raise ValueError(f"Machine {machine} was not found among connected machines")
@@ -228,6 +228,7 @@ class FilePicker:
         self.sorted_items: list[int] = []
         self.last_clicked_id: int = None
 
+        self.machine: str = 'machine: local'
         self.loc: pathlib.Path = None
         self.refreshing = False
         self.new_loc = False
@@ -240,7 +241,7 @@ class FilePicker:
         self.platform_is_windows = sys.platform.startswith("win")
 
         self.goto(start_dir or '.')
-        self._request_listing('root')   # request root listing so we have the drive names
+        self._request_listing(self.machine, 'root')   # request root listing so we have the drive names
 
     def __del__(self):
         for t in self._listing_action_tasks:
@@ -262,12 +263,11 @@ class FilePicker:
             self._select_paths(paths)
 
     def goto(self, loc: str | pathlib.Path, add_history=True):
+        is_root = False
         if isinstance(loc, str):
             if loc.casefold()==self._get_path_display_name('root').casefold():
                 loc = 'root'
             is_root = loc=='root'
-        else:
-            is_root = False
 
         if not is_root:
             if (comp := get_net_computer(loc)):
@@ -306,12 +306,12 @@ class FilePicker:
     def refresh(self):
         # launch refresh
         self.refreshing = True
-        self._request_listing(self.loc)
+        self._request_listing(self.machine, self.loc)
 
-    def _request_listing(self, path: str|pathlib.Path):
+    def _request_listing(self, machine: str, path: str|pathlib.Path):
         # clean up finished tasks
         self._listing_action_tasks = {t for t in self._listing_action_tasks if not t.done()}
-        fut = self.file_action_provider.get_listing(None, path)
+        fut = self.file_action_provider.get_listing(machine, path)
         if fut:
             self._listing_action_tasks.add(fut)
 
@@ -327,7 +327,7 @@ class FilePicker:
             loc = self.loc
             while loc:
                 if loc not in self._listing_cache:
-                    self._request_listing(loc)
+                    self._request_listing(machine, loc)
                 loc = self._get_parent(loc)
 
             # and update the shown listing
@@ -364,11 +364,11 @@ class FilePicker:
         self._listing_action_tasks = {t for t in self._listing_action_tasks if not t.done()}
         match action:
             case 'make_dir':
-                fut = self.file_action_provider.make_dir(None, path)
+                fut = self.file_action_provider.make_dir(self.machine, path)
             case 'rename_path':
-                fut = self.file_action_provider.rename_path(None, path, path2)
+                fut = self.file_action_provider.rename_path(self.machine, path, path2)
             case 'delete_path':
-                fut = self.file_action_provider.delete_path(None, path)
+                fut = self.file_action_provider.delete_path(self.machine, path)
         if fut:
             self._listing_action_tasks.add(fut)
 
@@ -381,13 +381,13 @@ class FilePicker:
                     action_lbl = 'renaming'
                 case 'delete_path':
                     action_lbl = 'deleting'
-            utils.push_popup(self, msgbox.msgbox, "Action error", f"Something went wrong {action_lbl} the directory {path}:\n{result}", msgbox.MsgBox.error)
+            utils.push_popup(self, msgbox.msgbox, "Action error", f'Something went wrong {action_lbl} the directory {path} on machine "{self._get_machine_display_name(machine)}":\n{result}', msgbox.MsgBox.error)
 
         # trigger refresh of parent path where actions occurred
-        self._request_listing(path.parent)
+        self._request_listing(machine, path.parent)
         # if there is a result path and it has a different parent than the action path, refresh that one too
         if isinstance(result, pathlib.Path) and result.parent!=path.parent:
-            self._request_listing(result.parent)
+            self._request_listing(machine, result.parent)
 
 
     def _select_paths(self, paths: list[pathlib.Path]):
@@ -462,6 +462,15 @@ class FilePicker:
             # special string
             disp_name = self._get_path_display_name(path)
         return disp_name
+
+    def _get_machine_display_name(self, machine: str):
+        if machine=='machine: local':
+            machine = 'local machine'
+        elif machine.startswith('machine: remote:'):
+            machine = machine.removeprefix('machine: remote: ')
+        else:
+            raise ValueError(f'machine "{machine}" not understood')
+        return machine
 
 
     def draw(self):
