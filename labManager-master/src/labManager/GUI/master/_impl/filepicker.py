@@ -952,10 +952,10 @@ class FilePicker:
             self._show_new_folder_dialog(self.items[iids[0]].full_path.parent)
     def _show_new_folder_dialog(self, parent=pathlib.Path):
         new_folder_name = 'New folder'
+        width = imgui.calc_text_size('x').x*35
         setup_done = False
         def _new_folder_popup():
             nonlocal new_folder_name, setup_done
-            imgui.dummy((30*imgui.calc_text_size('x').x,0))
             if imgui.begin_table("##new_folder",2):
                 imgui.table_setup_column("##new_folder_left", imgui.TableColumnFlags_.width_fixed)
                 imgui.table_setup_column("##new_folder_right", imgui.TableColumnFlags_.width_stretch)
@@ -964,7 +964,7 @@ class FilePicker:
                 imgui.align_text_to_frame_padding()
                 imgui.text("Folder name")
                 imgui.table_next_column()
-                imgui.set_next_item_width(-1)
+                imgui.set_next_item_width(width)
                 if not setup_done:
                     imgui.set_keyboard_focus_here()
                     setup_done = True
@@ -978,10 +978,10 @@ class FilePicker:
         utils.push_popup(self, lambda: utils.popup("Make folder", _new_folder_popup, buttons = buttons, closable=True))
     def _show_rename_path_dialog(self, item: pathlib.Path):
         item_name = item.name
+        width = imgui.calc_text_size('x').x*(len(item_name)+15)
         setup_done = False
         def _rename_item_popup():
             nonlocal item_name, setup_done
-            imgui.dummy((30*imgui.calc_text_size('x').x,0))
             if imgui.begin_table("##rename_item",2):
                 imgui.table_setup_column("##rename_item_left", imgui.TableColumnFlags_.width_fixed)
                 imgui.table_setup_column("##rename_item_right", imgui.TableColumnFlags_.width_stretch)
@@ -990,7 +990,7 @@ class FilePicker:
                 imgui.align_text_to_frame_padding()
                 imgui.text("Item name")
                 imgui.table_next_column()
-                imgui.set_next_item_width(-1)
+                imgui.set_next_item_width(width)
                 if not setup_done:
                     imgui.set_keyboard_focus_here()
                     setup_done = True
@@ -1007,7 +1007,6 @@ class FilePicker:
         paths = [self.items[iid].full_path for iid in iids]
         paths_disp = '\n  '.join([p.name for p in paths])
         def _delete_item_popup():
-            imgui.dummy((30*imgui.calc_text_size('x').x,0))
             imgui.text(f'Are you sure you want to delete \n  {paths_disp}?')
             return 0 if imgui.is_key_released(imgui.Key.enter) else None
         def _launch_deletes():
