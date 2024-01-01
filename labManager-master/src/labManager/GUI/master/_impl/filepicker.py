@@ -933,8 +933,9 @@ class FilePicker:
     def _item_context_menu(self, iid: int):
         if imgui.selectable(f"Rename##button", False)[0]:
             item_name = self.items[iid].full_path.name
+            setup_done = False
             def _rename_item_popup():
-                nonlocal item_name
+                nonlocal item_name, setup_done
                 imgui.dummy((30*imgui.calc_text_size('x').x,0))
                 enter_pressed = False
                 if imgui.begin_table("##rename_item",2):
@@ -946,6 +947,9 @@ class FilePicker:
                     imgui.text("Item name")
                     imgui.table_next_column()
                     imgui.set_next_item_width(-1)
+                    if not setup_done:
+                        imgui.set_keyboard_focus_here()
+                        setup_done = True
                     _,item_name = imgui.input_text("##new_rename_item", item_name)
                     enter_pressed = imgui.is_item_deactivated_after_edit()
                     imgui.end_table()
@@ -970,8 +974,9 @@ class FilePicker:
             self._show_new_folder_dialog(self.items[iid].full_path.parent)
     def _show_new_folder_dialog(self, parent=pathlib.Path):
         new_folder_name = ''
+        setup_done = False
         def _new_folder_popup():
-            nonlocal new_folder_name
+            nonlocal new_folder_name, setup_done
             imgui.dummy((30*imgui.calc_text_size('x').x,0))
             enter_pressed = False
             if imgui.begin_table("##new_folder",2):
@@ -983,6 +988,9 @@ class FilePicker:
                 imgui.text("Folder name")
                 imgui.table_next_column()
                 imgui.set_next_item_width(-1)
+                if not setup_done:
+                    imgui.set_keyboard_focus_here()
+                    setup_done = True
                 _,new_folder_name = imgui.input_text("##new_folder_name", new_folder_name)
                 enter_pressed = imgui.is_item_deactivated_after_edit()
                 imgui.end_table()
