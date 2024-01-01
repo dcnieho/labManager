@@ -648,6 +648,7 @@ class FilePicker:
                             # path separator button, queue to open dropdown
                             self.path_bar_popup['loc'] = btn_list[i-1][0]
                             self.path_bar_popup['which'] = i-1
+                            self.path_bar_popup['which_selected'] = btn_list[i+1][1]
                             self.path_bar_popup['pos'] = button_pos
                             open_popup = True
                         elif b[0]=='ellipsis':
@@ -679,12 +680,14 @@ class FilePicker:
                     items = [items[i] for i in items if items[i].is_dir]
                     paths         = [i.full_path for i in items]
                     display_names = [self._get_path_leaf_display_name(self.machine,p) for p in paths]
+                    idx = display_names.index(self.path_bar_popup['which_selected'])
                 elif isinstance(key,str) and key=='ellipsis':
                     display_names = [b[1] for b in btn_removed]
                     paths = [b[0] for b in btn_removed]
                     display_names.reverse()
                     paths.reverse()
-                changed, idx = imgui.list_box('##dir_list_popup_select',-1,display_names)
+                    idx = -1
+                changed, idx = imgui.list_box('##dir_list_popup_select',idx,display_names)
                 if changed:
                     self.goto(self.machine, paths[idx])
                     imgui.close_current_popup()
