@@ -457,7 +457,7 @@ class FilePicker:
         disabled = self.history_loc<=0
         if disabled:
             utils.push_disabled()
-        if imgui.button(icons_fontawesome.ICON_FA_ARROW_LEFT):
+        if imgui.button(icons_fontawesome.ICON_FA_ARROW_LEFT) or (not disabled and imgui.is_key_released(imgui.Key.backspace) and not imgui.is_key_down(imgui.Key.im_gui_mod_shift)):
             self.history_loc -= 1
             self.goto(self.history[self.history_loc], add_history=False)
         if self.history_loc>0: # don't just use disabled var as we may have just changed self.history_loc
@@ -477,7 +477,7 @@ class FilePicker:
         disabled = self.history_loc+1>=len(self.history)
         if disabled:
             utils.push_disabled()
-        if imgui.button(icons_fontawesome.ICON_FA_ARROW_RIGHT):
+        if imgui.button(icons_fontawesome.ICON_FA_ARROW_RIGHT) or (not disabled and imgui.is_key_released(imgui.Key.backspace) and imgui.is_key_down(imgui.Key.im_gui_mod_shift)):
             self.history_loc += 1
             self.goto(self.history[self.history_loc], add_history=False)
         if self.history_loc+1<len(self.history): # don't just use disabled var as we may have just changed self.history_loc
