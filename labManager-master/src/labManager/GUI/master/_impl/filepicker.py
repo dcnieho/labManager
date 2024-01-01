@@ -841,7 +841,7 @@ class FilePicker:
                                 selectable_clicked, selectable_out = imgui.selectable(f"##{iid}_hitbox", self.selected[iid], flags=imgui.SelectableFlags_.span_all_columns|imgui.SelectableFlags_.allow_overlap|imgui.internal.SelectableFlagsPrivate_.select_on_click, size=(0,frame_height+cell_padding_y))
                                 imgui.set_cursor_pos_y(cur_pos_y)   # instead of imgui.same_line(), we just need this part of its effect
                                 imgui.pop_style_var(3)
-                                selectable_right_clicked = utils.handle_item_hitbox_events(iid, self.selected, context_menu=self._item_context_menu if has_context_menu else None)
+                                selectable_right_clicked = utils.handle_item_hitbox_events(iid, self.selected, context_menu=lambda _: self._item_context_menu([iid for iid in self.selected if self.selected[iid]]) if has_context_menu else None)
                                 has_drawn_hitbox = True
 
                             if ci==int(self.allow_multiple):
@@ -930,9 +930,12 @@ class FilePicker:
         imgui.end_child()
         return closed
 
-    def _item_context_menu(self, iid: int):
+    def _item_context_menu(self, iids: list[int]):
+        disabled = len(iids)!=1
+        if disabled:
+            utils.push_disabled()
         if imgui.selectable(f"Rename##button", False)[0]:
-            item_name = self.items[iid].full_path.name
+            item_name = self.items[iids[0]].full_path.name
             setup_done = False
             def _rename_item_popup():
                 nonlocal item_name, setup_done
@@ -956,22 +959,16 @@ class FilePicker:
                 return 0 if enter_pressed else None
 
             buttons = {
-                icons_fontawesome.ICON_FA_CHECK+" Rename": lambda: self._launch_action('rename_path', self.items[iid].full_path, self.items[iid].full_path.parent / item_name),
+                icons_fontawesome.ICON_FA_CHECK+" Rename": lambda: self._launch_action('rename_path', self.items[iids[0]].full_path, self.items[iids[0]].full_path.parent / item_name),
                 icons_fontawesome.ICON_FA_BAN+" Cancel": None
             }
             utils.push_popup(self, lambda: utils.popup("Rename item", _rename_item_popup, buttons = buttons, closable=True))
+        if disabled:
+            utils.pop_disabled()
         if imgui.selectable(f"Delete##button", False)[0]:
-            def _delete_item_popup():
-                imgui.dummy((30*imgui.calc_text_size('x').x,0))
-                imgui.text(f'Are you sure you want to delete {self.items[iid].full_path.name}?')
-                return 0 if imgui.is_key_released(imgui.Key.enter) else None
-            buttons = {
-                icons_fontawesome.ICON_FA_TRASH+" Delete": lambda: self._launch_action('delete_path', self.items[iid].full_path),
-                icons_fontawesome.ICON_FA_BAN+" Cancel": None
-            }
-            utils.push_popup(self, lambda: utils.popup("Delete item", _delete_item_popup, buttons = buttons, closable=True))
-        if imgui.selectable(f"New folder##button", False)[0]:
-            self._show_new_folder_dialog(self.items[iid].full_path.parent)
+            self._show_delete_path_dialog(iids)
+        if imgui.selectable(f"New folder here##button", False)[0]:
+            self._show_new_folder_dialog(self.items[iids[0]].full_path.parent)
     def _show_new_folder_dialog(self, parent=pathlib.Path):
         new_folder_name = ''
         setup_done = False
@@ -1001,6 +998,22 @@ class FilePicker:
             icons_fontawesome.ICON_FA_BAN+" Cancel": None
         }
         utils.push_popup(self, lambda: utils.popup("Make folder", _new_folder_popup, buttons = buttons, closable=True))
+    def _show_delete_path_dialog(self, iids: list[int]):
+        # NB: assume items lock acquired when this is called
+        files = '\n  '.join([self.items[iid].full_path.name for iid in iids])
+        def _delete_item_popup():
+            imgui.dummy((30*imgui.calc_text_size('x').x,0))
+            imgui.text(f'Are you sure you want to delete \n  {files}?')
+            return 0 if imgui.is_key_released(imgui.Key.enter) else None
+        def _launch_deletes():
+            with self.items_lock:
+                for iid in iids:
+                    self._launch_action('delete_path', self.items[iid].full_path)
+        buttons = {
+            icons_fontawesome.ICON_FA_TRASH+" Delete": _launch_deletes,
+            icons_fontawesome.ICON_FA_BAN+" Cancel": None
+        }
+        utils.push_popup(self, lambda: utils.popup("Delete item", _delete_item_popup, buttons = buttons, closable=True))
 
     def tick(self):
         # Auto refresh
