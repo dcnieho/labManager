@@ -1005,9 +1005,9 @@ class FilePicker:
     def _show_delete_path_dialog(self, iids: list[int]):
         # NB: assume items lock acquired when this is called
         paths = [self.items[iid].full_path for iid in iids]
-        paths_disp = '\n  '.join([p.name for p in paths])
+        paths_disp = '\n '.join([self.items[iid].display_name for iid in iids])
         def _delete_item_popup():
-            imgui.text(f'Are you sure you want to delete \n  {paths_disp}?')
+            imgui.text(f'Are you sure you want to delete \n {paths_disp}')
             return 0 if imgui.is_key_released(imgui.Key.enter) else None
         def _launch_deletes():
             for p in paths:
