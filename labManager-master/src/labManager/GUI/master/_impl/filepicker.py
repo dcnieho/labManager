@@ -453,8 +453,9 @@ class FilePicker:
 
     def draw_top_bar(self):
         enable_keyboard_nav = not self.popup_stack  # no keyboard navigation in this GUI if a popup is open
-        backspace_released = imgui.is_key_released(imgui.Key.backspace)
+        backspace_released = imgui.is_key_pressed(imgui.Key.backspace)
         shift_down = imgui.is_key_down(imgui.Key.im_gui_mod_shift)
+            
         imgui.begin_group()
         # History back button
         disabled = self.history_loc<=0
@@ -1021,7 +1022,7 @@ class FilePicker:
     def tick(self):
         # Auto refresh
         self.elapsed += imgui.get_io().delta_time
-        if self.elapsed > 2 and not self.refreshing:
+        if not self.refreshing and (self.elapsed>2 or imgui.is_key_pressed(imgui.Key.f5)):
             self.refresh()
 
         # Setup popup
