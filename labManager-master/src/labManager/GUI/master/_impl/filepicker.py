@@ -105,21 +105,30 @@ class FileActionProvider:
             remotes = {c:self.master.clients[c].name for c in self.master.clients if self.master.clients[c].online}
         return remotes
 
+    local_name    = 'This PC'
     remote_prefix = 'machine: remote: '
     @staticmethod
     def get_full_machine_name(name: str):
-        if name=='local':
+        if name==FileActionProvider.local_name:
             return 'machine: local'
         else:
             # assume remote
             return FileActionProvider.remote_prefix + name.strip()
 
+    @staticmethod
+    def get_machine_name(full_name: str):
+        if full_name==FileActionProvider.get_full_machine_name(FileActionProvider.local_name):
+            return FileActionProvider.local_name
+        else:
+            # assume remote
+            return full_name.removeprefix(FileActionProvider.remote_prefix).strip()
+
     def resolve_machine(self, machine: str|None) -> tuple[str, bool, int|None]:
         is_local = True
         client_id = None
-        local_name = self.get_full_machine_name('local')
-        if machine in [None,'local',local_name]:
-            machine = local_name
+        full_local_name = self.get_full_machine_name(self.local_name)
+        if machine in [None,self.local_name,full_local_name]:
+            machine = full_local_name
         else:
             machine = machine.removeprefix(self.remote_prefix).strip()
             for cid, name in self.get_remotes().items():
@@ -191,7 +200,7 @@ class FileActionProvider:
                     result.append(self.network_computers[n][0]) # (value is tuple[DirEntry,ip:str]), get the DirEntry
         else:
             # retrieve result
-            result = self.master.clients[client_id].online.file_listings[path]
+            result = self.master.clients[client_id].online.file_listings[path]['listing']
         # call callback
         self.listing_callback(machine, path, result)
 
@@ -274,7 +283,7 @@ class FilePicker:
         self.default_flags = custom_popup_flags or FilePicker.default_flags
         self.platform_is_windows = sys.platform.startswith("win")
 
-        self.goto('local', start_dir or '.')
+        self.goto(self.file_action_provider.local_name, start_dir or '.')
         self._request_listing(self.machine, 'root')   # request root listing so we have the drive names
 
     def __del__(self):
@@ -401,7 +410,7 @@ class FilePicker:
                     action_lbl = 'renaming'
                 case 'delete_path':
                     action_lbl = 'deleting'
-            utils.push_popup(self, msgbox.msgbox, "Action error", f'Something went wrong {action_lbl} the directory {path} on machine "{self._get_machine_display_name(machine)}":\n{result}', msgbox.MsgBox.error)
+            utils.push_popup(self, msgbox.msgbox, "Action error", f'Something went wrong {action_lbl} the directory {path} on machine "{self.file_action_provider.get_machine_name(machine)}":\n{result}', msgbox.MsgBox.error)
 
         # trigger refresh of parent path where actions occurred
         self._request_listing(machine, path.parent)
@@ -449,7 +458,7 @@ class FilePicker:
     def _get_path_display_name(self, machine: str, path: str | pathlib.Path):
         path_str = str(path)
         if path_str=='root':
-            loc_str = 'This PC'
+            loc_str = self.file_action_provider.get_machine_name(machine)
         else:
             if (comp := get_net_computer(path_str)):
                 # pathlib.Path's str() doesn't do the right thing here, render it ourselves
@@ -483,15 +492,6 @@ class FilePicker:
             # special string
             disp_name = self._get_path_display_name(machine, path)
         return disp_name
-
-    def _get_machine_display_name(self, machine: str):
-        if machine=='machine: local':
-            machine = 'local machine'
-        elif machine.startswith('machine: remote:'):
-            machine = machine.removeprefix('machine: remote: ')
-        else:
-            raise ValueError(f'machine "{machine}" not understood')
-        return machine
 
 
     def draw(self):
@@ -630,7 +630,7 @@ class FilePicker:
                 btn_list.append(make_elem(self._get_path_leaf_display_name(self.machine,loc), loc))
                 btn_list.append(make_elem(separator, 'sep'))
                 loc = self._get_parent(loc)
-            btn_list.append((self.machine, icons_fontawesome.ICON_FA_DESKTOP, imgui.calc_text_size(icons_fontawesome.ICON_FA_DESKTOP).x))
+            del btn_list[-1]    # remove last separator
             btn_list.reverse()
 
             # check if whole path fits, else shorten
@@ -667,9 +667,6 @@ class FilePicker:
                             open_popup = 1
                             self.path_bar_popup['pos'] = button_pos
                             self.path_bar_popup['which_selected'] = self.machine
-                        elif i==1:
-                            # first separator: nothing to do
-                            pass
                         elif b[0]=='sep':
                             # path separator button, enqueue opening path selection dropdown
                             self.path_bar_popup['loc'] = btn_list[i-1][0]
@@ -708,7 +705,7 @@ class FilePicker:
                 self.path_bar_popup['pos'].y += imgui.calc_text_size('x').y+2*imgui.get_style().frame_padding.y+imgui.get_style().item_spacing.y
                 imgui.set_next_window_pos(self.path_bar_popup['pos'])
             if imgui.begin_popup('##machine_list_popup'):
-                display_names = ['local']+list(self.file_action_provider.get_remotes().values())
+                display_names = [self.file_action_provider.local_name]+list(self.file_action_provider.get_remotes().values())
                 machines = [self.file_action_provider.get_full_machine_name(r) for r in display_names]
                 idx = machines.index(self.machine)
 
