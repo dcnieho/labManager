@@ -167,7 +167,7 @@ class FileActionProvider:
         else:
             if path=='root':
                 async_thread.run(self.master.get_client_drives(self.master.clients[client_id]))
-                fut = async_thread.run(asyncio.wait_for(self.master.add_waiter('file-listing', 'root'), timeout=None), lambda f: self._listing_done(f, machine, path))
+                fut = async_thread.run(asyncio.wait_for(self.master.add_waiter('file-listing', 'root', client_id), timeout=None), lambda f: self._listing_done(f, machine, path))
         if fut:
             self.waiters.add(fut)
         return fut
