@@ -507,10 +507,10 @@ class FilePicker:
         return cancelled, closed
 
     def draw_top_bar(self):
-        enable_keyboard_nav = not self.popup_stack  # no keyboard navigation in this GUI if a popup is open
-        backspace_released = imgui.is_key_pressed(imgui.Key.backspace)
-        shift_down = imgui.is_key_down(imgui.Key.im_gui_mod_shift)
-            
+        enable_keyboard_nav = not self.popup_stack and not imgui.get_io().want_text_input   # no keyboard navigation in this GUI if a popup is open or key input taken elsewhere
+        backspace_released  = imgui.is_key_pressed(imgui.Key.backspace)
+        shift_down          = imgui.is_key_down(imgui.Key.im_gui_mod_shift)
+
         imgui.begin_group()
         # History back button
         disabled = self.history_loc<=0
@@ -989,11 +989,13 @@ class FilePicker:
                                     closed = True
 
                     # handle action keys
-                    selected_ids = [iid for iid in self.sorted_items if self.selected[iid]]
-                    if num_selected==1 and imgui.is_key_pressed(imgui.Key.f2, repeat=False):
-                        self._show_rename_path_dialog(self.items[selected_ids[0]].full_path)
-                    if imgui.is_key_pressed(imgui.Key.delete, repeat=False):
-                        self._show_delete_path_dialog(selected_ids)
+                    if not self.popup_stack and not imgui.get_io().want_text_input:
+                        # no keyboard navigation in this GUI if a popup is open or key input taken elsewhere
+                        selected_ids = [iid for iid in self.sorted_items if self.selected[iid]]
+                        if num_selected==1 and imgui.is_key_pressed(imgui.Key.f2, repeat=False):
+                            self._show_rename_path_dialog(self.items[selected_ids[0]].full_path)
+                        if imgui.is_key_pressed(imgui.Key.delete, repeat=False):
+                            self._show_delete_path_dialog(selected_ids)
 
                 if new_loc:
                     self.goto(self.machine, new_loc)
