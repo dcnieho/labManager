@@ -288,9 +288,9 @@ class Executor:
 
         return return_code
 
-    async def run(self, id: int, type: Type, payload: str, cwd: str, env: dict, interactive: bool, python_unbuf: bool, running_task: RunningTask, writer):
+    async def run(self, id: int, tsk_type: Type, payload: str, cwd: str, env: dict, interactive: bool, python_unbuf: bool, running_task: RunningTask, writer):
         # setup executor
-        match type:
+        match tsk_type:
             case Type.Shell_command:
                 use_shell = True
             case _:
@@ -298,7 +298,7 @@ class Executor:
 
         # build command line
         filename = None
-        match type:
+        match tsk_type:
             case Type.Shell_command:
                 # run command in shell
                 cmd = payload
@@ -324,6 +324,8 @@ class Executor:
                 if python_unbuf:
                     cmd += ['-u']
                 cmd += [str(filename)]
+            case _:
+                raise ValueError(f'Task type {tsk_type} not understood')
 
         # write payload to file if needed
         if filename:
