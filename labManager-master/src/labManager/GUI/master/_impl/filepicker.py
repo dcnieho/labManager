@@ -216,19 +216,40 @@ class FileActionProvider:
         self.listing_callback(machine, path, result)
 
     def make_dir(self, machine: str, path: pathlib.Path):
-        fut = async_thread.run(file_actions.make_dir(path), lambda f: self._action_done(f, machine, path, 'make_dir'))
+        machine, is_local, client_id = self.resolve_machine(machine)
+        if is_local:
+            fut = async_thread.run(file_actions.make_dir(path), lambda f: self._action_done(f, machine, path, 'make_dir'))
+        else:
+            fut = async_thread.run(self.master.make_client_folder(self.master.clients[client_id], path), lambda f: self._finish_remote_action(f, machine, path, 'make_dir'))
         self.waiters.add(fut)
         return fut
 
     def rename_path(self, machine: str, old_path: pathlib.Path, new_path: pathlib.Path):
-        fut = async_thread.run(file_actions.rename_path(old_path, new_path), lambda f: self._action_done(f, machine, old_path, 'rename_path'))
+        machine, is_local, client_id = self.resolve_machine(machine)
+        if is_local:
+            fut = async_thread.run(file_actions.rename_path(old_path, new_path), lambda f: self._action_done(f, machine, old_path, 'rename_path'))
+        else:
+            fut = async_thread.run(self.master.rename_client_file_folder(self.master.clients[client_id], old_path, new_path), lambda f: self._finish_remote_action(f, machine, old_path, 'rename_path'))
         self.waiters.add(fut)
         return fut
 
     def delete_path(self, machine: str, path: pathlib.Path):
-        fut = async_thread.run(file_actions.delete_path(path), lambda f: self._action_done(f, machine, path, 'delete_path'))
+        machine, is_local, client_id = self.resolve_machine(machine)
+        if is_local:
+            fut = async_thread.run(file_actions.delete_path(path), lambda f: self._action_done(f, machine, path, 'delete_path'))
+        else:
+            fut = async_thread.run(self.master.delete_client_file_folder(self.master.clients[client_id], path), lambda f: self._finish_remote_action(f, machine, path, 'delete_path'))
         self.waiters.add(fut)
         return fut
+
+    def _finish_remote_action(self, fut: concurrent.futures.Future, machine: str, path: pathlib.Path, action: str):
+        action_id = self._get_result_from_future(fut)
+        if action_id=='cancelled':
+            return  # nothing more to do
+
+        # we should have a file_action_id now, enqueue waiter that calls action_done
+        fut = async_thread.run(asyncio.wait_for(self.master.add_waiter('file-action', action_id), timeout=None), lambda f: self._action_done(f, machine, path, action))
+        self.waiters.add(fut)
 
     def _action_done(self, fut: concurrent.futures.Future, machine: str, path: pathlib.Path, action: str):
         result = self._get_result_from_future(fut)
