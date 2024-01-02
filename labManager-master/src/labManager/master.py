@@ -702,6 +702,7 @@ class Master:
     async def _send_file_action(self, client: structs.Client, action: message.Message, msg: dict[str, str]):
         # add action id to message
         msg['action_id'] = self._file_action_id_provider.get_next()
+        msg['action'] = action
         # send
         await comms.typed_send(client.online.writer, action, msg)
         # store locally as a pending action
