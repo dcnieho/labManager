@@ -167,7 +167,17 @@ class FileActionProvider:
         else:
             if path=='root':
                 async_thread.run(self.master.get_client_drives(self.master.clients[client_id]))
-                fut = async_thread.run(asyncio.wait_for(self.master.add_waiter('file-listing', 'root', client_id), timeout=None), lambda f: self._listing_done(f, machine, path))
+            else:
+                # check whether this is a path to a network computer (e.g. \\SERVER)
+                net_comp = get_net_computer(path)
+                if net_comp:
+                    # network computer name, get its shares
+                    async_thread.run(self.master.get_client_remote_shares(self.master.clients[client_id],net_comp,'Guest',''))
+                    path = f'\\\\{net_comp}'
+                else:
+                    # normal directory or share on a network computer, no special handling needed
+                    async_thread.run(self.master.get_client_file_listing(self.master.clients[client_id],path))
+            fut = async_thread.run(asyncio.wait_for(self.master.add_waiter('file-listing', path, client_id), timeout=None), lambda f: self._listing_done(f, machine, path))
         if fut:
             self.waiters.add(fut)
         return fut
@@ -200,7 +210,7 @@ class FileActionProvider:
                     result.append(self.network_computers[n][0]) # (value is tuple[DirEntry,ip:str]), get the DirEntry
         else:
             # retrieve result
-            result = self.master.clients[client_id].online.file_listings[path]['listing']
+            result = self.master.clients[client_id].online.file_listings[str(path)]['listing']
         # call callback
         self.listing_callback(machine, path, result)
 
