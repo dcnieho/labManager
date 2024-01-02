@@ -95,7 +95,8 @@ class FileActionProvider:
         if self.network_computer_getter and not self.network_computer_getter.done():
             self.network_computer_getter.cancel()
         for w in self.waiters:
-            w.cancel()
+            if not w.done():
+                w.cancel()
 
     def supports_remote(self):
         return True if self.master else False
@@ -288,17 +289,12 @@ class FilePicker:
         self.history: list[tuple[str,str|pathlib.Path]] = []
         self.history_loc = -1
         self.path_bar_popup: dict[str,Any] = {}
-        self._listing_action_tasks: set[concurrent.futures.Future] = set()
         self.predicate = None
         self.default_flags = custom_popup_flags or FilePicker.default_flags
         self.platform_is_windows = sys.platform.startswith("win")
 
         self.goto(self.file_action_provider.local_name, start_dir or '.')
         self._request_listing(self.machine, 'root')   # request root listing so we have the drive names
-
-    def __del__(self):
-        for t in self._listing_action_tasks:
-            t.cancel()
 
     def goto(self, machine: str, path: str | pathlib.Path, add_history=True):
         is_root = False
@@ -348,11 +344,7 @@ class FilePicker:
         self._request_listing(self.machine, self.loc)
 
     def _request_listing(self, machine: str, path: str|pathlib.Path):
-        # clean up finished tasks
-        self._listing_action_tasks = {t for t in self._listing_action_tasks if not t.done()}
-        fut = self.file_action_provider.get_listing(machine, path)
-        if fut:
-            self._listing_action_tasks.add(fut)
+        self.file_action_provider.get_listing(machine, path)
 
     def _listing_done(self, machine: str, path: str|pathlib.Path, items: list[structs.DirEntry]|Exception):
         # deal with cache
@@ -399,17 +391,13 @@ class FilePicker:
             self.elapsed = 0.0
 
     def _launch_action(self, action: str, path: str|pathlib.Path, path2: str|pathlib.Path = None):
-        # clean up finished tasks
-        self._listing_action_tasks = {t for t in self._listing_action_tasks if not t.done()}
         match action:
             case 'make_dir':
-                fut = self.file_action_provider.make_dir(self.machine, path)
+                self.file_action_provider.make_dir(self.machine, path)
             case 'rename_path':
-                fut = self.file_action_provider.rename_path(self.machine, path, path2)
+                self.file_action_provider.rename_path(self.machine, path, path2)
             case 'delete_path':
-                fut = self.file_action_provider.delete_path(self.machine, path)
-        if fut:
-            self._listing_action_tasks.add(fut)
+                self.file_action_provider.delete_path(self.machine, path)
 
     def _action_done(self, machine: str, path: pathlib.Path, action: str, result: None|pathlib.Path|Exception):
         if isinstance(result, Exception):
