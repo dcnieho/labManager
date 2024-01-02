@@ -497,13 +497,13 @@ class FilePicker:
     def draw(self):
         cancelled = closed = False
 
+        imgui.begin_child('##filepicker')
         self.draw_top_bar()
-
         closed = self.draw_listing(leave_space_for_bottom_bar=True)
-
         cancelled, closed2 = self.draw_bottom_bar()
-        closed = closed or closed2
+        imgui.end_child()
 
+        closed = closed or closed2
         return cancelled, closed
 
     def draw_top_bar(self):
