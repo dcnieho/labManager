@@ -20,7 +20,7 @@ async def get_network_computers(ip_network) -> dict[str,tuple[structs.DirEntry,s
         N = nmb.NetBIOS()
         try:
             name = N.getnetbiosname(h.address, timeout=0.2, tries=2)
-            if name not in names:
+            if name and name not in names:
                 # NB: //SERVER/ is the format pathlib understands and can concatenate share names to
                 entry = structs.DirEntry(name,True,pathlib.Path(f'//{name}/'),None,None,None,'labManager/net_name')
                 names[name] = (entry, h.address)
