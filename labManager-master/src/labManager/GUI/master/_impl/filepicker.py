@@ -185,8 +185,13 @@ class FileActionProvider:
 
     async def _get_network_computers(self):
         try:
+            first_time = True
             while True:
                 self.network_computers = await net_names.get_network_computers(self.network)
+                if first_time:
+                    # push out an update to notify listener of network machines
+                    first_time = False
+                    self.get_listing(self.get_full_machine_name(self.local_name), 'root')
 
                 # rate-limit to every x seconds
                 await asyncio.sleep(30)
