@@ -426,7 +426,7 @@ async def send_cancel(client, task: Task):
         )
 
 def create_group(tsk_type: str|Type, payload: str, clients: list[int], cwd: str=None, env: dict=None, interactive=False, python_unbuf=False) -> tuple[TaskGroup, bool]:
-    tsk_type = task.Type.get(tsk_type)
+    tsk_type = Type.get(tsk_type)
     task_group = TaskGroup(tsk_type, payload)
 
     # make individual tasks
