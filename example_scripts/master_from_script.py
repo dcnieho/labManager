@@ -17,11 +17,11 @@ async def run():
     await master.start_server()
 
     # wait until a client connects (irrespective of how many are already connected, this waits for a new one)
-    await asyncio.wait_for(master.add_waiter('client-connect', None), timeout=None)
-    # can also wait for a specific number of clients to be connected (will not fire when there are more or less)
-    #await asyncio.wait_for(master.add_waiter('client-connect', 1), timeout=None)
+    await asyncio.wait_for(master.add_waiter('client-connect-any'), timeout=None)
     # can also wait for a specific client by name
-    #await asyncio.wait_for(master.add_waiter('client-connect', 'STATION01'), timeout=None)
+    # await asyncio.wait_for(master.add_waiter('client-connect-name', 'STATION01'), timeout=None)
+    # can also wait for a specific number of clients to be connected (will not fire when there are more or less)
+    # await asyncio.wait_for(master.add_waiter('client-connected-nr', 1), timeout=None)
 
     # print some info about connected clients
     client_id = None
@@ -42,6 +42,8 @@ async def run():
     # start a task on the first client
     _, tsk_ids = await master.run_task(labManager.common.task.Type.Shell_command, 'echo "test"', master.clients[client_id].id)
     await asyncio.wait_for(master.add_waiter('task', tsk_ids[0]), timeout=None)
+    # could instead wait for any task
+    # await asyncio.wait_for(master.add_waiter('task-any'), timeout=None)
 
     # print output of first task as run on first client (task_refs are indexed by client id)
     task = master.task_groups[tg_id].tasks[master.clients[client_id].id]
@@ -50,9 +52,9 @@ async def run():
 
     # get some file listings on the client
     # make this waiter before the request to ensure no race condition
-    fut1 = master.add_waiter('file-listing', 'root')
-    fut2 = master.add_waiter('file-listing', 'C:\\')
-    # fut3 = master.add_waiter('file-listing', '\\\\SERVER')
+    fut1 = master.add_waiter('file-listing', 'root', client_id)
+    fut2 = master.add_waiter('file-listing', 'C:\\', client_id)
+    # fut3 = master.add_waiter('file-listing', '\\\\SERVER', client_id)
     await master.get_client_drives(master.clients[client_id])
     await master.get_client_file_listing(master.clients[client_id], 'C:\\')
     # can also requests shares on a SMB server, will be found under \\SERVER, for waiter and file_listings
@@ -86,6 +88,12 @@ async def run():
     # waiting for an already finished action returns immediately
     await asyncio.wait_for(master.add_waiter('file-action', action_id), timeout=None)
 
+    client_name = master.clients[client_id].name
+    await master.broadcast(labManager.common.message.Message.QUIT)
+    # wait until a client disconnects. Safest in this case is to do this by name as client may have disconnected due to the above call before we manage to register the waiter
+    await asyncio.wait_for(master.add_waiter('client-disconnect-name', client_name), timeout=None)
+    # can also wait for any client to disconnect
+    # await asyncio.wait_for(master.add_waiter('client-disconnect-any'), timeout=None)
     # clean up
     await master.stop_server()
 

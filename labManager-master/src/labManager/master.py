@@ -256,17 +256,29 @@ class Master:
         self._server = None
         self._loop = None
 
-    def add_waiter(self, waiter_type : str|structs.WaiterType, parameter: str|pathlib.Path|int|None):
+    def add_waiter(self, waiter_type : str|structs.WaiterType, parameter: str|pathlib.Path|int|None=None, parameter2: int|None = None):
         waiter_type = structs.WaiterType.get(waiter_type)
 
         # check parameter is valid
         match waiter_type:
-            case structs.WaiterType.Client_Connect:
-                # None: wait for any client to connect
-                # int: wait until a specific number of clients is connected
+            case structs.WaiterType.Client_Connect_Any:
+                pass    # no parameters
+            case structs.WaiterType.Client_Connect_Name:
                 # str: wait until client with this specific name is connected
-                assert parameter is None or type(parameter) in [int, str],\
-                    f'When creating a {waiter_type.value} waiter, parameter should be None, an int, or a str'
+                assert isinstance(parameter, str),\
+                    f'When creating a {waiter_type.value} waiter, parameter should be an str (name of client to wait for)'
+            case structs.WaiterType.Client_Disconnect_Any:
+                pass    # no parameters
+            case structs.WaiterType.Client_Disconnect_Name:
+                # str: wait until client with this specific name has disconnected
+                assert isinstance(parameter, str),\
+                    f'When creating a {waiter_type.value} waiter, parameter should be an str (name of client to wait for)'
+            case structs.WaiterType.Client_Connected_Nr:
+                # int: wait until a specific number of clients is connected
+                assert isinstance(parameter, int),\
+                    f'When creating a {waiter_type.value} waiter, parameter should be an int (number of clients to wait for)'
+            case structs.WaiterType.Task_Any:
+                pass    # no parameters
             case structs.WaiterType.Task:
                 assert isinstance(parameter, int),\
                     f'When creating a {waiter_type.value} waiter, parameter should be an int (task id)'
@@ -276,12 +288,14 @@ class Master:
             case structs.WaiterType.File_Listing:
                 assert isinstance(parameter, str) or isinstance(parameter, pathlib.Path),\
                     f'When creating a {waiter_type.value} waiter, parameter should be an str or a pathlib.Path (listing path)'
+                assert isinstance(parameter2, int),\
+                    f'When creating a {waiter_type.value} waiter, parameter2 should be an int (client id)'
             case structs.WaiterType.File_Action:
                 assert isinstance(parameter, int),\
                     f'When creating a {waiter_type.value} waiter, parameter should be an int (file action id)'
 
         # its valid, create our waiter
-        waiter = structs.Waiter(waiter_type, parameter, self._loop.create_future())
+        waiter = structs.Waiter(waiter_type, parameter, parameter2, self._loop.create_future())
 
         # register future and add our cleanup function
         self._waiters.add(waiter)
@@ -290,13 +304,24 @@ class Master:
         # some extra set up or checks
         match waiter_type:
             # client-connect: check if client already connected
-            case structs.WaiterType.Client_Connect:
-                if isinstance(parameter, int) and len(self.clients)==parameter:
-                    # condition already met, set future done
-                    waiter.fut.set_result(None)
-                elif isinstance(parameter, str) and parameter in [self.clients[c].name for c in self.clients if self.clients[c].online]:
+            case structs.WaiterType.Client_Connect_Any:
+                pass # nothing to do
+            case structs.WaiterType.Client_Connect_Name:
+                if parameter in [self.clients[c].name for c in self.clients if self.clients[c].online]:
                     # client with this name is already connected, set future done
                     waiter.fut.set_result(None)
+            case structs.WaiterType.Client_Disconnect_Any:
+                pass # nothing to do
+            case structs.WaiterType.Client_Disconnect_Name:
+                if parameter not in [self.clients[c].name for c in self.clients if self.clients[c].online]:
+                    # client with this name is already connected, set future done
+                    waiter.fut.set_result(None)
+            case structs.WaiterType.Client_Connected_Nr:
+                if len(self.clients)==parameter:
+                    # condition already met, set future done
+                    waiter.fut.set_result(None)
+            case structs.WaiterType.Task_Any:
+                pass # nothing to do
             case structs.WaiterType.Task:
                 # see if task exists, and if so if its already done
                 # find the task somewhere in all the task groups
@@ -328,8 +353,8 @@ class Master:
                     self.task_groups[parameter].add_listener(lambda tg: waiter.fut.set_result(None) if tg.is_done() and not waiter.fut.done() else None)
             case structs.WaiterType.File_Listing:
                 # nothing to do. special case. A file listing with this key is likely already present
-                # but we wait for a new one to come in. It is advised to make the waiter before just
-                # to be very safe about avoid a race condition
+                # but we wait for a new one to come in. It is advised to make the waiter before
+                # launching the listing request, just to be very safe about avoid a race condition
                 pass
             case structs.WaiterType.File_Action:
                 # see if file action, and if so if its already done
@@ -423,6 +448,10 @@ class Master:
                             # remove crashing hooks so they are not called again
                             for i in to_del[::-1]:
                                 del self.task_state_change_hooks[i]
+                        if mytask.is_done():
+                            for w in self._waiters:
+                                if w.waiter_type==structs.WaiterType.Task_Any and not w.fut.done():
+                                    w.fut.set_result(None)
 
 
                     case message.Message.FILE_LISTING:
@@ -430,7 +459,7 @@ class Master:
                         msg['age'] = time.time()
                         me.file_listings[path] = msg
                         for w in self._waiters:
-                            if w.waiter_type==structs.WaiterType.File_Listing and str(w.parameter)==path:
+                            if w.waiter_type==structs.WaiterType.File_Listing and str(w.parameter)==path and w.parameter2==client_id:
                                 # NB: no need for lock as callback is not called
                                 # immediately, but call_soon()
                                 if not w.fut.done():
@@ -500,21 +529,23 @@ class Master:
                 c = structs.Client(name, MACs, online=client)
                 client_id = c.id
                 self.clients[client_id] = c
-            num_clients = len(self.clients)
+            num_clients = len([c for c in self.clients if self.clients[c].online])
 
+        # fire any relevant waiters
         for w in self._waiters:
-            if w.waiter_type==structs.WaiterType.Client_Connect:
-                if w.parameter is None:
-                    # waiting for any client to connect
-                    w.fut.set_result(None)
-                elif isinstance(w.parameter, int) and num_clients==w.parameter:
-                    # waiting for a specific number of clients to be connected
-                    if not w.fut.done():
-                        w.fut.set_result(None)
-                elif self.clients[client_id].name==w.parameter:
-                    # waiting for client with a specific name to connect
-                    if not w.fut.done():
-                        w.fut.set_result(None)
+            finish_future = False
+            if w.waiter_type==structs.WaiterType.Client_Connect_Any:
+                # waiting for any client to connect
+                finish_future = True
+            elif w.waiter_type==structs.WaiterType.Client_Connect_Name and self.clients[client_id].name==w.parameter:
+                # waiting for client with a specific name to connect
+                finish_future = True
+            elif w.waiter_type==structs.WaiterType.Client_Connected_Nr and num_clients==w.parameter:
+                # waiting for a specific number of clients to be connected
+                finish_future = True
+
+            if finish_future and not w.fut.done():
+                w.fut.set_result(None)
         return client_id
 
     def _client_disconnected(self, client: structs.ConnectedClient, client_id: int):
@@ -531,12 +562,30 @@ class Master:
                 del self.task_state_change_hooks[i]
 
         # clean up ConnectedClient
-        if client_id in self.clients:
-            self.clients[client_id].online = None
-            # if not a known client, remove from self.clients
-            if not self.clients[client_id].known:
-                with self.clients_lock:
+        with self.clients_lock:
+            if client_id in self.clients:
+                self.clients[client_id].online = None
+                # if not a known client, remove from self.clients
+                if not self.clients[client_id].known:
                     del self.clients[client_id]
+
+            num_clients = len([c for c in self.clients if self.clients[c].online])
+
+        # fire any relevant waiters
+        for w in self._waiters:
+            finish_future = False
+            if w.waiter_type==structs.WaiterType.Client_Disconnect_Any:
+                # waiting for any client to disconnect
+                finish_future = True
+            elif w.waiter_type==structs.WaiterType.Client_Disconnect_Name and (client_id not in self.clients or self.clients[client_id].name==w.parameter):
+                # waiting for client with a specific name to disconnect
+                finish_future = True
+            elif w.waiter_type==structs.WaiterType.Client_Connected_Nr and num_clients==w.parameter:
+                # waiting for a specific number of clients to be connected
+                finish_future = True
+
+            if finish_future and not w.fut.done():
+                w.fut.set_result(None)
 
     def add_client_disconnected_hook(self, fun: Callable[[structs.ConnectedClient, int], None]):
         self.client_disconnected_hooks.append(fun)

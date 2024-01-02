@@ -11,16 +11,22 @@ from . import counter, enum_helper, task
 
 @enum_helper.get
 class WaiterType(enum_helper.AutoNameDash):
-    Client_Connect  = auto()    # wait for any (parameter is None), a specific number of clients (parameter is an int) or a specific client (parameter is a string) to connect
-    Task            = auto()    # run for a specific task to complete
-    Task_Group      = auto()    # wait for all tasks in a task group to complete
-    File_Listing    = auto()    # wait for a file listing for a specific path to become available
-    File_Action     = auto()    # wait for a specific file action to complete
+    Client_Connect_Any      = auto()    # wait for any client to connect (no parameters)
+    Client_Connect_Name     = auto()    # wait for a specific client, by name, to connect (parameter is a string)
+    Client_Disconnect_Any   = auto()    # wait for any client to disconnect (no parameters)
+    Client_Disconnect_Name  = auto()    # wait for a specific client, by name, to disconnect (parameter is a string)
+    Client_Connected_Nr     = auto()    # wait for a specific number of clients to be connected (parameter is an int) - Warning, does not fire when there are more or less than this number
+    Task_Any                = auto()    # wait for any task to complete (no parameters)
+    Task                    = auto()    # wait for a specific task to complete, by ID (parameter is int)
+    Task_Group              = auto()    # wait for all tasks in a task group to complete, by ID (parameter is int)
+    File_Listing            = auto()    # wait for a file listing for a specific path from a specific client to become available (parameter one is a string/path, parameter two is a client ID)
+    File_Action             = auto()    # wait for a specific file action to complete (parameter is int, file action id)
 
 @dataclass(frozen=True)
 class Waiter:
     waiter_type : WaiterType
-    parameter   : str|pathlib.Path|int
+    parameter   : str|pathlib.Path|int|None
+    parameter2  : int|None
     fut         : asyncio.Future
 
 
