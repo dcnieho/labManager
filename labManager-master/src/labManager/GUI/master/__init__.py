@@ -305,8 +305,9 @@ class MainGUI:
         self._window_list = [
             self.computer_list,
             self._make_main_space_window("Tasks", self._task_GUI),
+            self._make_main_space_window("File Management", self._file_GUI),
             ]
-        self._to_dock = ["Tasks"]
+        self._to_dock = ["Tasks", "File Management"]
         self._set_window_title(no_login_mode=True)
         # start server
         async_thread.run(self.master.start_server())
@@ -323,8 +324,9 @@ class MainGUI:
             self.computer_list,
             self._make_main_space_window("Tasks", self._task_GUI),
             self._make_main_space_window("Image Management", self._imaging_GUI),
+            self._make_main_space_window("File Management", self._file_GUI),
             ]
-        self._to_dock = ["Tasks", "Image Management"]
+        self._to_dock = ["Tasks", "Image Management", "File Management"]
         self._set_window_title(add_user=True, add_project=True)
         # prep for image management
         async_thread.run(self._get_project_images())
@@ -1069,6 +1071,92 @@ class MainGUI:
                                         lambda fut: self._image_action_result('delete',fut))
                     imgui.pop_style_color(3)
         imgui.end()
+
+    def _file_GUI(self):
+        if imgui.button('Start new task'):
+            pass
+        imgui.text('Task overview:')
+        imgui.begin_child("##file_actions")
+        table_flags = (
+                imgui.TableFlags_.scroll_x |
+                imgui.TableFlags_.scroll_y |
+                imgui.TableFlags_.hideable |
+                imgui.TableFlags_.sortable |
+                imgui.TableFlags_.sort_multi |
+                imgui.TableFlags_.reorderable |
+                imgui.TableFlags_.sizing_fixed_fit |
+                imgui.TableFlags_.no_host_extend_y
+            )
+        if imgui.begin_table(f"##file_action_list",column=6,flags=table_flags):
+            imgui.table_setup_column("ID", imgui.TableColumnFlags_.default_sort | imgui.TableColumnFlags_.no_hide)  # 0
+            imgui.table_setup_column("Client", imgui.TableColumnFlags_.no_hide)  # 1
+            imgui.table_setup_column("Status", imgui.TableColumnFlags_.no_hide)  # 2
+            imgui.table_setup_column("Action", imgui.TableColumnFlags_.width_stretch | imgui.TableColumnFlags_.no_hide)  # 3
+            imgui.table_setup_column("Path")  # 4
+            imgui.table_setup_column("Path 2")  # 5
+            imgui.table_setup_scroll_freeze(0, 1)  # Sticky column headers
+
+            # Headers
+            imgui.table_next_row(imgui.TableRowFlags_.headers)
+            for i in range(6):
+                imgui.table_set_column_index(i)
+                imgui.table_header(imgui.table_get_column_name(i))
+
+            # gather all file actions
+            actions = []
+            with self.master.clients_lock:
+                for c in self.master.clients:
+                    if not self.master.clients[c].online:
+                        continue
+                    for a in self.master.clients[c].online.file_actions:
+                        actions.append([a, self.master.clients[c].name, self.master.clients[c].online.file_actions[a]])
+
+            # render actions
+            for action in actions:
+                imgui.table_next_row()
+
+                for ci in range(6):
+                    if not (imgui.table_get_column_flags(ci) & imgui.TableColumnFlags_.is_enabled):
+                        continue
+                    imgui.table_set_column_index(ci)
+
+                    match ci:
+                        case 0:
+                            # ID
+                            imgui.text(f'{action[0]}')
+                        case 1:
+                            # Client
+                            imgui.text(action[1])
+                        case 2:
+                            # Status
+                            imgui.text(f'{action[2]["status"]}')
+                        case 3:
+                            # Action
+                            imgui.text(f'{action[2]["action"]}')
+                        case 4:
+                            # Path
+                            path = None
+                            if 'path' in action[2]:
+                                path = action[2]['path']
+                            elif 'old_path' in action[2]:
+                                path = action[2]['old_path']
+                            elif 'source_path' in action[2]:
+                                path = action[2]['source_path']
+                            if path:
+                                imgui.text(f'{path}')
+                        case 5:
+                            # Path 2
+                            path = None
+                            if 'new_path' in action[2]:
+                                path = action[2]['new_path']
+                            elif 'dest_path' in action[2]:
+                                path = action[2]['dest_path']
+                            if path:
+                                imgui.text(f'{path}')
+
+            imgui.end_table()
+        imgui.end_child()
+
 
     async def update_running_image_tasks(self):
         self._active_imaging_tasks_updater_should_stop = False
