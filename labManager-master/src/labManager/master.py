@@ -591,9 +591,10 @@ class Master:
         self.client_disconnected_hooks.append(fun)
 
 
-    async def broadcast(self, type: message.Message, msg: str=''):
+    async def broadcast(self, msg_type: str|message.Message, msg: str=''):
+        msg_type = message.Message.get(msg_type)
         with self.clients_lock:
-            coros = [comms.typed_send(self.clients[c].online.writer, type, msg) for c in self.clients if self.clients[c].online]
+            coros = [comms.typed_send(self.clients[c].online.writer, msg_type, msg) for c in self.clients if self.clients[c].online]
         await asyncio.gather(*coros)
 
     async def client_mount_project_share(self, client: structs.ConnectedClient, client_id: int):
@@ -626,7 +627,7 @@ class Master:
         await asyncio.gather(*coros)
 
     async def run_task(self,
-                       type: task.Type,
+                       tsk_type: str|task.Type,
                        payload: str,
                        clients: str | int | list[int],
                        payload_type='text',
@@ -634,6 +635,7 @@ class Master:
                        env: dict=None,
                        interactive=False,
                        python_unbuf=False):
+        tsk_type = task.Type.get(tsk_type)
         # clients has a special value '*' which means all clients
         if clients=='*':
             with self.clients_lock:
@@ -656,7 +658,7 @@ class Master:
                 payload = await aiopath.AsyncPath(payload).read_text()
 
         # make task group
-        task_group, launch_group = task.create_group(type, payload, clients, cwd=cwd, env=env, interactive=interactive, python_unbuf=python_unbuf)
+        task_group, launch_group = task.create_group(tsk_type, payload, clients, cwd=cwd, env=env, interactive=interactive, python_unbuf=python_unbuf)
         self.task_groups[task_group.id] = task_group
 
         # start tasks

@@ -35,12 +35,13 @@ async def run():
                     print(f'  eye tracker: {master.clients[c].online.eye_tracker.model}')
 
     # start a task on all clients
-    tg_id, _ = await master.run_task(labManager.common.task.Type.Shell_command, 'ping 8.8.8.8', '*')
+    # NB: 'Shell command' -> labManager.common.task.Type.Shell_command
+    tg_id, _ = await master.run_task('Shell command', 'ping 8.8.8.8', '*')
     # wait until all tasks in this task group are done (i.e. all clients have executed this task)
     await asyncio.wait_for(master.add_waiter('task-group', tg_id), timeout=None)
 
     # start a task on the first client
-    _, tsk_ids = await master.run_task(labManager.common.task.Type.Shell_command, 'echo "test"', master.clients[client_id].id)
+    _, tsk_ids = await master.run_task('Shell command', 'echo "test"', master.clients[client_id].id)
     await asyncio.wait_for(master.add_waiter('task', tsk_ids[0]), timeout=None)
     # could instead wait for any task
     # await asyncio.wait_for(master.add_waiter('task-any'), timeout=None)
@@ -89,7 +90,7 @@ async def run():
     await asyncio.wait_for(master.add_waiter('file-action', action_id), timeout=None)
 
     client_name = master.clients[client_id].name
-    await master.broadcast(labManager.common.message.Message.QUIT)
+    await master.broadcast('quit')
     # wait until a client disconnects. Safest in this case is to do this by name as client may have disconnected due to the above call before we manage to register the waiter
     await asyncio.wait_for(master.add_waiter('client-disconnect-name', client_name), timeout=None)
     # can also wait for any client to disconnect

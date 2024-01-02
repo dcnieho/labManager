@@ -423,15 +423,16 @@ async def send_cancel(client, task: Task):
             }
         )
 
-def create_group(type: Type, payload: str, clients: list[int], cwd: str=None, env: dict=None, interactive=False, python_unbuf=False) -> tuple[TaskGroup, bool]:
-    task_group = TaskGroup(type, payload)
+def create_group(tsk_type: str|Type, payload: str, clients: list[int], cwd: str=None, env: dict=None, interactive=False, python_unbuf=False) -> tuple[TaskGroup, bool]:
+    tsk_type = task.Type.get(tsk_type)
+    task_group = TaskGroup(tsk_type, payload)
 
     # make individual tasks
     for c in clients:
         # create task
-        task = Task(type, payload, cwd=cwd, env=env, interactive=interactive, python_unbuf=python_unbuf, client=c, task_group_id=task_group.id)
+        task = Task(tsk_type, payload, cwd=cwd, env=env, interactive=interactive, python_unbuf=python_unbuf, client=c, task_group_id=task_group.id)
         # add to task group
         task_group.add_task(c,task)
 
     # second return: true if whole group should be launched as one, false if tasks should be launched individually
-    return task_group, type==type.Wake_on_LAN
+    return task_group, tsk_type==Type.Wake_on_LAN
