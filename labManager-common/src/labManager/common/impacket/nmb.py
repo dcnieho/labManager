@@ -598,7 +598,7 @@ class NetBIOS:
     def getnetbiosname(self, ip, timeout = 1, tries = 3):
         entries = self.getnodestatus('*',ip, timeout=timeout, tries=tries)
         entries = [x for x in entries if x['TYPE'] == TYPE_SERVER]
-        return entries[0]['NAME'].strip().decode('latin-1')
+        return entries[0]['NAME'].strip().decode('latin-1') if entries else None
 
     def getmacaddress(self):
         return self.mac
