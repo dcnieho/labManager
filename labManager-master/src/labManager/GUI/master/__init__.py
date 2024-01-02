@@ -1360,15 +1360,11 @@ class MainGUI:
                             imgui.input_text(f'##interactive_input{item.id},{tid[1]}', self._computer_GUI_interactive_tasks[(item.id, tid[1])], flags=imgui.InputTextFlags_.enter_returns_true|imgui.InputTextFlags_.escape_clears_all)
                         if enter_pressed:
                             imgui.set_keyboard_focus_here(-1)   # refocus above input_text box
-                        if (disabled := not self._computer_GUI_interactive_tasks[(item.id, tid[1])]):
-                            utils.push_disabled()
                         imgui.same_line()
-                        if imgui.button(f'Send##{item.id},{tid[1]}') or (enter_pressed and not disabled):
+                        if imgui.button(f'Send##{item.id},{tid[1]}') or enter_pressed:
                             # send
                             async_thread.run(task.send_input(self._computer_GUI_interactive_tasks[(item.id, tid[1])]+'\n',item,tsk))
                             self._computer_GUI_interactive_tasks[(item.id, tid[1])] = ''
-                        if disabled:
-                            utils.pop_disabled()
         imgui.end()
 
 
