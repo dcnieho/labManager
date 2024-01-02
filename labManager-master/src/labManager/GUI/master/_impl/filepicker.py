@@ -992,8 +992,11 @@ class FilePicker:
                     if not self.popup_stack and not imgui.get_io().want_text_input:
                         # no keyboard navigation in this GUI if a popup is open or key input taken elsewhere
                         selected_ids = [iid for iid in self.sorted_items if self.selected[iid]]
-                        if num_selected==1 and imgui.is_key_pressed(imgui.Key.f2, repeat=False):
-                            self._show_rename_path_dialog(self.items[selected_ids[0]].full_path)
+                        if num_selected==1:
+                            if imgui.is_key_pressed(imgui.Key.f2, repeat=False):
+                                self._show_rename_path_dialog(self.items[selected_ids[0]].full_path)
+                            if self.items[selected_ids[0]].is_dir and imgui.is_key_pressed(imgui.Key.enter, repeat=False):
+                                new_loc = self.items[selected_ids[0]].full_path
                         if imgui.is_key_pressed(imgui.Key.delete, repeat=False):
                             self._show_delete_path_dialog(selected_ids)
 
