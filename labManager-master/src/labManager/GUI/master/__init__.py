@@ -15,7 +15,7 @@ from imgui_bundle import portable_file_dialogs
 from imgui_bundle.demos_python import demo_utils
 import glfw
 
-from labManager.common import async_thread, config, eye_tracker, structs, task
+from labManager.common import async_thread, config, eye_tracker, message, structs, task
 from ... import master
 from ._impl import computer_list, filepicker, msgbox, utils
 
@@ -1089,7 +1089,7 @@ class MainGUI:
         imgui.end()
 
     def _file_GUI(self):
-        if imgui.button('Start new task'):
+        if imgui.button('Start new action'):
             pass
         imgui.text('Task overview:')
         imgui.begin_child("##file_actions")
@@ -1145,10 +1145,33 @@ class MainGUI:
                             imgui.text(action[1])
                         case 2:
                             # Status
-                            imgui.text(f'{action[2]["status"]}')
+                            match action[2]["status"]:
+                                case structs.Status.Pending:
+                                    imgui.text_colored((.5,.5,.5,1.),icons_fontawesome.ICON_FA_HOURGLASS)
+                                case structs.Status.Running:
+                                    symbol_size = imgui.calc_text_size("x").y/2
+                                    spinner_radii = [x/22*symbol_size for x in [22, 16, 10]]
+                                    lw = 3.5/22*symbol_size
+                                    imspinner.spinner_ang_triple(f'loadingSpinner', *spinner_radii, lw, c1=imgui.get_style().color_(imgui.Col_.text_selected_bg), c2=imgui.get_style().color_(imgui.Col_.text), c3=imgui.get_style().color_(imgui.Col_.text_selected_bg))
+                                case structs.Status.Finished:
+                                    imgui.text_colored((.0,1.,0.,1.),icons_fontawesome.ICON_FA_CHECK)
+                                case structs.Status.Errored:
+                                    imgui.text_colored((1.,.0,.0,1.),icons_fontawesome.ICON_FA_EXCLAMATION_TRIANGLE)
+                                    if imgui.is_item_hovered():
+                                        utils.draw_tooltip(f'Error: {action[2]["error"]}')
                         case 3:
                             # Action
-                            imgui.text(f'{action[2]["action"]}')
+                            action_str = ''
+                            match action[2]["action"]:
+                                case message.Message.FILE_MAKE:
+                                    action_str = 'Make folder' if action[2]["is_dir"] else 'Make file'
+                                case message.Message.FILE_RENAME:
+                                    action_str = 'Rename'
+                                case message.Message.FILE_COPY_MOVE:
+                                    action_str = 'Move' if action[2]["is_move"] else 'Copy'
+                                case message.Message.FILE_DELETE:
+                                    action_str = 'Delete'
+                            imgui.text(f'{action_str}')
                         case 4:
                             # Path
                             path = None
