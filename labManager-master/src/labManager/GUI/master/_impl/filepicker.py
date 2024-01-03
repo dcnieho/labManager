@@ -235,7 +235,7 @@ class FileActionProvider:
         else:
             if not self.supports_remote():
                 self._action_done(ValueError(f'Remote machine selected ("{machine}") but not supported'), machine, path, action)
-            fut = async_thread.run(self.master.make_client_folder(self.master.clients[client_id], path), lambda f: self._finish_remote_action(f, machine, path, action))
+            fut = async_thread.run(self.master.make_client_folder(self.master.clients[client_id], path), lambda f: self._finish_remote_action(f, client_id, machine, path, action))
         self.waiters.add(fut)
         return fut
 
@@ -246,8 +246,8 @@ class FileActionProvider:
             fut = async_thread.run(file_actions.rename_path(old_path, new_path), lambda f: self._action_done(f, machine, old_path, action))
         else:
             if not self.supports_remote():
-                self._action_done(ValueError(f'Remote machine selected ("{machine}") but not supported'), machine, path, action)
-            fut = async_thread.run(self.master.rename_client_file_folder(self.master.clients[client_id], old_path, new_path), lambda f: self._finish_remote_action(f, machine, old_path, action))
+                self._action_done(ValueError(f'Remote machine selected ("{machine}") but not supported'), machine, old_path, action)
+            fut = async_thread.run(self.master.rename_client_file_folder(self.master.clients[client_id], old_path, new_path), lambda f: self._finish_remote_action(f, client_id, machine, old_path, action))
         self.waiters.add(fut)
         return fut
 
@@ -259,20 +259,20 @@ class FileActionProvider:
         else:
             if not self.supports_remote():
                 self._action_done(ValueError(f'Remote machine selected ("{machine}") but not supported'), machine, path, action)
-            fut = async_thread.run(self.master.delete_client_file_folder(self.master.clients[client_id], path), lambda f: self._finish_remote_action(f, machine, path, action))
+            fut = async_thread.run(self.master.delete_client_file_folder(self.master.clients[client_id], path), lambda f: self._finish_remote_action(f, client_id, machine, path, action))
         self.waiters.add(fut)
         return fut
 
-    def _finish_remote_action(self, fut: concurrent.futures.Future, machine: str, path: pathlib.Path, action: str):
+    def _finish_remote_action(self, fut: concurrent.futures.Future, client_id: int, machine: str, path: pathlib.Path, action: str):
         action_id = self._get_result_from_future(fut)
         if action_id=='cancelled':
             return  # nothing more to do
 
         # we should have a file_action_id now, enqueue waiter that calls action_done
-        fut = async_thread.run(asyncio.wait_for(self.master.add_waiter('file-action', action_id), timeout=None), lambda f: self._action_done(f, machine, path, action))
+        fut = async_thread.run(asyncio.wait_for(self.master.add_waiter('file-action', action_id), timeout=None), lambda f: self._action_done(f, client_id, machine, path, action_id, action))
         self.waiters.add(fut)
 
-    def _action_done(self, fut: concurrent.futures.Future, machine: str, path: pathlib.Path, action: str):
+    def _action_done(self, fut: concurrent.futures.Future, client_id: int, machine: str, path: pathlib.Path, action_id: int, action: str):
         result = self._get_result_from_future(fut)
         if result=='cancelled':
             return  # nothing more to do
@@ -280,7 +280,17 @@ class FileActionProvider:
         if self.action_callback is None:
             return
 
-        # call callback
+        # get result and call callback
+        if client_id in self.master.clients and action_id in self.master.clients[client_id].online.file_actions:
+            result = self.master.clients[client_id].online.file_actions[action_id]
+            if result['status']==structs.Status.Errored:
+                result = result['error']
+                if isinstance(result,str):
+                    result = RuntimeError(result)
+            elif 'return_path' in result:
+                result = result['return_path']
+            else:
+                result = None
         self.action_callback(machine, path, action, result)
 
     def _get_result_from_future(self, fut: concurrent.futures.Future|list[structs.DirEntry]) -> list[structs.DirEntry]:
@@ -445,12 +455,12 @@ class FilePicker:
         if isinstance(result, Exception):
             match action:
                 case 'make_dir':
-                    action_lbl = 'making'
+                    action_lbl = 'making the folder'
                 case 'rename_path':
-                    action_lbl = 'renaming'
+                    action_lbl = 'renaming the folder or file'
                 case 'delete_path':
-                    action_lbl = 'deleting'
-            utils.push_popup(self, msgbox.msgbox, "Action error", f'Something went wrong {action_lbl} the directory {path} on machine "{self.file_action_provider.get_machine_name(machine)}":\n{result}', msgbox.MsgBox.error)
+                    action_lbl = 'deleting the folder or file'
+            utils.push_popup(self, msgbox.msgbox, "Action error", f'Something went wrong {action_lbl} {path} on machine "{self.file_action_provider.get_machine_name(machine)}":\n{result}', msgbox.MsgBox.error)
 
         # trigger refresh of parent path where actions occurred
         self._request_listing(machine, path.parent)
