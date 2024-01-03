@@ -5,6 +5,7 @@ import pathlib
 import datetime
 from dataclasses import dataclass, field
 from enum import auto
+from functools import total_ordering
 
 from . import counter, enum_helper, task
 
@@ -32,11 +33,17 @@ class Waiter:
 
 # generic status for task or file action
 @enum_helper.get
+@total_ordering
 class Status(enum_helper.AutoNameSpace):
     Pending     = auto()
     Running     = auto()
     Finished    = auto()
     Errored     = auto()
+    def __lt__(self, other):
+        if self.__class__ is other.__class__:
+            order = [Status.Pending, Status.Running, Status.Finished, Status.Errored]
+            return order.index(self) < order.index(other)
+        return NotImplemented
 statuses = [x.value for x in Status]
 
 

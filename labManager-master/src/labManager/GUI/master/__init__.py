@@ -7,6 +7,7 @@ import math
 import sys
 import platform
 import webbrowser
+import natsort
 from dataclasses import dataclass, field
 
 import imgui_bundle
@@ -1125,7 +1126,55 @@ class MainGUI:
                     if not self.master.clients[c].online:
                         continue
                     for a in self.master.clients[c].online.file_actions:
-                        actions.append([a, self.master.clients[c].name, self.master.clients[c].online.file_actions[a]])
+                        action = self.master.clients[c].online.file_actions[a]
+                        # get action str
+                        action_str = ''
+                        match action["action"]:
+                            case message.Message.FILE_MAKE:
+                                action_str = 'Make folder' if action["is_dir"] else 'Make file'
+                            case message.Message.FILE_RENAME:
+                                action_str = 'Rename'
+                            case message.Message.FILE_COPY_MOVE:
+                                action_str = 'Move' if action["is_move"] else 'Copy'
+                            case message.Message.FILE_DELETE:
+                                action_str = 'Delete'
+                        # get path
+                        path = None
+                        if 'path' in action:
+                            path = action['path']
+                        elif 'old_path' in action:
+                            path = action['old_path']
+                        elif 'source_path' in action:
+                            path = action['source_path']
+                        # get second path
+                        path2 = None
+                        if 'new_path' in action:
+                            path2 = action['new_path']
+                        elif 'dest_path' in action:
+                            path2 = action['dest_path']
+                        actions.append([a, self.master.clients[c].name, action, action_str, path, path2])
+
+            # sort
+            sort_specs = imgui.table_get_sort_specs()
+            sort_specs = [sort_specs.get_specs(i) for i in range(sort_specs.specs_count)]
+            idxs = list(range(len(actions)))
+            for sort_spec in reversed(sort_specs):
+                match sort_spec.column_index:
+                    case 0:     # action ID
+                        key = lambda idx: actions[idx][0]
+                    case 1:     # client name
+                        key = lambda idx: actions[idx][1]
+                    case 2:     # status
+                        key = lambda idx: actions[idx][2]["status"]
+                    case 3:     # action
+                        key = lambda idx: actions[idx][3]
+                    case 4:     # path
+                        key = natsort.os_sort_keygen(key=lambda idx: actions[idx][4])
+                    case 5:     # path 2
+                        key = natsort.os_sort_keygen(key=lambda idx: actions[idx][5])
+
+                idxs.sort(key=key, reverse=bool(sort_spec.get_sort_direction() - 1))
+            actions = [actions[i] for i in idxs]
 
             # render actions
             for action in actions:
@@ -1161,37 +1210,15 @@ class MainGUI:
                                         utils.draw_tooltip(f'Error: {action[2]["error"]}')
                         case 3:
                             # Action
-                            action_str = ''
-                            match action[2]["action"]:
-                                case message.Message.FILE_MAKE:
-                                    action_str = 'Make folder' if action[2]["is_dir"] else 'Make file'
-                                case message.Message.FILE_RENAME:
-                                    action_str = 'Rename'
-                                case message.Message.FILE_COPY_MOVE:
-                                    action_str = 'Move' if action[2]["is_move"] else 'Copy'
-                                case message.Message.FILE_DELETE:
-                                    action_str = 'Delete'
-                            imgui.text(f'{action_str}')
+                            imgui.text(f'{action[3]}')
                         case 4:
                             # Path
-                            path = None
-                            if 'path' in action[2]:
-                                path = action[2]['path']
-                            elif 'old_path' in action[2]:
-                                path = action[2]['old_path']
-                            elif 'source_path' in action[2]:
-                                path = action[2]['source_path']
-                            if path:
-                                imgui.text(f'{path}')
+                            if action[4]:
+                                imgui.text(f'{action[4]}')
                         case 5:
                             # Path 2
-                            path = None
-                            if 'new_path' in action[2]:
-                                path = action[2]['new_path']
-                            elif 'dest_path' in action[2]:
-                                path = action[2]['dest_path']
-                            if path:
-                                imgui.text(f'{path}')
+                            if action[5]:
+                                imgui.text(f'{action[5]}')
 
             imgui.end_table()
         imgui.end_child()
