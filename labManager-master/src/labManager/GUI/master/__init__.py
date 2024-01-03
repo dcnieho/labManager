@@ -59,6 +59,7 @@ class MainGUI:
         # GUI state
         self._window_list     = []
         self._to_dock         = []
+        self._to_focus        = None
         self._main_dock_node_id = None
 
         self.selected_computers: dict[int, bool] = {k:False for k in self.master.clients}
@@ -233,6 +234,19 @@ class MainGUI:
                 imgui.internal.dock_builder_dock_window(w, self._main_dock_node_id)
             self._to_dock = []
 
+        # handle focus requests, which apparently need to be delayed
+        # one frame for them to work also in case its a new window
+        if self._to_focus is not None:
+            if isinstance(self._to_focus,str):
+                self._to_focus = [self._to_focus,1]
+            if self._to_focus[1]>0:
+                self._to_focus[1] -= 1
+            else:
+                for w in hello_imgui.get_runner_params().docking_params.dockable_windows:
+                    if w.label==self._to_focus[0]:
+                        w.focus_window_at_next_frame = True
+                self._to_focus = None
+
     def _make_main_space_window(self, name, gui_func, can_be_closed=False):
         main_space_view = hello_imgui.DockableWindow()
         main_space_view.label = name
@@ -307,6 +321,7 @@ class MainGUI:
             self._make_main_space_window("Tasks", self._task_GUI),
             self._make_main_space_window("File Management", self._file_GUI),
             ]
+        self._to_focus = "Tasks"
         self._to_dock = ["Tasks", "File Management"]
         self._set_window_title(no_login_mode=True)
         # start server
@@ -326,6 +341,7 @@ class MainGUI:
             self._make_main_space_window("Image Management", self._imaging_GUI),
             self._make_main_space_window("File Management", self._file_GUI),
             ]
+        self._to_focus = "Tasks"
         self._to_dock = ["Tasks", "Image Management", "File Management"]
         self._set_window_title(add_user=True, add_project=True)
         # prep for image management
@@ -1257,6 +1273,7 @@ class MainGUI:
                 self._make_main_space_window(win_name, lambda: self._computer_detail_GUI(item), can_be_closed=True)
             )
             self._to_dock = [win_name]
+            self._to_focus= win_name
             self._computer_GUI_tasks[item.id] = None
 
     def _computer_detail_GUI(self, item: structs.Client):
