@@ -210,6 +210,9 @@ class SimpleServiceDiscoveryProtocol(asyncio.DatagramProtocol):
 
     def connection_made(self, transport):
         self.transport = transport
+        if self.verbose:
+            addr = transport.get_extra_info('sockname')
+            print('socket made at: {}:{}'.format(*addr))
 
     def datagram_received(self, data, addr):
         data = data.decode('utf8')
@@ -479,7 +482,7 @@ class Client(Base):
                 task.add_done_callback(self._response_handler_tasks.discard)
 
     async def _send_request(self):
-        ssdp_response = SSDPRequest(
+        ssdp_request = SSDPRequest(
             headers={
                 "HOST": "{}:{}".format(MULTICAST_ADDRESS_IPV4, PORT),
                 "MAN": "ssdp:discover",
@@ -487,7 +490,11 @@ class Client(Base):
                 "ST": self.device_type,
             },
         )
-        await ssdp_response.sendto(self.transport, (MULTICAST_ADDRESS_IPV4, PORT))
+        addr = (MULTICAST_ADDRESS_IPV4, PORT)
+        if self.verbose:
+            print("Sending a request to {}:{}:".format(*addr))
+            print("header:\n{}\n".format(str(ssdp_request)))
+        await ssdp_request.sendto(self.transport, addr)
 
     async def _stop(self):
         if self._response_fut and not self._response_fut.done():
