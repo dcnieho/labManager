@@ -15,8 +15,7 @@ _mpr = ctypes.WinDLL('mpr',use_last_error=True)
 
 ERROR_NO_MORE_ITEMS = 259
 ERROR_EXTENDED_ERROR= 1208
-
-def _error_check(result, func, args):
+def _error_check_non0_is_error(result, func, args):
     if not result or result==ERROR_NO_MORE_ITEMS:
         return result
     if result==ERROR_EXTENDED_ERROR:
@@ -26,6 +25,14 @@ def _error_check(result, func, args):
         WNetGetLastError(ctypes.byref(last_error),description,ctypes.sizeof(description),provider,ctypes.sizeof(provider))
         raise ctypes.WinError(last_error.value, f'{provider.value} failed: {description.value}')
     raise ctypes.WinError(ctypes.get_last_error())
+def _error_check_0_is_error(result, func, args):
+    if not result:
+         raise ctypes.WinError(ctypes.get_last_error())
+
+WNetGetLastError = _mpr.WNetGetLastErrorW
+WNetGetLastError.argtypes = ctypes.wintypes.LPDWORD, ctypes.wintypes.LPWSTR, ctypes.wintypes.DWORD, ctypes.wintypes.LPWSTR, ctypes.wintypes.DWORD
+WNetGetLastError.restype = ctypes.wintypes.DWORD
+WNetGetLastError.errcheck = _error_check_non0_is_error
 
 class UNIVERSAL_NAME_INFO(ctypes.Structure):
 	_fields_ = [
@@ -40,17 +47,31 @@ class REMOTE_NAME_INFO(ctypes.Structure):
 	]
 LPREMOTE_NAME_INFO = ctypes.POINTER(REMOTE_NAME_INFO)
 
-WNetGetLastError = _mpr.WNetGetLastErrorW
-WNetGetLastError.argtypes = ctypes.wintypes.LPDWORD, ctypes.wintypes.LPWSTR, ctypes.wintypes.DWORD, ctypes.wintypes.LPWSTR, ctypes.wintypes.DWORD
-WNetGetLastError.restype = ctypes.wintypes.DWORD
-WNetGetLastError.errcheck = _error_check
-
 UNIVERSAL_NAME_INFO_LEVEL   = 0x00000001
 REMOTE_NAME_INFO_LEVEL      = 0x00000002
 WNetGetUniversalName = _mpr.WNetGetUniversalNameW
 WNetGetUniversalName.argtypes = ctypes.wintypes.LPCWSTR, ctypes.wintypes.DWORD, ctypes.wintypes.LPVOID, ctypes.wintypes.LPDWORD
 WNetGetUniversalName.restype = ctypes.wintypes.DWORD
-WNetGetUniversalName.errcheck = _error_check
+WNetGetUniversalName.errcheck = _error_check_non0_is_error
+
+GetLogicalDrives = _kernel32.GetLogicalDrives
+GetLogicalDrives.argtypes = None
+GetLogicalDrives.restype = ctypes.wintypes.DWORD
+GetLogicalDrives.errcheck: _error_check_0_is_error
+
+GetVolumeInformation = _kernel32.GetVolumeInformationW
+GetVolumeInformation.argtypes = ctypes.wintypes.LPCWSTR, ctypes.wintypes.LPWSTR, ctypes.wintypes.DWORD, ctypes.wintypes.LPDWORD, ctypes.wintypes.LPDWORD, ctypes.wintypes.LPDWORD, ctypes.wintypes.LPWSTR, ctypes.wintypes.DWORD
+GetVolumeInformation.restype = ctypes.wintypes.BOOL
+GetVolumeInformation.errcheck: _error_check_0_is_error
+
+GetDriveType = _kernel32.GetDriveTypeW
+GetDriveType.argtypes = ctypes.wintypes.LPCWSTR,
+GetDriveType.restype = ctypes.wintypes.UINT
+
+GetDiskFreeSpaceEx = _kernel32.GetDiskFreeSpaceExW
+GetDiskFreeSpaceEx.argtypes = ctypes.wintypes.LPCWSTR, ctypes.wintypes.PULARGE_INTEGER, ctypes.wintypes.PULARGE_INTEGER, ctypes.wintypes.PULARGE_INTEGER
+GetDiskFreeSpaceEx.restype = ctypes.wintypes.BOOL
+GetDiskFreeSpaceEx.errcheck: _error_check_0_is_error
 
 
 def get_thispc_listing() -> list[structs.DirEntry]:
@@ -74,18 +95,18 @@ def get_thispc_listing() -> list[structs.DirEntry]:
 
 def get_drives() -> list[structs.DirEntry]:
     drives = []
-    bitmask = ctypes.windll.kernel32.GetLogicalDrives()
+    bitmask = GetLogicalDrives()
     for letter in string.ascii_uppercase:
         if bitmask & 1:
             drive = f'{letter}:\\'
             entry = structs.DirEntry(drive[0:-1],True,pathlib.Path(drive),None,None,None,None)
             # get name of drive
-            drive_name = ctypes.create_unicode_buffer(ctypes.wintypes.MAX_PATH)
-            if not ctypes.windll.kernel32.GetVolumeInformationW(drive,drive_name,ctypes.sizeof(drive_name),None,None,None,None,0):
+            drive_name = ctypes.create_unicode_buffer(ctypes.wintypes.MAX_PATH+1)
+            if not GetVolumeInformation(drive,drive_name,ctypes.sizeof(drive_name),None,None,None,None,0):
                 raise ctypes.WinError(ctypes.get_last_error())
             entry.extra['drive_name'] = drive_name.value
             # get drive type
-            match ctypes.windll.kernel32.GetDriveTypeW(drive):
+            match GetDriveType(drive):
                 case 0 | 1:     # DRIVE_UNKNOWN, DRIVE_NO_ROOT_DIR
                     # we skip these
                     continue
@@ -100,21 +121,18 @@ def get_drives() -> list[structs.DirEntry]:
                     entry.name = f'{display_name} ({drive[0:-1]})'
                 case 4:     # DRIVE_REMOTE
                     entry.mime_type = 'labManager/drive_network'
-                    buffer = ctypes.create_unicode_buffer(1024)
+                    buffer_len = ctypes.wintypes.DWORD(1024)
+                    buffer = ctypes.create_unicode_buffer(buffer_len.value)
                     un_buffer = ctypes.cast(buffer,LPUNIVERSAL_NAME_INFO)
-                    WNetGetUniversalName(drive, 1, un_buffer, ctypes.sizeof(un_buffer))
-                    print(drive,un_buffer[0],un_buffer[0].universal_name)
-                    print(drive,un_buffer[0],un_buffer[0].universal_name.value)
-                    todo    # let it crash
-                    # TODO: display name should be 'share_name (net_name) (drive)'
+                    WNetGetUniversalName(drive, UNIVERSAL_NAME_INFO_LEVEL, un_buffer, ctypes.byref(buffer_len))
+                    entry.extra['remote_path'] = un_buffer[0].universal_name
                 case 5:     # DRIVE_CDROM
                     entry.mime_type = 'labManager/drive_cdrom'
                 case 6:     # DRIVE_RAMDISK
                     entry.mime_type = 'labManager/drive_ramdisk'
             # get size information
             total, free = ctypes.wintypes.ULARGE_INTEGER(), ctypes.wintypes.ULARGE_INTEGER()
-            if not ctypes.windll.kernel32.GetDiskFreeSpaceExW(drive,None,ctypes.byref(total),ctypes.byref(free)):
-                raise ctypes.WinError(ctypes.get_last_error())
+            GetDiskFreeSpaceEx(drive,None,ctypes.byref(total),ctypes.byref(free))
             entry.size = total.value
             entry.extra['free_space'] = free.value
 
