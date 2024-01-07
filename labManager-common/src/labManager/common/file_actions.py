@@ -214,3 +214,20 @@ async def delete_path(path: str | pathlib.Path):
         await aioshutil.rmtree(path, ignore_errors=True)
     else:
         await path.unlink()
+
+
+def split_network_path(path: str|pathlib.Path) -> list[str]:
+    path = str(path)
+    if not path.startswith(('\\\\','//')):
+        return []
+    # this is a network address
+    # split into components
+    path = path.strip('\\/').replace('\\','/')
+    return [s for s in str(path).split('/') if s]
+
+def get_net_computer(path: str|pathlib.Path):
+    # determine if it is a network computer (\\SERVER) and not a path including share (\\SERVER\share)
+    net_comp = split_network_path(path)
+    if len(net_comp)==1:    # a single name entry, so thats just a computer
+        return net_comp[0]
+    return None

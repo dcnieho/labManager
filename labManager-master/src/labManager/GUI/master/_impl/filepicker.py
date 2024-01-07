@@ -60,22 +60,6 @@ class DirEntryWithCache(structs.DirEntry):
                 self.size_str = f'{size:.1f} {units[i]}'
 
 
-def split_network_path(path: str|pathlib.Path) -> list[str]:
-    path = str(path)
-    if not path.startswith(('\\\\','//')):
-        return []
-    # this is a network address
-    # split into components
-    path = path.strip('\\/').replace('\\','/')
-    return [s for s in str(path).split('/') if s]
-
-def get_net_computer(path: str|pathlib.Path):
-    # determine if it is a network computer (\\SERVER) and not a path including share (\\SERVER\share)
-    net_comp = split_network_path(path)
-    if len(net_comp)==1:    # a single name entry, so thats just a computer
-        return net_comp[0]
-    return None
-
 class FileActionProvider:
     def __init__(self, listing_callback: Callable[[str, str|pathlib.Path, list[structs.DirEntry]|Exception], None], action_callback: Callable[[str, pathlib.Path, str, pathlib.Path|Exception], None], master: master.Master, network: str = None):
         self.waiters: set[concurrent.futures.Future] = set()
@@ -156,7 +140,7 @@ class FileActionProvider:
                 self._listing_done(result, machine, 'root')
             else:
                 # check whether this is a path to a network computer (e.g. \\SERVER)
-                net_comp = get_net_computer(path)
+                net_comp = file_actions.get_net_computer(path)
                 if net_comp:
                     # network computer name, get its shares
                     fut = async_thread.run(smb.get_shares(net_comp,'Guest',''), lambda f: self._listing_done(f, machine, path))
@@ -174,7 +158,7 @@ class FileActionProvider:
                 async_thread.run(self.master.get_client_drives(self.master.clients[client_id]))
             else:
                 # check whether this is a path to a network computer (e.g. \\SERVER)
-                net_comp = get_net_computer(path)
+                net_comp = file_actions.get_net_computer(path)
                 if net_comp:
                     # network computer name, get its shares
                     async_thread.run(self.master.get_client_remote_shares(self.master.clients[client_id],net_comp,'Guest',''))
@@ -356,7 +340,7 @@ class FilePicker:
             is_root = path=='root'
 
         if not is_root:
-            if (comp := get_net_computer(path)):
+            if (comp := file_actions.get_net_computer(path)):
                 # ensure loc has the format //SERVER/, which is what pathlib understands
                 path = pathlib.Path(f'//{comp}/')
             else:
@@ -490,7 +474,7 @@ class FilePicker:
         parent = path.parent
         if parent==path:
             if isinstance(path,pathlib.PureWindowsPath):
-                if (net_comps := split_network_path(path)):
+                if (net_comps := file_actions.split_network_path(path)):
                     if len(net_comps)==1:
                         # network computer, one higher is list of drives and
                         # visible network computers, i.e., root
@@ -510,7 +494,7 @@ class FilePicker:
         if path_str=='root':
             loc_str = self.file_action_provider.get_machine_name(machine)
         else:
-            if (comp := get_net_computer(path_str)):
+            if (comp := file_actions.get_net_computer(path_str)):
                 # pathlib.Path's str() doesn't do the right thing here, render it ourselves
                 loc_str = f'\\\\{comp}'
             else:
@@ -528,7 +512,7 @@ class FilePicker:
 
     def _get_path_leaf_display_name(self, machine: str, path: str | pathlib.Path):
         if isinstance(path, pathlib.Path) and self._get_parent(path)!='root':
-            if (net_comps := split_network_path(path)):
+            if (net_comps := file_actions.split_network_path(path)):
                 if len(net_comps)==1:
                     disp_name = f'\\\\{net_comps[0]}'
                 else:
@@ -870,7 +854,7 @@ class FilePicker:
         else:
             # do we have context menus?
             # not for special paths (which are strings) and not for share overviews of a network computer
-            net_comps = get_net_computer(self.loc)
+            net_comps = file_actions.get_net_computer(self.loc)
             has_context_menu = not isinstance(self.loc, str) and (not net_comps or len(net_comps)>1)
 
             table_flags = (
