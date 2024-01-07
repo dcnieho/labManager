@@ -8,6 +8,51 @@ import pathvalidate
 
 from . import structs
 
+import ctypes
+_kernel32 = ctypes.WinDLL('kernel32',use_last_error=True)
+_mpr = ctypes.WinDLL('mpr',use_last_error=True)
+
+
+ERROR_NO_MORE_ITEMS = 259
+ERROR_EXTENDED_ERROR= 1208
+
+def _error_check(result, func, args):
+    if not result or result==ERROR_NO_MORE_ITEMS:
+        return result
+    if result==ERROR_EXTENDED_ERROR:
+        last_error = ctypes.wintypes.DWORD()
+        provider = ctypes.create_unicode_buffer(256)
+        description = ctypes.create_unicode_buffer(256)
+        WNetGetLastError(ctypes.byref(last_error),description,ctypes.sizeof(description),provider,ctypes.sizeof(provider))
+        raise ctypes.WinError(last_error.value, f'{provider.value} failed: {description.value}')
+    raise ctypes.WinError(ctypes.get_last_error())
+
+class UNIVERSAL_NAME_INFO(ctypes.Structure):
+	_fields_ = [
+		('universal_name', ctypes.wintypes.LPWSTR),
+	]
+LPUNIVERSAL_NAME_INFO = ctypes.POINTER(UNIVERSAL_NAME_INFO)
+class REMOTE_NAME_INFO(ctypes.Structure):
+	_fields_ = [
+		('universal_name', ctypes.wintypes.LPWSTR),
+		('connection_name', ctypes.wintypes.LPWSTR),
+		('remaining_path', ctypes.wintypes.LPWSTR),
+	]
+LPREMOTE_NAME_INFO = ctypes.POINTER(REMOTE_NAME_INFO)
+
+WNetGetLastError = _mpr.WNetGetLastErrorW
+WNetGetLastError.argtypes = ctypes.wintypes.LPDWORD, ctypes.wintypes.LPWSTR, ctypes.wintypes.DWORD, ctypes.wintypes.LPWSTR, ctypes.wintypes.DWORD
+WNetGetLastError.restype = ctypes.wintypes.DWORD
+WNetGetLastError.errcheck = _error_check
+
+UNIVERSAL_NAME_INFO_LEVEL   = 0x00000001
+REMOTE_NAME_INFO_LEVEL      = 0x00000002
+WNetGetUniversalName = _mpr.WNetGetUniversalNameW
+WNetGetUniversalName.argtypes = ctypes.wintypes.LPCWSTR, ctypes.wintypes.DWORD, ctypes.wintypes.LPVOID, ctypes.wintypes.LPDWORD
+WNetGetUniversalName.restype = ctypes.wintypes.DWORD
+WNetGetUniversalName.errcheck = _error_check
+
+
 def get_thispc_listing() -> list[structs.DirEntry]:
     # TODO: not implemented
     import ctypes
@@ -28,7 +73,6 @@ def get_thispc_listing() -> list[structs.DirEntry]:
 
 
 def get_drives() -> list[structs.DirEntry]:
-    import ctypes
     drives = []
     bitmask = ctypes.windll.kernel32.GetLogicalDrives()
     for letter in string.ascii_uppercase:
@@ -56,9 +100,11 @@ def get_drives() -> list[structs.DirEntry]:
                     entry.name = f'{display_name} ({drive[0:-1]})'
                 case 4:     # DRIVE_REMOTE
                     entry.mime_type = 'labManager/drive_network'
-                    network_path = ctypes.create_unicode_buffer(ctypes.wintypes.MAX_PATH)
-                    ctypes.windll.mpr.WNetGetUniversalNameW(drive, 1, network_path, ctypes.sizeof(network_path)) # 1: UNIVERSAL_NAME_INFO_LEVEL
-                    print(network_path)
+                    buffer = ctypes.create_unicode_buffer(1024)
+                    un_buffer = ctypes.cast(buffer,LPUNIVERSAL_NAME_INFO)
+                    WNetGetUniversalName(drive, 1, un_buffer, ctypes.sizeof(un_buffer))
+                    print(drive,un_buffer[0],un_buffer[0].universal_name)
+                    print(drive,un_buffer[0],un_buffer[0].universal_name.value)
                     todo    # let it crash
                     # TODO: display name should be 'share_name (net_name) (drive)'
                 case 5:     # DRIVE_CDROM
