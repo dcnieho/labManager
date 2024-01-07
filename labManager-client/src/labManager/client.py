@@ -321,6 +321,12 @@ class Client:
 
                     case message.Message.FILE_MAKE:
                         out = msg
+                        out['status'] = structs.Status.Running
+                        await comms.typed_send(writer,
+                                               message.Message.FILE_ACTION_STATUS,
+                                               out
+                                              )
+
                         try:
                             if msg['is_dir']:
                                 await file_actions.make_dir(msg['path'])
@@ -340,6 +346,12 @@ class Client:
                                               )
                     case message.Message.FILE_RENAME:
                         out = msg
+                        out['status'] = structs.Status.Running
+                        await comms.typed_send(writer,
+                                               message.Message.FILE_ACTION_STATUS,
+                                               out
+                                              )
+
                         try:
                             return_path = await file_actions.rename_path(msg['old_path'], msg['new_path'])
                         except Exception as exc:
@@ -357,6 +369,12 @@ class Client:
                                               )
                     case message.Message.FILE_COPY_MOVE:
                         out = msg
+                        out['status'] = structs.Status.Running
+                        await comms.typed_send(writer,
+                                               message.Message.FILE_ACTION_STATUS,
+                                               out
+                                              )
+
                         try:
                             if msg['is_move']:
                                 return_path = await file_actions.move_path(msg['source_path'], msg['dest_path'])
@@ -377,6 +395,12 @@ class Client:
                                               )
                     case message.Message.FILE_DELETE:
                         out = msg
+                        out['status'] = structs.Status.Running
+                        await comms.typed_send(writer,
+                                               message.Message.FILE_ACTION_STATUS,
+                                               out
+                                              )
+
                         try:
                             await file_actions.delete_path(msg['path'])
                         except Exception as exc:
