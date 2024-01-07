@@ -46,7 +46,6 @@ class REMOTE_NAME_INFO(ctypes.Structure):
 		('remaining_path', ctypes.wintypes.LPWSTR),
 	]
 LPREMOTE_NAME_INFO = ctypes.POINTER(REMOTE_NAME_INFO)
-
 UNIVERSAL_NAME_INFO_LEVEL   = 0x00000001
 REMOTE_NAME_INFO_LEVEL      = 0x00000002
 WNetGetUniversalName = _mpr.WNetGetUniversalNameW
@@ -126,6 +125,10 @@ def get_drives() -> list[structs.DirEntry]:
                     un_buffer = ctypes.cast(buffer,LPUNIVERSAL_NAME_INFO)
                     WNetGetUniversalName(drive, UNIVERSAL_NAME_INFO_LEVEL, un_buffer, ctypes.byref(buffer_len))
                     entry.extra['remote_path'] = un_buffer[0].universal_name
+                    # build name: 'share_name (net_name) (drive)'
+                    path_comps = split_network_path(entry.extra['remote_path'])
+                    if len(path_comps)>=2:
+                        entry.name = f'{path_comps[1]} ({path_comps[0]}) ({drive[0:-1]})'
                 case 5:     # DRIVE_CDROM
                     entry.mime_type = 'labManager/drive_cdrom'
                 case 6:     # DRIVE_RAMDISK
