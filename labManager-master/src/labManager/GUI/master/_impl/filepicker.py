@@ -319,6 +319,7 @@ class FilePicker:
 
         self._listing_cache: dict[tuple(str,str|pathlib.Path), dict[int,DirEntryWithCache]] = {}
         self.popup_stack = []
+        self.disable_keyboard_navigation = False
 
         self.items: dict[int, DirEntryWithCache] = {}
         self.selected: dict[int, bool] = {}
@@ -555,7 +556,7 @@ class FilePicker:
     def draw_top_bar(self):
         self.elapsed += imgui.get_io().delta_time
 
-        enable_keyboard_nav = not self.popup_stack and not imgui.get_io().want_text_input   # no keyboard navigation in this GUI if a popup is open or key input taken elsewhere
+        enable_keyboard_nav = not self.popup_stack and not self.disable_keyboard_navigation and not imgui.get_io().want_text_input   # no keyboard navigation in this GUI if a popup is open or key input taken elsewhere
         backspace_released  = imgui.is_key_pressed(imgui.Key.backspace)
         shift_down          = imgui.is_key_down(imgui.Key.im_gui_mod_shift)
 
@@ -1049,7 +1050,7 @@ class FilePicker:
                                     closed = True
 
                     # handle action keys
-                    if not self.popup_stack and not imgui.get_io().want_text_input:
+                    if not self.popup_stack and not self.disable_keyboard_navigation and not imgui.get_io().want_text_input:
                         # no keyboard navigation in this GUI if a popup is open or key input taken elsewhere
                         selected_ids = [iid for iid in self.sorted_items if self.selected[iid]]
                         if len(selected_ids)==1:

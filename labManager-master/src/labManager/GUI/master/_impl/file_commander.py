@@ -24,6 +24,10 @@ class FileCommander:
         self.left.file_action_provider.remote_action_provider   = self.remote_action_provider
         self.right.file_action_provider.remote_action_provider  = self.remote_action_provider
 
+        # disable keyboard navigation as we don't know which of the file pickers has focus upon key presses
+        self.left.disable_keyboard_navigation = True
+        self.right.disable_keyboard_navigation = True
+
         # shared popup stack
         self.popup_stack = []
         self.left.popup_stack  = self.popup_stack
