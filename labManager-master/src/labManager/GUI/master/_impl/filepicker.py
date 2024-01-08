@@ -553,6 +553,8 @@ class FilePicker:
         return cancelled, closed
 
     def draw_top_bar(self):
+        self.elapsed += imgui.get_io().delta_time
+
         enable_keyboard_nav = not self.popup_stack and not imgui.get_io().want_text_input   # no keyboard navigation in this GUI if a popup is open or key input taken elsewhere
         backspace_released  = imgui.is_key_pressed(imgui.Key.backspace)
         shift_down          = imgui.is_key_down(imgui.Key.im_gui_mod_shift)
@@ -1163,7 +1165,6 @@ class FilePicker:
 
     def tick(self):
         # Auto refresh
-        self.elapsed += imgui.get_io().delta_time
         if not self.refreshing and (self.elapsed>2 or imgui.is_key_pressed(imgui.Key.f5)):
             self.refresh()
 

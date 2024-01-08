@@ -63,6 +63,12 @@ class FileCommander:
         return closed
 
     def tick(self):
+        # check if either of the file pickers needs a refresh
+        if not self.left.refreshing and (self.left.elapsed>2 or imgui.is_key_pressed(imgui.Key.f5)):
+            self.left.refresh()
+        if not self.right.refreshing and (self.right.elapsed>2 or imgui.is_key_pressed(imgui.Key.f5)):
+            self.right.refresh()
+
         # Setup popup
         if not imgui.is_popup_open(self.title):
             imgui.open_popup(self.title)
