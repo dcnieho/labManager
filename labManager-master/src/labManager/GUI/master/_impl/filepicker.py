@@ -830,7 +830,7 @@ class FilePicker:
 
         return cancelled, closed
 
-    def draw_listing(self, leave_space_for_bottom_bar):
+    def draw_listing(self, leave_space_for_bottom_bar: bool):
         closed = False
         size = imgui.ImVec2(imgui.get_item_rect_size().x, 0)
         if leave_space_for_bottom_bar:
