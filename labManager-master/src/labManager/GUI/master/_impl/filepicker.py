@@ -237,7 +237,7 @@ class FileActionProvider:
             if not self.supports_remote():
                 self._action_done(ValueError(f'Remote machine selected ("{machine}") but not supported'), machine, old_path, action)
             if self.remote_action_provider:
-                fut = async_thread.run(self.remote_action_provider(action, old_path, new_path), lambda f: self._finish_remote_action(f, client_id, machine, path, action))
+                fut = async_thread.run(self.remote_action_provider(action, old_path, new_path), lambda f: self._finish_remote_action(f, client_id, machine, old_path, action))
             else:
                 fut = async_thread.run(self.master.rename_client_file_folder(self.master.clients[client_id], old_path, new_path), lambda f: self._finish_remote_action(f, client_id, machine, old_path, action))
         self.waiters.add(fut)
