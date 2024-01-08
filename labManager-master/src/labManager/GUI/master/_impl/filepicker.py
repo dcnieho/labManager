@@ -319,6 +319,7 @@ class FilePicker:
 
         self._listing_cache: dict[tuple(str,str|pathlib.Path), dict[int,DirEntryWithCache]] = {}
         self.popup_stack = []
+        self.dialog_provider = DialogProvider(self, self._launch_action)
         self.disable_keyboard_navigation = False
 
         self.items: dict[int, DirEntryWithCache] = {}
@@ -1055,11 +1056,11 @@ class FilePicker:
                         selected_ids = [iid for iid in self.sorted_items if self.selected[iid]]
                         if len(selected_ids)==1:
                             if imgui.is_key_pressed(imgui.Key.f2, repeat=False):
-                                self._show_rename_path_dialog(self.items[selected_ids[0]].full_path)
+                                self.dialog_provider.show_rename_path_dialog(self.items[selected_ids[0]].full_path)
                             if self.items[selected_ids[0]].is_dir and imgui.is_key_pressed(imgui.Key.enter, repeat=False):
                                 new_loc = self.items[selected_ids[0]].full_path
                         if selected_ids and imgui.is_key_pressed(imgui.Key.delete, repeat=False):
-                            self._show_delete_path_dialog(selected_ids)
+                            self.dialog_provider.show_delete_path_dialog(self.items, selected_ids)
 
                 if new_loc:
                     self.goto(self.machine, new_loc)
@@ -1078,7 +1079,7 @@ class FilePicker:
                         utils.set_all(self.selected, False)  # deselect on right mouse click as well
                     if has_context_menu and imgui.begin_popup_context_item("##file_list_context"):   # NB: mouse up
                         if imgui.selectable(f"New folder##button", False)[0]:
-                            self._show_new_folder_dialog(self.loc)
+                            self.dialog_provider.show_new_folder_dialog(self.loc)
                         imgui.end_popup()
 
         imgui.end_child()
@@ -1089,80 +1090,13 @@ class FilePicker:
         if disabled:
             utils.push_disabled()
         if imgui.selectable(f"Rename##button", False)[0]:
-            self._show_rename_path_dialog(self.items[iids[0]].full_path)
+            self.dialog_provider.show_rename_path_dialog(self.items[iids[0]].full_path)
         if disabled:
             utils.pop_disabled()
         if imgui.selectable(f"Delete##button", False)[0]:
-            self._show_delete_path_dialog(iids)
+            self.dialog_provider.show_delete_path_dialog(self.items, iids)
         if imgui.selectable(f"New folder here##button", False)[0]:
-            self._show_new_folder_dialog(self.items[iids[0]].full_path.parent)
-    def _show_new_folder_dialog(self, parent=pathlib.Path):
-        new_folder_name = 'New folder'
-        width = imgui.calc_text_size('x').x*35
-        setup_done = False
-        def _new_folder_popup():
-            nonlocal new_folder_name, setup_done
-            if imgui.begin_table("##new_folder",2):
-                imgui.table_setup_column("##new_folder_left", imgui.TableColumnFlags_.width_fixed)
-                imgui.table_setup_column("##new_folder_right", imgui.TableColumnFlags_.width_stretch)
-                imgui.table_next_row()
-                imgui.table_next_column()
-                imgui.align_text_to_frame_padding()
-                imgui.text("Folder name")
-                imgui.table_next_column()
-                imgui.set_next_item_width(width)
-                if not setup_done:
-                    imgui.set_keyboard_focus_here()
-                    setup_done = True
-                _,new_folder_name = imgui.input_text("##new_folder_name", new_folder_name)
-                imgui.end_table()
-            return 0 if imgui.is_key_released(imgui.Key.enter) else None
-        buttons = {
-            icons_fontawesome.ICON_FA_CHECK+" Make folder": lambda: self._launch_action('make_dir',parent/new_folder_name),
-            icons_fontawesome.ICON_FA_BAN+" Cancel": None
-        }
-        utils.push_popup(self, lambda: utils.popup("Make folder", _new_folder_popup, buttons = buttons, closable=True))
-    def _show_rename_path_dialog(self, item: pathlib.Path):
-        item_name = item.name
-        width = imgui.calc_text_size('x').x*(len(item_name)+15)
-        setup_done = False
-        def _rename_item_popup():
-            nonlocal item_name, setup_done
-            if imgui.begin_table("##rename_item",2):
-                imgui.table_setup_column("##rename_item_left", imgui.TableColumnFlags_.width_fixed)
-                imgui.table_setup_column("##rename_item_right", imgui.TableColumnFlags_.width_stretch)
-                imgui.table_next_row()
-                imgui.table_next_column()
-                imgui.align_text_to_frame_padding()
-                imgui.text("Item name")
-                imgui.table_next_column()
-                imgui.set_next_item_width(width)
-                if not setup_done:
-                    imgui.set_keyboard_focus_here()
-                    setup_done = True
-                _,item_name = imgui.input_text("##new_rename_item", item_name)
-                imgui.end_table()
-            return 0 if imgui.is_key_released(imgui.Key.enter) else None
-        buttons = {
-            icons_fontawesome.ICON_FA_CHECK+" Rename": lambda: self._launch_action('rename_path', item, item.parent / item_name),
-            icons_fontawesome.ICON_FA_BAN+" Cancel": None
-        }
-        utils.push_popup(self, lambda: utils.popup("Rename item", _rename_item_popup, buttons = buttons, closable=True))
-    def _show_delete_path_dialog(self, iids: list[int]):
-        # NB: assume items lock acquired when this is called
-        paths = [self.items[iid].full_path for iid in iids]
-        paths_disp = '\n '.join([self.items[iid].display_name for iid in iids])
-        def _delete_item_popup():
-            imgui.text(f'Are you sure you want to delete \n {paths_disp}')
-            return 0 if imgui.is_key_released(imgui.Key.enter) else None
-        def _launch_deletes():
-            for p in paths:
-                self._launch_action('delete_path', p)
-        buttons = {
-            icons_fontawesome.ICON_FA_TRASH+" Delete": _launch_deletes,
-            icons_fontawesome.ICON_FA_BAN+" Cancel": None
-        }
-        utils.push_popup(self, lambda: utils.popup("Delete item", _delete_item_popup, buttons = buttons, closable=True))
+            self.dialog_provider.show_new_folder_dialog(self.items[iids[0]].full_path.parent)
 
     def tick(self):
         # Auto refresh
@@ -1229,3 +1163,77 @@ class FilePicker:
             # we're done
             sort_specs_in.specs_dirty = False
             self.require_sort = False
+
+class DialogProvider:
+    def __init__(self, gui, action_provider):
+        self.gui = gui
+        self.action_provider = action_provider
+    def show_new_folder_dialog(self, parent=pathlib.Path):
+        new_folder_name = 'New folder'
+        width = imgui.calc_text_size('x').x*35
+        setup_done = False
+        def _new_folder_popup():
+            nonlocal new_folder_name, setup_done
+            if imgui.begin_table("##new_folder",2):
+                imgui.table_setup_column("##new_folder_left", imgui.TableColumnFlags_.width_fixed)
+                imgui.table_setup_column("##new_folder_right", imgui.TableColumnFlags_.width_stretch)
+                imgui.table_next_row()
+                imgui.table_next_column()
+                imgui.align_text_to_frame_padding()
+                imgui.text("Folder name")
+                imgui.table_next_column()
+                imgui.set_next_item_width(width)
+                if not setup_done:
+                    imgui.set_keyboard_focus_here()
+                    setup_done = True
+                _,new_folder_name = imgui.input_text("##new_folder_name", new_folder_name)
+                imgui.end_table()
+            return 0 if imgui.is_key_released(imgui.Key.enter) else None
+        buttons = {
+            icons_fontawesome.ICON_FA_CHECK+" Make folder": lambda: self.action_provider('make_dir',parent/new_folder_name),
+            icons_fontawesome.ICON_FA_BAN+" Cancel": None
+        }
+        utils.push_popup(self.gui, lambda: utils.popup("Make folder", _new_folder_popup, buttons = buttons, closable=True))
+
+    def show_rename_path_dialog(self, item: pathlib.Path):
+        item_name = item.name
+        width = imgui.calc_text_size('x').x*(len(item_name)+15)
+        setup_done = False
+        def _rename_item_popup():
+            nonlocal item_name, setup_done
+            if imgui.begin_table("##rename_item",2):
+                imgui.table_setup_column("##rename_item_left", imgui.TableColumnFlags_.width_fixed)
+                imgui.table_setup_column("##rename_item_right", imgui.TableColumnFlags_.width_stretch)
+                imgui.table_next_row()
+                imgui.table_next_column()
+                imgui.align_text_to_frame_padding()
+                imgui.text("Item name")
+                imgui.table_next_column()
+                imgui.set_next_item_width(width)
+                if not setup_done:
+                    imgui.set_keyboard_focus_here()
+                    setup_done = True
+                _,item_name = imgui.input_text("##new_rename_item", item_name)
+                imgui.end_table()
+            return 0 if imgui.is_key_released(imgui.Key.enter) else None
+        buttons = {
+            icons_fontawesome.ICON_FA_CHECK+" Rename": lambda: self.action_provider('rename_path', item, item.parent / item_name),
+            icons_fontawesome.ICON_FA_BAN+" Cancel": None
+        }
+        utils.push_popup(self.gui, lambda: utils.popup("Rename item", _rename_item_popup, buttons = buttons, closable=True))
+
+    def show_delete_path_dialog(self, file_picker_items, iids: list[int]):
+        # NB: assume items lock acquired when this is called
+        paths = [file_picker_items[iid].full_path for iid in iids]
+        paths_disp = '\n '.join([file_picker_items[iid].display_name for iid in iids])
+        def _delete_item_popup():
+            imgui.text(f'Are you sure you want to delete \n {paths_disp}')
+            return 0 if imgui.is_key_released(imgui.Key.enter) else None
+        def _launch_deletes():
+            for p in paths:
+                self.action_provider('delete_path', p)
+        buttons = {
+            icons_fontawesome.ICON_FA_TRASH+" Delete": _launch_deletes,
+            icons_fontawesome.ICON_FA_BAN+" Cancel": None
+        }
+        utils.push_popup(self.gui, lambda: utils.popup("Delete item", _delete_item_popup, buttons = buttons, closable=True))
