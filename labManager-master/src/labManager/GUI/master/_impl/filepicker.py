@@ -992,7 +992,10 @@ class FilePicker:
                                 case 4:
                                     # Type
                                     if self.items[iid].mime_type:
-                                        imgui.text(self.items[iid].mime_type)
+                                        disp_str = utils.trim_str(self.items[iid].mime_type,20)
+                                        imgui.text(disp_str)
+                                        if disp_str!=self.items[iid].mime_type and imgui.is_item_hovered():
+                                            utils.draw_hover_text(self.items[iid].mime_type, text='')
                                 case 5:
                                     # Size
                                     if self.items[iid].size_str:
