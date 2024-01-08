@@ -72,9 +72,9 @@ class FileCommander:
         size.y *= .95
         imgui.set_next_window_size(size, cond=imgui.Cond_.appearing)
         if imgui.begin_popup_modal(self.title, True, flags=self.default_flags)[0]:
-            closed = utils.close_weak_popup(check_click_outside=False)
+            closed  = utils.close_weak_popup(check_click_outside=False)
             closed2 = self.draw()
-            closed    = closed    or closed2
+            closed  = closed or closed2
         else:
             opened = 0
             closed = True
