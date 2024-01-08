@@ -871,7 +871,7 @@ class FilePicker:
                 frame_height = imgui.get_frame_height()
 
                 # Setup
-                checkbox_width = frame_height
+                checkbox_width = frame_height-2*imgui.get_style().frame_padding.y
                 if self.allow_multiple:
                     imgui.table_setup_column("Selector", imgui.TableColumnFlags_.no_hide | imgui.TableColumnFlags_.no_sort | imgui.TableColumnFlags_.no_resize | imgui.TableColumnFlags_.no_reorder, init_width_or_weight=checkbox_width)  # 0
                 imgui.table_setup_column("Name", imgui.TableColumnFlags_.width_stretch | imgui.TableColumnFlags_.default_sort | imgui.TableColumnFlags_.no_hide)  # 1
@@ -908,7 +908,7 @@ class FilePicker:
 
                         if multi_selected_state==0:
                             imgui.internal.push_item_flag(imgui.internal.ItemFlags_.mixed_value, True)
-                        clicked, new_state = utils.my_checkbox(f"##header_checkbox", multi_selected_state==1, frame_size=(0,0), do_vertical_align=False)
+                        clicked, new_state = utils.my_checkbox(f"##header_checkbox", multi_selected_state==1, frame_size=(0,0), frame_padding_override=(imgui.get_style().frame_padding.x/2,0), do_vertical_align=False)
                         if multi_selected_state==0:
                             imgui.internal.pop_item_flag()
 
@@ -976,10 +976,11 @@ class FilePicker:
                             match ci+int(not self.allow_multiple):
                                 case 0:
                                     # Selector
-                                    checkbox_clicked, checkbox_out = utils.my_checkbox(f"##{iid}_selected", self.selected[iid], frame_size=(0,0))
+                                    checkbox_clicked, checkbox_out = utils.my_checkbox(f"##{iid}_selected", self.selected[iid], frame_size=(0,0), frame_padding_override=(imgui.get_style().frame_padding.x/2,imgui.get_style().frame_padding.y))
                                     checkbox_hovered = imgui.is_item_hovered()
                                 case 1:
                                     # Name
+                                    imgui.set_cursor_pos_x(imgui.get_cursor_pos_x() - imgui.calc_text_size(DIR_ICON).x/3)
                                     imgui.text(self.items[iid].display_name)
                                 case 2:
                                     # Date created
