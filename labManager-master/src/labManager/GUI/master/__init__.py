@@ -839,8 +839,8 @@ class MainGUI:
                     )
                 )
             if disabled:
-                utils.draw_hover_text('Select computer(s) for which to execute this task', text='', hovered_flags=imgui.HoveredFlags_.allow_when_disabled)
                 utils.pop_disabled()
+                utils.draw_hover_text('Select computer(s) for which to execute this task', text='', hovered_flags=imgui.HoveredFlags_.allow_when_disabled)
             imgui.same_line(imgui.get_content_region_avail().x-imgui.calc_text_size('Clear').x-2*imgui.get_style().frame_padding.x)
             if imgui.button('Clear'):
                 self._task_prep = TaskDef()
@@ -1061,9 +1061,9 @@ class MainGUI:
                     stations_txt = '\n  '.join((self.master.clients[i].name for i in selected_clients))
                     utils.draw_tooltip(f"Deploy image '{im['UserFacingName']}' to selected stations:\n  "+stations_txt)
                 if disabled:
+                    utils.pop_disabled()
                     if im['DiskSize']=='N/A':
                         utils.draw_hover_text('Cannot deploy empty image', text='', hovered_flags=imgui.HoveredFlags_.allow_when_disabled)
-                    utils.pop_disabled()
 
                 if im['PartOfProject']:
                     if selected_clients:
@@ -1076,9 +1076,9 @@ class MainGUI:
                     if not disabled and imgui.is_item_hovered():
                         utils.draw_tooltip(f"Upload station {station_txt} to image '{im['UserFacingName']}'")
                     if disabled:
+                        utils.pop_disabled()
                         if self._selected_image_id in self._active_upload_tasks:
                             utils.draw_hover_text('Cannot upload image, upload task is already running', text='', hovered_flags=imgui.HoveredFlags_.allow_when_disabled)
-                        utils.pop_disabled()
 
                     imgui.push_style_color(imgui.Col_.button, imgui.ImVec4(*imgui.ImColor.hsv(0.9667,.88,.43)))
                     imgui.push_style_color(imgui.Col_.button_hovered, imgui.ImVec4(*imgui.ImColor.hsv(0.9667,.88,.64)))
@@ -1090,9 +1090,14 @@ class MainGUI:
         imgui.end()
 
     def _file_GUI(self):
+        if disabled := not any(self.selected_computers.values()):
+            utils.push_disabled()
         if imgui.button('Start new action'):
             file_action_provider_args = {'network': config.master['network'], 'master': self.master}
             utils.push_popup(self, file_commander.FileCommander(file_action_provider_args=file_action_provider_args))
+        if disabled:
+            utils.pop_disabled()
+            utils.draw_hover_text('You should select at least one client to perform the actions on', text='', hovered_flags=imgui.HoveredFlags_.allow_when_disabled)
         imgui.text('Task overview:')
         imgui.begin_child("##file_actions")
         table_flags = (
