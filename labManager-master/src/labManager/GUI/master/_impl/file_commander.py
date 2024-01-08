@@ -1,3 +1,4 @@
+import asyncio
 import pathlib
 from imgui_bundle import imgui, icons_fontawesome
 
@@ -19,6 +20,9 @@ class FileCommander:
         self.left  = filepicker.FilePicker(start_dir=start_dir_left , file_action_provider_args=file_action_provider_args)
         self.right = filepicker.FilePicker(start_dir=start_dir_right, file_action_provider_args=file_action_provider_args)
         self.right._listing_cache = self.left._listing_cache    # share listing cache
+        # route remote actions through us
+        self.left.file_action_provider.remote_action_provider   = self.remote_action_provider
+        self.right.file_action_provider.remote_action_provider  = self.remote_action_provider
 
         # shared popup stack
         self.popup_stack = []
@@ -28,7 +32,7 @@ class FileCommander:
 
     def draw(self):
         imgui.begin_child('##filecommander')
-        selected_clients = [id for id in self.selected_clients if self.selected_clients[id]]
+        selected_clients = [c for c in self.selected_clients if self.selected_clients[c]]
         stations_txt = ', '.join((self.master.clients[i].name for i in selected_clients))
         imgui.text_wrapped('Any remote machine actions you do make in this interface be performed on the following stations: '+stations_txt)
 
@@ -77,3 +81,17 @@ class FileCommander:
 
         utils.handle_popup_stack(self.popup_stack)
         return opened, closed
+
+    async def remote_action_provider(self, action: str, path: pathlib.Path, path2: pathlib.Path|None = None):
+        # got an action, route to all selected clients
+        coros = []
+        for c in (c for c in self.selected_clients if self.selected_clients[c]):
+            match action:
+                case 'make_dir':
+                    coros.append(self.master.make_client_folder(self.master.clients[c], path))
+                case 'rename_path':
+                    coros.append(self.master.rename_client_file_folder(self.master.clients[c], path, path2))
+                case 'delete_path':
+                    coros.append(self.master.delete_client_file_folder(self.master.clients[c], path))
+
+        await asyncio.gather(*coros)

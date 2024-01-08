@@ -7,7 +7,7 @@ import asyncio
 import concurrent
 import threading
 from dataclasses import dataclass
-from typing import Any, Callable
+from typing import Awaitable, Any, Callable
 
 from labManager.common import async_thread, file_actions, structs
 from labManager.common.network import net_names, smb
@@ -68,6 +68,8 @@ class FileActionProvider:
         self.action_callback:  Callable[[pathlib.Path|Exception, str], None] = action_callback
 
         self.master = master
+
+        self.remote_action_provider: Callable[[str, pathlib.Path, pathlib.Path|None], Awaitable[int|None]] = None
 
         self.network: str|None = network
         self.network_computers: dict[str,tuple[structs.DirEntry,str]] = {}
@@ -219,7 +221,10 @@ class FileActionProvider:
         else:
             if not self.supports_remote():
                 self._action_done(ValueError(f'Remote machine selected ("{machine}") but not supported'), machine, path, action)
-            fut = async_thread.run(self.master.make_client_folder(self.master.clients[client_id], path), lambda f: self._finish_remote_action(f, client_id, machine, path, action))
+            if self.remote_action_provider:
+                fut = async_thread.run(self.remote_action_provider(action, path), lambda f: self._finish_remote_action(f, client_id, machine, path, action))
+            else:
+                fut = async_thread.run(self.master.make_client_folder(self.master.clients[client_id], path), lambda f: self._finish_remote_action(f, client_id, machine, path, action))
         self.waiters.add(fut)
         return fut
 
@@ -231,7 +236,10 @@ class FileActionProvider:
         else:
             if not self.supports_remote():
                 self._action_done(ValueError(f'Remote machine selected ("{machine}") but not supported'), machine, old_path, action)
-            fut = async_thread.run(self.master.rename_client_file_folder(self.master.clients[client_id], old_path, new_path), lambda f: self._finish_remote_action(f, client_id, machine, old_path, action))
+            if self.remote_action_provider:
+                fut = async_thread.run(self.remote_action_provider(action, old_path, new_path), lambda f: self._finish_remote_action(f, client_id, machine, path, action))
+            else:
+                fut = async_thread.run(self.master.rename_client_file_folder(self.master.clients[client_id], old_path, new_path), lambda f: self._finish_remote_action(f, client_id, machine, old_path, action))
         self.waiters.add(fut)
         return fut
 
@@ -243,7 +251,10 @@ class FileActionProvider:
         else:
             if not self.supports_remote():
                 self._action_done(ValueError(f'Remote machine selected ("{machine}") but not supported'), machine, path, action)
-            fut = async_thread.run(self.master.delete_client_file_folder(self.master.clients[client_id], path), lambda f: self._finish_remote_action(f, client_id, machine, path, action))
+            if self.remote_action_provider:
+                fut = async_thread.run(self.remote_action_provider(action, path), lambda f: self._finish_remote_action(f, client_id, machine, path, action))
+            else:
+                fut = async_thread.run(self.master.delete_client_file_folder(self.master.clients[client_id], path), lambda f: self._finish_remote_action(f, client_id, machine, path, action))
         self.waiters.add(fut)
         return fut
 
@@ -253,8 +264,9 @@ class FileActionProvider:
             return  # nothing more to do
 
         # we should have a file_action_id now, enqueue waiter that calls action_done
-        fut = async_thread.run(asyncio.wait_for(self.master.add_waiter('file-action', action_id), timeout=None), lambda f: self._action_done(f, client_id, machine, path, action_id, action))
-        self.waiters.add(fut)
+        if action_id:
+            fut = async_thread.run(asyncio.wait_for(self.master.add_waiter('file-action', action_id), timeout=None), lambda f: self._action_done(f, client_id, machine, path, action_id, action))
+            self.waiters.add(fut)
 
     def _action_done(self, fut: concurrent.futures.Future, client_id: int, machine: str, path: pathlib.Path, action_id: int, action: str):
         result = self._get_result_from_future(fut)
