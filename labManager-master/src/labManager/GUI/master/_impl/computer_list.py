@@ -56,7 +56,7 @@ class ComputerList():
             frame_height = imgui.get_frame_height()
 
             # Setup
-            checkbox_width = frame_height
+            checkbox_width = frame_height-2*imgui.get_style().frame_padding.y
             imgui.table_setup_column("Selector", imgui.TableColumnFlags_.no_hide | imgui.TableColumnFlags_.no_sort | imgui.TableColumnFlags_.no_resize | imgui.TableColumnFlags_.no_reorder, init_width_or_weight=checkbox_width)  # 0
             imgui.table_setup_column("Name", imgui.TableColumnFlags_.default_sort | imgui.TableColumnFlags_.no_hide | imgui.TableColumnFlags_.no_resize)  # 1
             imgui.table_setup_column("IP", imgui.TableColumnFlags_.default_hide) # 2
@@ -100,7 +100,7 @@ class ComputerList():
 
                     if multi_selected_state==0:
                         imgui.internal.push_item_flag(imgui.internal.ItemFlags_.mixed_value, True)
-                    clicked, new_state = utils.my_checkbox(f"##header_checkbox", multi_selected_state==1, frame_size=(0,0), do_vertical_align=False)
+                    clicked, new_state = utils.my_checkbox(f"##header_checkbox", multi_selected_state==1, frame_size=(0,0), frame_padding_override=(imgui.get_style().frame_padding.x/2,0), do_vertical_align=False)
                     if multi_selected_state==0:
                         imgui.internal.pop_item_flag()
 
@@ -161,10 +161,11 @@ class ComputerList():
                     match ri:
                         case 0:
                             # Selector
-                            checkbox_clicked, checkbox_out = utils.my_checkbox(f"##{id}_selected", self.selected_items[id], frame_size=(0,0))
+                            checkbox_clicked, checkbox_out = utils.my_checkbox(f"##{id}_selected", self.selected_items[id], frame_size=(0,0), frame_padding_override=(imgui.get_style().frame_padding.x/2,imgui.get_style().frame_padding.y))
                             checkbox_hovered = imgui.is_item_hovered()
                         case 1:
                             # Name
+                            imgui.set_cursor_pos_x(imgui.get_cursor_pos_x() - imgui.calc_text_size(icons_fontawesome.ICON_FA_EYE).x/3)
                             self._draw_computer_info(item)
                             imgui.same_line()
                             self._draw_item_info_button(id, label=icons_fontawesome.ICON_FA_INFO_CIRCLE)
