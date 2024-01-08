@@ -413,6 +413,8 @@ class Server(Base):
                 "USN": self.usn,
             },
         )
+        if self.verbose:
+            print("Sending a notification\nheader:\n{}\n".format(str(ssdp_notification)))
         await ssdp_notification.sendto(self.transport, (MULTICAST_ADDRESS_IPV4, PORT))
 
     async def _stop(self):
@@ -447,7 +449,7 @@ class Client(Base):
 
     def _process_response_notify(self, message):
         if isinstance(message,SSDPNotify):
-            # got a notification, immediate issue request to get more info
+            # got a notification, immediately issue request to get more info
             # about the service, if its relevant
             if message.headers['NT']==self.device_type:
                 async_thread.run(self._send_request())
