@@ -265,10 +265,10 @@ class FileActionProvider:
 
         # we should have a file_action_id now, enqueue waiter that calls action_done
         if action_id:
-            fut = async_thread.run(asyncio.wait_for(self.master.add_waiter('file-action', action_id), timeout=None), lambda f: self._action_done(f, client_id, machine, path, action_id, action))
+            fut = async_thread.run(asyncio.wait_for(self.master.add_waiter('file-action', action_id), timeout=None), lambda f: self._action_done(f, machine, path, action, client_id, action_id))
             self.waiters.add(fut)
 
-    def _action_done(self, fut: concurrent.futures.Future, client_id: int, machine: str, path: pathlib.Path, action_id: int, action: str):
+    def _action_done(self, fut: concurrent.futures.Future, machine: str, path: pathlib.Path, action: str, client_id: int=None, action_id: int=None):
         result = self._get_result_from_future(fut)
         if result=='cancelled':
             return  # nothing more to do
@@ -277,7 +277,7 @@ class FileActionProvider:
             return
 
         # get result and call callback
-        if client_id in self.master.clients and action_id in self.master.clients[client_id].online.file_actions:
+        if client_id and client_id in self.master.clients and action_id in self.master.clients[client_id].online.file_actions:
             result = self.master.clients[client_id].online.file_actions[action_id]
             if result['status']==structs.Status.Errored:
                 result = result['error']
