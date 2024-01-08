@@ -18,7 +18,7 @@ import glfw
 
 from labManager.common import async_thread, config, eye_tracker, message, structs, task
 from ... import master
-from ._impl import computer_list, filepicker, msgbox, utils
+from ._impl import computer_list, file_commander, filepicker, msgbox, utils
 
 # Struct that holds the application's state
 class ActionState(Enum):
@@ -1091,7 +1091,8 @@ class MainGUI:
 
     def _file_GUI(self):
         if imgui.button('Start new action'):
-            pass
+            file_action_provider_args = {'network': config.master['network'], 'master': self.master}
+            utils.push_popup(self, file_commander.FileCommander(file_action_provider_args=file_action_provider_args))
         imgui.text('Task overview:')
         imgui.begin_child("##file_actions")
         table_flags = (
