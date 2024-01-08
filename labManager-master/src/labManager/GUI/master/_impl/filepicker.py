@@ -566,7 +566,7 @@ class FilePicker:
         if disabled:
             utils.pop_disabled()
         # History forward button
-        imgui.same_line()
+        imgui.same_line(spacing=imgui.get_style().item_spacing.x/4)
         disabled = self.history_loc+1>=len(self.history)
         if disabled:
             utils.push_disabled()
@@ -586,7 +586,7 @@ class FilePicker:
         if disabled:
             utils.pop_disabled()
         # Up button
-        imgui.same_line()
+        imgui.same_line(spacing=imgui.get_style().item_spacing.x/4)
         parent = self._get_parent(self.loc)
         disabled = parent is None or self.loc==parent
         if disabled:
@@ -598,7 +598,7 @@ class FilePicker:
         if disabled:
             utils.pop_disabled()
         # Refresh button
-        imgui.same_line()
+        imgui.same_line(spacing=imgui.get_style().item_spacing.x/2)
         if self.refreshing:
             button_text_size = imgui.calc_text_size(icons_fontawesome.ICON_FA_REDO)
             button_size = (button_text_size.x+imgui.get_style().frame_padding.x*2, button_text_size.y+imgui.get_style().frame_padding.y*2)
@@ -617,11 +617,17 @@ class FilePicker:
             if imgui.button(icons_fontawesome.ICON_FA_REDO):
                 self.refresh()
         # Location bar
-        imgui.same_line()
-        imgui.set_next_item_width(-250*hello_imgui.dpi_window_size_factor())
+        imgui.same_line(spacing=imgui.get_style().item_spacing.x/2)
+        # determine size
+        space = imgui.get_content_region_avail().x
+        if space>250/.3*hello_imgui.dpi_window_size_factor():
+            filt_space = 250*hello_imgui.dpi_window_size_factor()
+        else:
+            filt_space = int(space*.3)
+        imgui.set_next_item_width(-filt_space)
         self.draw_path_bar()
         # filter box
-        imgui.same_line()
+        imgui.same_line(spacing=imgui.get_style().item_spacing.x/2)
         imgui.set_next_item_width(imgui.get_content_region_avail().x)
         _, value = imgui.input_text_with_hint('##filter_box', f'Filter {self._get_path_leaf_display_name(self.machine,self.loc)}', self.filter_box_text)
         if value != self.filter_box_text:
