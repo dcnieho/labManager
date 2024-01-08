@@ -675,7 +675,7 @@ class FilePicker:
                 ellipsis = make_elem('···', 'ellipsis')
                 btn_list.insert(2, ellipsis)
                 while total_width>w:
-                    if len(btn_list)==4:
+                    if len(btn_list)<=4:
                         # nothing more that can be removed
                         break
                     btn_removed.append(btn_list.pop(3))
