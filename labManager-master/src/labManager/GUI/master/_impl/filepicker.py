@@ -673,7 +673,7 @@ class FilePicker:
             btn_removed = []
             if total_width>w:
                 ellipsis = make_elem('···', 'ellipsis')
-                btn_list.insert(2, ellipsis)
+                btn_list.insert(1, ellipsis)
                 while total_width>w:
                     if len(btn_list)<=4:
                         # nothing more that can be removed
@@ -705,7 +705,7 @@ class FilePicker:
                                 self.path_bar_popup['which_selected'] = self.machine
                         elif b[0]=='sep':
                             # path separator button, enqueue opening path selection dropdown
-                            self.path_bar_popup['loc'] = btn_list[i-1][0]
+                            self.path_bar_popup['loc'] = self._get_parent(btn_list[i+1][0])
                             self.path_bar_popup['which'] = i-1
                             self.path_bar_popup['which_selected'] = btn_list[i+1][1]
                             self.path_bar_popup['pos'] = button_pos
