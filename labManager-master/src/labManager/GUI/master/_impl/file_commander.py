@@ -2,6 +2,7 @@ import pathlib
 from imgui_bundle import imgui, icons_fontawesome
 
 from . import filepicker, utils
+from .... import master
 
 class FileCommander:
     default_flags: int = (
@@ -9,7 +10,10 @@ class FileCommander:
         imgui.WindowFlags_.no_saved_settings
     )
 
-    def __init__(self, title = "File commander", start_dir_left: str | pathlib.Path = None, start_dir_right: str | pathlib.Path = None, file_action_provider_args=None):
+    def __init__(self, master: master.Master, selected_clients: dict[int, bool], title = "File commander", start_dir_left: str | pathlib.Path = None, start_dir_right: str | pathlib.Path = None, file_action_provider_args=None):
+        self.master = master
+        self.selected_clients = selected_clients
+
         self.title = title
 
         self.left  = filepicker.FilePicker(start_dir=start_dir_left , file_action_provider_args=file_action_provider_args)
@@ -21,8 +25,12 @@ class FileCommander:
         self.left.popup_stack  = self.popup_stack
         self.right.popup_stack = self.popup_stack
 
+
     def draw(self):
         imgui.begin_child('##filecommander')
+        selected_clients = [id for id in self.selected_clients if self.selected_clients[id]]
+        stations_txt = ', '.join((self.master.clients[i].name for i in selected_clients))
+        imgui.text_wrapped('Any remote machine actions you do make in this interface be performed on the following stations: '+stations_txt)
 
         space = imgui.get_content_region_avail()
         button_text_size = imgui.calc_text_size(icons_fontawesome.ICON_FA_BAN+" Cancel")
