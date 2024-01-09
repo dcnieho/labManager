@@ -33,7 +33,7 @@ class Waiter:
 
 # generic status for task or file action
 @enum_helper.get
-@total_ordering
+@total_ordering # so file actions can be sorted by status in the GUI
 class Status(enum_helper.AutoNameSpace):
     Pending     = auto()
     Running     = auto()
