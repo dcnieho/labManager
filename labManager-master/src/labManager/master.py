@@ -54,6 +54,10 @@ class Master:
         self._file_action_id_provider = counter.CounterContext()
 
         # hooks
+        self.login_state_change_hooks: \
+            list[Callable[[structs.Status, Exception|None], None]]= []
+        self.project_selection_state_change_hooks: \
+            list[Callable[[structs.Status, Exception|None], None]]= []
         self.client_disconnected_hooks: \
             list[Callable[[structs.ConnectedClient, int], None]]= []
         self.task_state_change_hooks: \
@@ -66,24 +70,31 @@ class Master:
     async def login(self, username: str, password: str):
         # clean up old session, if any
         await self._logout_async()
+        self._call_hooks(self.login_state_change_hooks, structs.Status.Running)
 
-        # check preconditions
-        if not 'admin' in config.master:
-            raise LookupError('You cannot login without the admin config item being set in your configuration yaml file')
-        if not 'toems' in config.master:    # technically we need this only when selecting a project, but may as well error now
-            raise LookupError('You cannot login without the toems config item being set in your configuration yaml file')
+        try:
+            # check preconditions
+            if not 'admin' in config.master:
+                raise LookupError('You cannot login without the admin config item being set in your configuration yaml file')
+            if not 'toems' in config.master:    # technically we need this only when selecting a project, but may as well error now
+                raise LookupError('You cannot login without the toems config item being set in your configuration yaml file')
 
-        # sanitize username and password, control characters mess with ldap
-        username = "".join(ch for ch in username if unicodedata.category(ch)[0]!="C")
-        password = "".join(ch for ch in password if unicodedata.category(ch)[0]!="C")
+            # sanitize username and password, control characters mess with ldap
+            username = "".join(ch for ch in username if unicodedata.category(ch)[0]!="C")
+            password = "".join(ch for ch in password if unicodedata.category(ch)[0]!="C")
 
-        # check user credentials, and list projects they have access to
-        self.admin = admin_conn.Client(config.master['admin']['server'], config.master['admin']['port'])
-        await self.admin.login(username, password)
-        self.username, self.password = username, password
+            # check user credentials, and list projects they have access to
+            self.admin = admin_conn.Client(config.master['admin']['server'], config.master['admin']['port'])
+            await self.admin.login(username, password)
+            self.username, self.password = username, password
 
-        # prep user's projects
-        self.load_projects()
+            # prep user's projects
+            self.load_projects()
+        except Exception as exc:
+            self._call_hooks(self.login_state_change_hooks, structs.Status.Errored, exc)
+            raise
+        else:
+            self._call_hooks(self.login_state_change_hooks, structs.Status.Finished)
 
     def logout(self):
         if async_thread.loop and async_thread.loop.is_running:
@@ -94,6 +105,7 @@ class Master:
         self.username, self.password = None, None
         self.projects = {}
         self.admin = None
+        self._call_hooks(self.login_state_change_hooks, structs.Status.Pending)
 
     def load_projects(self):
         projects = self.admin.get_projects()
@@ -107,35 +119,42 @@ class Master:
             self.projects[p] = project_display_name
 
     async def set_project(self, project: str):
-        if project not in self.projects:
-            # make nice error message
-            projects = []
-            for p,pn in self.projects.items():
-                if pn==p:
-                    projects.append(p)
-                else:
-                    projects.append(f'{p} ({pn})')
-            projects = "\n  ".join(projects)
-            raise ValueError(f'project "{project}" not recognized, choose one of the projects you have access to: \n  {projects}')
+        try:
+            self._call_hooks(self.project_selection_state_change_hooks, structs.Status.Running)
+            if project not in self.projects:
+                # make nice error message
+                projects = []
+                for p,pn in self.projects.items():
+                    if pn==p:
+                        projects.append(p)
+                    else:
+                        projects.append(f'{p} ({pn})')
+                projects = "\n  ".join(projects)
+                raise ValueError(f'project "{project}" not recognized, choose one of the projects you have access to: \n  {projects}')
 
-        if project == self.project:
-            return
+            if project == self.project:
+                return
 
-        # check preconditions
-        if not 'toems' in config.master:    # technically we need this only when selecting a project, but may as well error now
-            raise LookupError('You cannot login without the toems config item being set in your configuration yaml file')
+            # check preconditions
+            if not 'toems' in config.master:    # technically we need this only when selecting a project, but may as well error now
+                raise LookupError('You cannot login without the toems config item being set in your configuration yaml file')
 
-        # ensure possible previous project is unloaded
-        self.toems = None
+            # ensure possible previous project is unloaded
+            self.toems = None
 
-        # set new project
-        self.admin.set_project(project)
+            # set new project
+            self.admin.set_project(project)
 
-        # log into toems server
-        await self.admin.prep_toems()
-        self.toems = toems.Client(config.master['toems']['server'], config.master['toems']['port'], protocol='http')
-        await self.toems.connect(self.username, self.password)
-        self.project = project
+            # log into toems server
+            await self.admin.prep_toems()
+            self.toems = toems.Client(config.master['toems']['server'], config.master['toems']['port'], protocol='http')
+            await self.toems.connect(self.username, self.password)
+            self.project = project
+        except Exception as exc:
+            self._call_hooks(self.project_selection_state_change_hooks, structs.Status.Errored, exc)
+            raise
+        else:
+            self._call_hooks(self.project_selection_state_change_hooks, structs.Status.Finished)
 
     async def _determine_share_access(self, project: str):
         try:
@@ -168,6 +187,7 @@ class Master:
         self.has_share_access = False
         if self.admin is not None:
             self.admin.unset_project()
+        self._call_hooks(self.project_selection_state_change_hooks, structs.Status.Pending)
         # NB: no need to clean up clients, stop_server() above will stop the connections, which cleans them up for us
 
 
@@ -488,6 +508,10 @@ class Master:
 
     def add_hook(self, which: str, fun: Callable):
         match which:
+            case 'login_state_change':
+                self.login_state_change_hooks.append(fun)
+            case 'project_selection_state_change':
+                self.project_selection_state_change_hooks.append(fun)
             case 'client_disconnected':
                 self.client_disconnected_hooks.append(fun)
             case 'task_state_change':
