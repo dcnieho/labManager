@@ -58,6 +58,8 @@ class Master:
             list[Callable[[structs.Status, Exception|None], None]]= []
         self.project_selection_state_change_hooks: \
             list[Callable[[structs.Status, Exception|None], None]]= []
+        self.server_state_change_hooks: \
+            list[Callable[[structs.Status], None]]= []
         self.client_disconnected_hooks: \
             list[Callable[[structs.ConnectedClient, int], None]]= []
         self.task_state_change_hooks: \
@@ -227,6 +229,9 @@ class Master:
             self._share_access_task = asyncio.create_task(self._determine_share_access(self.project))
             self._share_access_task.add_done_callback(lambda _: setattr(self, '_share_access_task', None))
 
+        # done, notify we're running
+        self._call_hooks(self.server_state_change_hooks, structs.Status.Running)
+
     def is_serving(self):
         return self._server is not None
 
@@ -277,6 +282,9 @@ class Master:
             await self._server.wait_closed()
         self._server = None
         self._loop = None
+
+        # done, notify we're not running
+        self._call_hooks(self.server_state_change_hooks, structs.Status.Pending)
 
     def add_waiter(self, waiter_type : str|structs.WaiterType, parameter: str|pathlib.Path|int|None=None, parameter2: int|None = None):
         waiter_type = structs.WaiterType.get(waiter_type)
@@ -512,6 +520,8 @@ class Master:
                 self.login_state_change_hooks.append(fun)
             case 'project_selection_state_change':
                 self.project_selection_state_change_hooks.append(fun)
+            case 'server_state_change':
+                self.server_state_change_hooks.append(fun)
             case 'client_disconnected':
                 self.client_disconnected_hooks.append(fun)
             case 'task_state_change':
