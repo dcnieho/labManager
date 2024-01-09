@@ -45,8 +45,8 @@ class MainGUI:
         self.master = master.Master()
         self.master.load_known_clients()
         # install hooks
-        self.master.add_client_disconnected_hook(self._lost_client)
-        self.master.add_task_state_change_hook(self._task_status_changed)
+        self.master.add_hook('client_disconnected', self._lost_client)
+        self.master.add_hook('task_state_change', self._task_status_changed)
 
         self.username         = ''
         self.password         = ''

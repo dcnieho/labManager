@@ -45,17 +45,19 @@ class Master:
         # clients
         self.clients            : dict[int, structs.Client]     = {}
         self.clients_lock       : threading.Lock                = threading.Lock()
-        self.client_disconnected_hooks: \
-            list[Callable[[structs.ConnectedClient, int], None]]= []
         self._known_clients     : list[dict[str,str|list[str]]] = []
 
         # tasks
         self.task_groups        : dict[int, task.TaskGroup]     = {}
-        self.task_state_change_hooks: \
-            list[Callable[[structs.ConnectedClient, int, task.Task], None]] = []
 
         # file actions
         self._file_action_id_provider = counter.CounterContext()
+
+        # hooks
+        self.client_disconnected_hooks: \
+            list[Callable[[structs.ConnectedClient, int], None]]= []
+        self.task_state_change_hooks: \
+            list[Callable[[structs.ConnectedClient, int, task.Task], None]] = []
 
     def __del__(self):
         # cleanup: logout() takes care of all teardown
@@ -438,16 +440,8 @@ class Master:
                         mytask.status = msg['status']
                         if 'return_code' in msg:
                             mytask.return_code = msg['return_code']
-                        if self.task_state_change_hooks:
-                            to_del = []
-                            for i,h in enumerate(self.task_state_change_hooks):
-                                try:
-                                    h(me, client_id, mytask)
-                                except:
-                                    to_del.append(i)
-                            # remove crashing hooks so they are not called again
-                            for i in to_del[::-1]:
-                                del self.task_state_change_hooks[i]
+                        # call hooks, if any
+                        self._call_hooks(self.task_state_change_hooks, me, client_id, mytask)
                         if mytask.is_done():
                             for w in self._waiters:
                                 if w.waiter_type==structs.WaiterType.Task_Any and not w.fut.done():
@@ -490,6 +484,27 @@ class Master:
 
         # remove online client instance
         self._client_disconnected(me, client_id)
+
+
+    def add_hook(self, which: str, fun: Callable):
+        match which:
+            case 'client_disconnected':
+                self.client_disconnected_hooks.append(fun)
+            case 'task_state_change':
+                self.task_state_change_hooks.append(fun)
+            case _:
+                raise ValueError('add_hook: hook type "{which}" not understood')
+
+    def _call_hooks(self, hook_list: list[Callable], *args):
+        to_del = []
+        for i,h in enumerate(hook_list):
+            try:
+                h(*args)
+            except:
+                to_del.append(i)
+        # remove crashing hooks so they are not called again
+        for i in to_del[::-1]:
+            del hook_list[i]
 
 
     def load_known_clients(self, known_clients: list[dict[str,str|list[str]]] = None):
@@ -550,16 +565,7 @@ class Master:
 
     def _client_disconnected(self, client: structs.ConnectedClient, client_id: int):
         # call hooks, if any
-        if self.client_disconnected_hooks:
-            to_del = []
-            for i,h in enumerate(self.client_disconnected_hooks):
-                try:
-                    h(client, client_id)
-                except:
-                    to_del.append(i)
-            # remove crashing hooks so they are not called again
-            for i in to_del[::-1]:
-                del self.task_state_change_hooks[i]
+        self._call_hooks(self.client_disconnected_hooks, client, client_id)
 
         # clean up ConnectedClient
         with self.clients_lock:
@@ -586,9 +592,6 @@ class Master:
 
             if finish_future and not w.fut.done():
                 w.fut.set_result(None)
-
-    def add_client_disconnected_hook(self, fun: Callable[[structs.ConnectedClient, int], None]):
-        self.client_disconnected_hooks.append(fun)
 
 
     async def broadcast(self, msg_type: str|message.Message, msg: str=''):
@@ -678,9 +681,6 @@ class Master:
 
         # return TaskGroup.id and [Task.id, ...] for all constituent tasks
         return task_group.id, [task_group.tasks[c].id for c in task_group.tasks]
-
-    def add_task_state_change_hook(self, fun: Callable[[structs.ConnectedClient, int, task.Task], None]):
-        self.task_state_change_hooks.append(fun)
 
 
     async def get_client_drives(self, client: structs.Client):
