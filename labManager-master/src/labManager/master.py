@@ -86,9 +86,10 @@ class Master:
             password = "".join(ch for ch in password if unicodedata.category(ch)[0]!="C")
 
             # check user credentials, and list projects they have access to
-            self.admin = admin_conn.Client(config.master['admin']['server'], config.master['admin']['port'])
-            await self.admin.login(username, password)
+            admin = admin_conn.Client(config.master['admin']['server'], config.master['admin']['port'])
+            await admin.login(username, password)
             self.username, self.password = username, password
+            self.admin = admin
 
             # prep user's projects
             self.load_projects()
@@ -149,9 +150,10 @@ class Master:
 
             # log into toems server
             await self.admin.prep_toems()
-            self.toems = toems.Client(config.master['toems']['server'], config.master['toems']['port'], protocol='http')
-            await self.toems.connect(self.username, self.password)
+            toems_ = toems.Client(config.master['toems']['server'], config.master['toems']['port'], protocol='http')
+            await toems_.connect(self.username, self.password)
             self.project = project
+            self.toems = toems_
         except Exception as exc:
             self._call_hooks(self.project_selection_state_change_hooks, structs.Status.Errored, exc)
             raise
