@@ -39,7 +39,7 @@ class Master:
 
         # servers
         self.address            : str                           = None
-        self._server            : str                           = None
+        self._server            : asyncio.Server                = None
         self._ssdp_server       : ssdp.Server                   = None
 
         # clients
@@ -235,7 +235,7 @@ class Master:
         self._call_hooks(self.server_state_change_hooks, structs.Status.Running)
 
     def is_serving(self):
-        return self._server is not None
+        return self._server is not None and self._server.is_serving()
 
     async def stop_server(self):
         if self._ssdp_server is not None:
