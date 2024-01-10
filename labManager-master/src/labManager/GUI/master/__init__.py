@@ -176,7 +176,7 @@ class MainGUI:
 
         # we use docking throughout this app just for resizable layouting and tab bars
         # set some flags so that users can't undock or see the menu arrow to hide the tab bar
-        runner_params.docking_params.main_dock_space_node_flags = imgui.DockNodeFlags_.no_undocking | imgui.internal.DockNodeFlagsPrivate_.no_window_menu_button
+        runner_params.docking_params.main_dock_space_node_flags = imgui.DockNodeFlags_.no_undocking | imgui.internal.DockNodeFlagsPrivate_.no_docking | imgui.internal.DockNodeFlagsPrivate_.no_window_menu_button
 
         # This will split the preexisting default dockspace "MainDockSpace" in two parts.
         # Then, add a space to the left which occupies a column whose width is 25% of the app width
@@ -643,15 +643,24 @@ class MainGUI:
             imgui.internal.dock_builder_remove_node(dock_space_id)
             imgui.internal.dock_builder_add_node(dock_space_id)
 
-            self._imaging_GUI_list_dock_id,_,temp_id = imgui.internal.dock_builder_split_node_py(dock_space_id, imgui.Dir_.left,0.15)
-            self._task_GUI_type_dock_id,_,temp_id = imgui.internal.dock_builder_split_node_py(temp_id, imgui.Dir_.left,.15/(1-.15))
-            self._imaging_GUI_details_dock_id,_,self._imaging_GUI_action_dock_id = \
+            task_GUI_list_dock_id,_,temp_id = imgui.internal.dock_builder_split_node_py(dock_space_id, imgui.Dir_.left,0.15)
+            task_GUI_type_dock_id,_,temp_id = imgui.internal.dock_builder_split_node_py(temp_id, imgui.Dir_.left,.15/(1-.15))
+            task_GUI_details_dock_id,_,task_GUI_action_dock_id = \
                 imgui.internal.dock_builder_split_node_py(temp_id, imgui.Dir_.up,0.90)
+            # make sure you can't dock in these
+            node = imgui.internal.dock_builder_get_node(task_GUI_list_dock_id)
+            node.set_local_flags(node.local_flags | imgui.internal.DockNodeFlagsPrivate_.no_docking)
+            node = imgui.internal.dock_builder_get_node(task_GUI_type_dock_id)
+            node.set_local_flags(node.local_flags | imgui.internal.DockNodeFlagsPrivate_.no_docking)
+            node = imgui.internal.dock_builder_get_node(task_GUI_details_dock_id)
+            node.set_local_flags(node.local_flags | imgui.internal.DockNodeFlagsPrivate_.no_docking)
+            node = imgui.internal.dock_builder_get_node(task_GUI_action_dock_id)
+            node.set_local_flags(node.local_flags | imgui.internal.DockNodeFlagsPrivate_.no_docking)
 
-            imgui.internal.dock_builder_dock_window('task_list_pane',self._imaging_GUI_list_dock_id)
-            imgui.internal.dock_builder_dock_window('task_type_pane',self._task_GUI_type_dock_id)
-            imgui.internal.dock_builder_dock_window('task_config_pane',self._imaging_GUI_details_dock_id)
-            imgui.internal.dock_builder_dock_window('task_confirm_pane',self._imaging_GUI_action_dock_id)
+            imgui.internal.dock_builder_dock_window('task_list_pane', task_GUI_list_dock_id)
+            imgui.internal.dock_builder_dock_window('task_type_pane', task_GUI_type_dock_id)
+            imgui.internal.dock_builder_dock_window('task_config_pane', task_GUI_details_dock_id)
+            imgui.internal.dock_builder_dock_window('task_confirm_pane', task_GUI_action_dock_id)
             imgui.internal.dock_builder_finish(dock_space_id)
         imgui.dock_space(dock_space_id, (0.,0.), imgui.DockNodeFlags_.no_docking_split|imgui.internal.DockNodeFlagsPrivate_.no_tab_bar)
 
@@ -856,12 +865,19 @@ class MainGUI:
             imgui.internal.dock_builder_remove_node(dock_space_id)
             imgui.internal.dock_builder_add_node(dock_space_id)
 
-            self._imaging_GUI_list_dock_id,_,temp_id = imgui.internal.dock_builder_split_node_py(dock_space_id, imgui.Dir_.left,0.20)
-            self._imaging_GUI_details_dock_id,_,self._imaging_GUI_action_dock_id = imgui.internal.dock_builder_split_node_py(temp_id, imgui.Dir_.up,0.8)
+            imaging_GUI_list_dock_id,_,temp_id = imgui.internal.dock_builder_split_node_py(dock_space_id, imgui.Dir_.left,0.20)
+            imaging_GUI_details_dock_id,_,imaging_GUI_action_dock_id = imgui.internal.dock_builder_split_node_py(temp_id, imgui.Dir_.up,0.8)
+            # make sure you can't dock in these
+            node = imgui.internal.dock_builder_get_node(imaging_GUI_list_dock_id)
+            node.set_local_flags(node.local_flags | imgui.internal.DockNodeFlagsPrivate_.no_docking)
+            node = imgui.internal.dock_builder_get_node(imaging_GUI_details_dock_id)
+            node.set_local_flags(node.local_flags | imgui.internal.DockNodeFlagsPrivate_.no_docking)
+            node = imgui.internal.dock_builder_get_node(imaging_GUI_action_dock_id)
+            node.set_local_flags(node.local_flags | imgui.internal.DockNodeFlagsPrivate_.no_docking)
 
-            imgui.internal.dock_builder_dock_window('images_list_pane',self._imaging_GUI_list_dock_id)
-            imgui.internal.dock_builder_dock_window('image_details_pane',self._imaging_GUI_details_dock_id)
-            imgui.internal.dock_builder_dock_window('imaging_actions_pane',self._imaging_GUI_action_dock_id)
+            imgui.internal.dock_builder_dock_window('images_list_pane', imaging_GUI_list_dock_id)
+            imgui.internal.dock_builder_dock_window('image_details_pane', imaging_GUI_details_dock_id)
+            imgui.internal.dock_builder_dock_window('imaging_actions_pane', imaging_GUI_action_dock_id)
             imgui.internal.dock_builder_finish(dock_space_id)
         imgui.dock_space(dock_space_id, (0.,0.), imgui.DockNodeFlags_.no_docking_split|imgui.internal.DockNodeFlagsPrivate_.no_tab_bar)
 
@@ -1345,12 +1361,19 @@ class MainGUI:
             imgui.internal.dock_builder_remove_node(dock_space_id)
             imgui.internal.dock_builder_add_node(dock_space_id)
 
-            self._imaging_GUI_list_dock_id,_,temp_id = imgui.internal.dock_builder_split_node_py(dock_space_id, imgui.Dir_.left,0.15)
-            self._imaging_GUI_details_dock_id,_,self._imaging_GUI_action_dock_id = imgui.internal.dock_builder_split_node_py(temp_id, imgui.Dir_.up,0.15)
+            computer_GUI_list_dock_id,_,temp_id = imgui.internal.dock_builder_split_node_py(dock_space_id, imgui.Dir_.left,0.15)
+            computer_GUI_details_dock_id,_,computer_GUI_action_dock_id = imgui.internal.dock_builder_split_node_py(temp_id, imgui.Dir_.up,0.15)
+            # make sure you can't dock in these
+            node = imgui.internal.dock_builder_get_node(computer_GUI_list_dock_id)
+            node.set_local_flags(node.local_flags | imgui.internal.DockNodeFlagsPrivate_.no_docking)
+            node = imgui.internal.dock_builder_get_node(computer_GUI_details_dock_id)
+            node.set_local_flags(node.local_flags | imgui.internal.DockNodeFlagsPrivate_.no_docking)
+            node = imgui.internal.dock_builder_get_node(computer_GUI_action_dock_id)
+            node.set_local_flags(node.local_flags | imgui.internal.DockNodeFlagsPrivate_.no_docking)
 
-            imgui.internal.dock_builder_dock_window(f'task_list_pane_{item.id}',self._imaging_GUI_list_dock_id)
-            imgui.internal.dock_builder_dock_window(f'task_result_pane_{item.id}',self._imaging_GUI_details_dock_id)
-            imgui.internal.dock_builder_dock_window(f'task_log_pane_{item.id}',self._imaging_GUI_action_dock_id)
+            imgui.internal.dock_builder_dock_window(f'task_list_pane_{item.id}', computer_GUI_list_dock_id)
+            imgui.internal.dock_builder_dock_window(f'task_result_pane_{item.id}', computer_GUI_details_dock_id)
+            imgui.internal.dock_builder_dock_window(f'task_log_pane_{item.id}', computer_GUI_action_dock_id)
             imgui.internal.dock_builder_finish(dock_space_id)
         imgui.dock_space(dock_space_id, (0.,0.), imgui.DockNodeFlags_.no_docking_split|imgui.internal.DockNodeFlagsPrivate_.no_tab_bar)
 
