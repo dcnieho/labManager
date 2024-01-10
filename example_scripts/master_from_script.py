@@ -18,7 +18,7 @@ def execution_monitor(fut):
     finally:
         # run() errored. Show GUI for 5 more seconds in case the error led to a popup there, and then quit
         # don't wait if task finished normally, extra time to show GUI is handled there
-        if errored:
+        if errored and gui_container.gui.running:
             time.sleep(5)
         gui_container.gui.quit()
 
@@ -117,7 +117,7 @@ async def run(master: labManager.master.Master):
     await asyncio.wait_for(master.add_waiter('file-action', action_id), timeout=None)
 
     # clean up
-    if gui_container.gui:
+    if gui_container.gui and gui_container.gui.running:
         # we have a GUI attached, wait for 5 seconds before we exit so
         # user can see results of the above tasks. Do this before stopping
         # server as that clears the state of clients registered with the master

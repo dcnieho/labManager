@@ -62,6 +62,7 @@ class MainGUI:
         self.no_login_mode    = False
 
         # GUI state
+        self.running          = False
         self._window_list     = []
         self._to_dock         = []
         self._to_focus        = None
@@ -143,7 +144,7 @@ class MainGUI:
         runner_params.app_window_params.restore_previous_geometry = True
         runner_params.callbacks.load_additional_fonts = self._load_fonts
         runner_params.callbacks.pre_new_frame = self._update_windows
-        runner_params.callbacks.before_exit = self._logout
+        runner_params.callbacks.before_exit = self._exiting
 
         # Status bar, idle throttling
         runner_params.imgui_window_params.show_status_bar = False
@@ -242,7 +243,12 @@ class MainGUI:
     def quit(self):
         hello_imgui.get_runner_params().app_shall_exit = True
 
+    def _exiting(self):
+        self.running = False
+        self._logout()
+
     def _update_windows(self):
+        self.running = True
         if self._need_set_window_title:
             self._set_window_title()
         # update windows to be shown
