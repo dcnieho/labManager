@@ -32,6 +32,8 @@ class FileCommander:
         self.left.disable_keyboard_navigation = True
         self.right.disable_keyboard_navigation = True
 
+        # GUI state
+        self.append_station_name = False
         # shared popup stack
         self.popup_stack = []
         self.left.popup_stack  = self.popup_stack
@@ -44,31 +46,39 @@ class FileCommander:
         stations_txt = ', '.join((self.master.clients[i].name for i in selected_clients))
         imgui.text_wrapped('Any remote machine actions you make in this interface will be performed on the following stations: '+stations_txt)
 
+        # figure out layout: get width of middle section, divide leftover equally between the other two
+        # widest element is checkbox, get its width
+        cb_label = 'Append station folder?'
+        w = imgui.get_frame_height() + imgui.get_style().item_inner_spacing.x + imgui.calc_text_size(cb_label).x + 2*imgui.get_style().frame_padding.x
+
         space = imgui.get_content_region_avail()
         button_text_size = imgui.calc_text_size(icons_fontawesome.ICON_FA_BAN+" Cancel")
         bottom_margin = button_text_size.y+imgui.get_style().frame_padding.y*2+imgui.get_style().item_spacing.y
         space.y = -bottom_margin
 
-        imgui.begin_child('##left_picker',size=(space.x*.4,space.y))
+        imgui.begin_child('##left_picker',size=((space.x-w)/2,space.y))
         self.left.draw_top_bar()
         self.left.draw_listing(leave_space_for_bottom_bar=False)
         imgui.end_child()
         imgui.same_line()
 
-        imgui.begin_child('##actions',size=(space.x*.2,space.y))
+        imgui.begin_child('##actions',size=(w,space.y))
         imgui.push_font(self.mainGUI.icon_font)
+        # get button size, center horizontally and vertically
         button_text_size = imgui.calc_text_size(icons_fontawesome.ICON_FA_ARROW_RIGHT)
-        imgui.pop_font()
         button_size = [t+p*2 for t,p in zip(button_text_size,imgui.get_style().frame_padding)]#+imgui.get_style().item_spacing.y
         margin = [(a-b)/2 for a,b in zip(imgui.get_content_region_avail(), button_size)]
-        imgui.push_font(self.mainGUI.icon_font)
         imgui.set_cursor_pos([a+b for a,b in zip(imgui.get_cursor_pos(),margin)])
         imgui.button(icons_fontawesome.ICON_FA_ARROW_RIGHT+"##action")
         imgui.pop_font()
+        # center checkbox+label horizontally
+        imgui.set_cursor_pos_x(imgui.get_cursor_pos_x()+(imgui.get_content_region_avail().x-w)/2)
+        self.append_station_name = imgui.checkbox(cb_label,self.append_station_name)[1]
+        utils.draw_hover_text('When enabled, a folder will be made for each machine to receive the files copied from the left side. That means you won\'t have all files mixed together, but organized in folders per machine.', text='')
         imgui.end_child()
         imgui.same_line()
 
-        imgui.begin_child('##right_picker',size=(space.x*.4,space.y))
+        imgui.begin_child('##right_picker',size=((space.x-w)/2,space.y))
         self.right.draw_top_bar()
         self.right.draw_listing(leave_space_for_bottom_bar=False)
         imgui.end_child()
