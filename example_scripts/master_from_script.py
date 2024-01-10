@@ -25,7 +25,9 @@ async def run():
     await master.start_server()
 
     # wait until a client connects (irrespective of how many are already connected, this waits for a new one)
+    print('waiting for client... ', end='')
     await asyncio.wait_for(master.add_waiter('client-connect-any'), timeout=None)
+    print('a client has connected')
     # can also wait for a specific client by name
     # await asyncio.wait_for(master.add_waiter('client-connect-name', 'STATION01'), timeout=None)
     # can also wait for a specific number of clients to be connected (will not fire when there are more or less)
