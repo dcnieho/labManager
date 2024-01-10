@@ -30,7 +30,6 @@ class Master:
         self._share_access_task : asyncio.Task                  = None
         self.has_share_access   : bool                          = False
 
-        self._loop              : asyncio.AbstractEventLoop     = None
         self._waiters           : set[structs.Waiter]           = set()
 
         # connections to servers
@@ -331,12 +330,9 @@ class Master:
                     f'When creating a {waiter_type.value} waiter, parameter should be an int (file action id)'
 
         # its valid, create our waiter
-        if not self._loop:
-            try:
-                self._loop = asyncio.get_running_loop()
-            except Exception as exc:
-                raise RuntimeError('Error making waiter because event loop could not be retrieved') from exc
-        waiter = structs.Waiter(waiter_type, parameter, parameter2, self._loop.create_future())
+        if not async_thread.loop:
+            raise RuntimeError('Error making waiter because event loop could not be retrieved. Make sure you call labManager.common.async_thread.setup()')
+        waiter = structs.Waiter(waiter_type, parameter, parameter2, async_thread.loop.create_future())
 
         # register future and add our cleanup function
         self._waiters.add(waiter)
