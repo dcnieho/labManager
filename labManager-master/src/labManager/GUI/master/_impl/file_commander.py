@@ -27,6 +27,8 @@ class FileCommander:
         self.left  = filepicker.FilePicker(start_machine=client_name, start_dir=start_dir_left , file_action_provider_args=file_action_provider_args)
         self.right = filepicker.FilePicker(start_machine=client_name, start_dir=start_dir_right, file_action_provider_args=file_action_provider_args)
         self.right._listing_cache = self.left._listing_cache    # share listing cache
+        self.right.allow_selecting_machine = False
+        self.left_machine = self.left.machine
         # route remote actions through us
         self.left.file_action_provider.remote_action_provider   = self.remote_action_provider
         self.right.file_action_provider.remote_action_provider  = self.remote_action_provider
@@ -106,6 +108,10 @@ class FileCommander:
             self.left.refresh()
         if not self.right.refreshing and (self.right.elapsed>2 or imgui.is_key_pressed(imgui.Key.f5)):
             self.right.refresh()
+        # if left machine changed, also change for right
+        if self.left.machine!=self.left_machine:
+            self.right.goto(self.left.machine,'root')
+            self.left_machine = self.left.machine
 
         # Setup popup
         if not imgui.is_popup_open(self.title):
