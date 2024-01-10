@@ -57,7 +57,7 @@ async def run(master: labManager.master.Master):
             if master.clients[c].online:    # is None if client is not online but in the list because it was configured as a known client
                 if client_id is None:
                     client_id = c
-                print(master.clients[c].online.host)
+                print(f'{master.clients[c].name} ({master.clients[c].online.host})')
                 if master.clients[c].online.eye_tracker and master.clients[c].online.eye_tracker.online:
                     print(f'  eye tracker: {master.clients[c].online.eye_tracker.model}')
 
