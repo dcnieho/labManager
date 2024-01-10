@@ -997,7 +997,7 @@ async def cmd_login_flow(master: Master, username: str = None, password: str = N
         username = input(f'Username: ')
     if not password:
         from getpass import getpass
-        password = getpass(f'Password: ')
+        password = getpass(f'Password for {username}: ')
     await master.login(username, password)
 
     if not project:
