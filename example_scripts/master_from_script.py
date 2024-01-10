@@ -22,7 +22,9 @@ async def run():
         # await master.set_project('0000-03')
     else:
         print('You didn\'t answer y, so not logging in')
+    print('starting server for communicating with clients... ', end='')
     await master.start_server()
+    print('done')
 
     # wait until a client connects (irrespective of how many are already connected, this waits for a new one)
     print('waiting for client... ', end='')
@@ -99,15 +101,18 @@ async def run():
     # waiting for an already finished action returns immediately
     await asyncio.wait_for(master.add_waiter('file-action', action_id), timeout=None)
 
+    # clean up
     client_name = master.clients[client_id].name
     await master.broadcast('quit')
     # wait until a client disconnects. Safest in this case is to do this by name as client may have disconnected due to the above call before we manage to register the waiter
     await asyncio.wait_for(master.add_waiter('client-disconnect-name', client_name), timeout=None)
     # can also wait for any client to disconnect
     # await asyncio.wait_for(master.add_waiter('client-disconnect-any'), timeout=None)
-    # clean up
-    await master.stop_server()
 
+    # stop server
+    print('stopping server... ', end='')
+    await master.stop_server()
+    print('done')
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="labManager client")
