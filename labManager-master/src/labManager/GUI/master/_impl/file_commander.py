@@ -49,8 +49,8 @@ class FileCommander:
         imgui.begin_child('##filecommander')
         with self.master.clients_lock:
             selected_clients = [c for c in self.selected_clients if self.selected_clients[c]]
-        stations_txt = ', '.join((self.master.clients[i].name for i in selected_clients))
-        imgui.text_wrapped('Any remote machine actions you make in this interface will be performed on the following stations: '+stations_txt)
+        computers_txt = ', '.join((self.master.clients[i].name for i in selected_clients))
+        imgui.text_wrapped('The action you do in this interface will be performed on the following computers: '+computers_txt)
 
         # figure out layout: get width of middle section, divide leftover equally between the other two
         # widest element is checkbox, get its width
