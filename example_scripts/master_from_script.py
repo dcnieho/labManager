@@ -12,6 +12,14 @@ async def run():
     want_login = input(f'Do you want to log in to a project? (y/n): ').casefold()=='y'
     if want_login:
         await labManager.master.cmd_login_flow(master)
+        # NB: instead of doing this login flow on the command line, you can
+        # do most of the flow automatically, prompting only for the password:
+        # await labManager.master.cmd_login_flow(master, '<username>', project='<project name>')
+        # also hardcode the password:
+        # await labManager.master.cmd_login_flow(master, '<username>', '<password>', '<project name>')
+        # or directly use the master functions for login and project selection:
+        # await master.login('huml-dkn','4Freedomlu')
+        # await master.set_project('0000-03')
     else:
         print('You didn\'t answer y, so not logging in')
     await master.start_server()
