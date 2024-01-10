@@ -68,6 +68,8 @@ class MainGUI:
         self._to_focus        = None
         self._need_set_window_title = False
         self._main_dock_node_id = None
+        # debug window
+        self.show_demo_window = False
 
         self.selected_computers: dict[int, bool] = {k:False for k in self.master.clients}
         # NB: use self.master.clients_lock also for self.selected_computers, extra safety
@@ -312,6 +314,7 @@ class MainGUI:
         if imgui.begin_menu("Help"):
             if imgui.menu_item("About", "", False)[0]:
                 utils.push_popup(self, self._draw_about_popup)
+            self.show_demo_window = imgui.menu_item("Debug window", "", self.show_demo_window)[1]
             imgui.end_menu()
 
     def _get_window_title(self, add_user=False, add_project=False, no_login_mode=False):
@@ -1653,6 +1656,9 @@ class MainGUI:
     def _computer_pane(self):
         # this pane is always visible, so we handle popups here
         utils.handle_popup_stack(self.popup_stack)
+        # also handle showing of debug windows
+        if self.show_demo_window:
+            self.show_demo_window = imgui.show_demo_window(self.show_demo_window)
 
         # now render actual pane
         if self.proj_select_state!=structs.Status.Finished and not self.no_login_mode:
