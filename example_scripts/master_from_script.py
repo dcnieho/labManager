@@ -1,14 +1,29 @@
 import asyncio
 import pathlib
 import argparse
-import ctypes
+import time
 
 import labManager.master
 import labManager.common
 
-async def run():
+gui_container = labManager.master.GUIContainer()
+
+def execution_monitor(fut):
+    errored = False
+    try:
+        fut.result()
+    except Exception as exc:
+        errored = True
+        raise exc
+    finally:
+        # run() errored. Show GUI for 5 more seconds in case the error led to a popup there, and then quit
+        # don't wait if task finished normally, extra time to show GUI is handled there
+        if errored:
+            time.sleep(5)
+        gui_container.gui.quit()
+
+async def run(master: labManager.master.Master):
     # login and start server
-    master = labManager.master.Master()
     want_login = input(f'Do you want to log in to a project? (y/n): ').casefold()=='y'
     if want_login:
         await labManager.master.cmd_login_flow(master)
@@ -102,6 +117,13 @@ async def run():
     await asyncio.wait_for(master.add_waiter('file-action', action_id), timeout=None)
 
     # clean up
+    if gui_container.gui:
+        # we have a GUI attached, wait for 5 seconds before we exit so
+        # user can see results of the above tasks. Do this before stopping
+        # server as that clears the state of clients registered with the master
+        await asyncio.sleep(5)
+
+    # tell client to disconnect (optional, stopping server disconnects all clients)
     client_name = master.clients[client_id].name
     await master.broadcast('quit')
     # wait until a client disconnects. Safest in this case is to do this by name as client may have disconnected due to the above call before we manage to register the waiter
@@ -115,12 +137,9 @@ async def run():
     print('done')
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="labManager client")
-    parser.add_argument('--hide', action='store_true', help="hide console window")
+    parser = argparse.ArgumentParser(description="labManager master script example")
+    parser.add_argument('--show-GUI', action='store_true', help="Show GUI for observing what script tells master to do")
     args = parser.parse_args()
-
-    if args.hide:
-        ctypes.windll.user32.ShowWindow(ctypes.windll.kernel32.GetConsoleWindow(), 0)
 
     path = pathlib.Path('.').resolve()
     if path.name=='example_scripts':
@@ -137,5 +156,11 @@ if __name__ == "__main__":
     # anyway run in the separate thread's loop provided by async_thread
     # so to keep it simple in this example we just run everything from there)
     labManager.common.async_thread.setup()
-    labManager.common.async_thread.wait(run())
+    if args.show_GUI:
+        master = labManager.master.Master()
+        master.load_known_clients()
+        labManager.common.async_thread.run(run(master), execution_monitor)
+        labManager.master.run_GUI(master, gui_container)
+    else:
+        labManager.common.async_thread.wait(run())
     labManager.common.async_thread.cleanup()
