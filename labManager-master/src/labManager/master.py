@@ -66,6 +66,10 @@ class Master:
             list[Callable[[structs.ConnectedClient, int, task.Task], None]] = []
 
     def __del__(self):
+        # if there are any registered waiters, cancel them
+        for w in self._waiters:
+            w.fut.cancel()
+
         # cleanup: logout() takes care of all teardown
         self.logout()
 
@@ -159,6 +163,9 @@ class Master:
             raise
         else:
             self._call_hooks(self.project_selection_state_change_hooks, structs.Status.Finished)
+            for w in self._waiters:
+                if w.waiter_type==structs.WaiterType.Login_Project_Select and not w.fut.done():
+                    w.fut.set_result(None)
 
     async def _determine_share_access(self, project: str):
         try:
@@ -199,7 +206,6 @@ class Master:
         if self.is_serving():
             return
 
-        self._loop = asyncio.get_running_loop()
         if local_addr is None:
             if_ips,_ = ifs.get_ifaces(config.master['network'])
             if not if_ips:
@@ -233,6 +239,9 @@ class Master:
 
         # done, notify we're running
         self._call_hooks(self.server_state_change_hooks, structs.Status.Running)
+        for w in self._waiters:
+            if w.waiter_type==structs.WaiterType.Server_Started and not w.fut.done():
+                w.fut.set_result(None)
 
     def is_serving(self):
         return self._server is not None and self._server.is_serving()
@@ -246,10 +255,6 @@ class Master:
             # we want this to cancel before we stop any of the clients, so that
             # no shares can get mounted just as we're shutting down
             await self._share_access_task
-
-        # if user has any waiters registered, cancel them
-        for w in self._waiters:
-            w.fut.cancel()
 
         with self.clients_lock:
             for c in self.clients:
@@ -283,7 +288,6 @@ class Master:
             self._server.close()
             await self._server.wait_closed()
         self._server = None
-        self._loop = None
 
         # done, notify we're not running
         self._call_hooks(self.server_state_change_hooks, structs.Status.Pending)
@@ -293,14 +297,16 @@ class Master:
 
         # check parameter is valid
         match waiter_type:
-            case structs.WaiterType.Client_Connect_Any:
+            case structs.WaiterType.Login_Project_Select | \
+                 structs.WaiterType.Server_Started | \
+                 structs.WaiterType.Client_Connect_Any | \
+                 structs.WaiterType.Client_Disconnect_Any | \
+                 structs.WaiterType.Task_Any:
                 pass    # no parameters
             case structs.WaiterType.Client_Connect_Name:
                 # str: wait until client with this specific name is connected
                 assert isinstance(parameter, str),\
                     f'When creating a {waiter_type.value} waiter, parameter should be an str (name of client to wait for)'
-            case structs.WaiterType.Client_Disconnect_Any:
-                pass    # no parameters
             case structs.WaiterType.Client_Disconnect_Name:
                 # str: wait until client with this specific name has disconnected
                 assert isinstance(parameter, str),\
@@ -309,8 +315,6 @@ class Master:
                 # int: wait until a specific number of clients is connected
                 assert isinstance(parameter, int),\
                     f'When creating a {waiter_type.value} waiter, parameter should be an int (number of clients to wait for)'
-            case structs.WaiterType.Task_Any:
-                pass    # no parameters
             case structs.WaiterType.Task:
                 assert isinstance(parameter, int),\
                     f'When creating a {waiter_type.value} waiter, parameter should be an int (task id)'
@@ -327,6 +331,11 @@ class Master:
                     f'When creating a {waiter_type.value} waiter, parameter should be an int (file action id)'
 
         # its valid, create our waiter
+        if not self._loop:
+            try:
+                self._loop = asyncio.get_running_loop()
+            except Exception as exc:
+                raise RuntimeError('Error making waiter because event loop could not be retrieved') from exc
         waiter = structs.Waiter(waiter_type, parameter, parameter2, self._loop.create_future())
 
         # register future and add our cleanup function
@@ -335,15 +344,22 @@ class Master:
 
         # some extra set up or checks
         match waiter_type:
-            # client-connect: check if client already connected
-            case structs.WaiterType.Client_Connect_Any:
+            case structs.WaiterType.Client_Connect_Any | \
+                 structs.WaiterType.Client_Disconnect_Any | \
+                 structs.WaiterType.Task_Any:
                 pass # nothing to do
+            case structs.WaiterType.Login_Project_Select:
+                if self.username and self.password and self.project:
+                    # already logged in and project selected, set future done
+                    waiter.fut.set_result(None)
+            case structs.WaiterType.Server_Started:
+                if self.is_serving():
+                    # server already started, set future done
+                    waiter.fut.set_result(None)
             case structs.WaiterType.Client_Connect_Name:
                 if parameter in [self.clients[c].name for c in self.clients if self.clients[c].online]:
                     # client with this name is already connected, set future done
                     waiter.fut.set_result(None)
-            case structs.WaiterType.Client_Disconnect_Any:
-                pass # nothing to do
             case structs.WaiterType.Client_Disconnect_Name:
                 if parameter not in [self.clients[c].name for c in self.clients if self.clients[c].online]:
                     # client with this name is already connected, set future done
@@ -352,8 +368,6 @@ class Master:
                 if len(self.clients)==parameter:
                     # condition already met, set future done
                     waiter.fut.set_result(None)
-            case structs.WaiterType.Task_Any:
-                pass # nothing to do
             case structs.WaiterType.Task:
                 # see if task exists, and if so if its already done
                 # find the task somewhere in all the task groups

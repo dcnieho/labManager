@@ -12,6 +12,8 @@ from . import counter, enum_helper, task
 
 @enum_helper.get
 class WaiterType(enum_helper.AutoNameDash):
+    Login_Project_Select    = auto()    # wait for login and project selection to be finished
+    Server_Started          = auto()    # wait for server to be started (use if you are not the one doing the starting, useless (but not dangerous) if you call start_server() yourself)
     Client_Connect_Any      = auto()    # wait for any client to connect (no parameters)
     Client_Connect_Name     = auto()    # wait for a specific client, by name, to connect (parameter is a string)
     Client_Disconnect_Any   = auto()    # wait for any client to disconnect (no parameters)
