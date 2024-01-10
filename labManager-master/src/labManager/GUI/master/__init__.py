@@ -32,15 +32,25 @@ class TaskDef:
     python_unbuf: bool      = False
 
 class MainGUI:
-    def __init__(self):
+    def __init__(self, mstr: master.Master = None):
         # Constants
         self.popup_stack = []
 
-        self.master = master.Master()
-        self.master.load_known_clients()
+        if not mstr:
+            self.master = master.Master()
+            self.master.load_known_clients()
+            self.master_provided_by_user = False
+        else:
+            self.master = mstr
+            self.master_provided_by_user = True
         # install hooks
         self.master.add_hook('client_disconnected', self._lost_client)
         self.master.add_hook('task_state_change', self._task_status_changed)
+        if self.master_provided_by_user:
+            # we need to listen to login or project selection state changes
+            self.master.add_hook('login_state_change', self._login_state_change)
+            self.master.add_hook('project_selection_state_change', self._projsel_state_change)
+            self.master.add_hook('server_state_change', self._server_state_change)
 
         self.username         = ''
         self.password         = ''
@@ -55,6 +65,7 @@ class MainGUI:
         self._window_list     = []
         self._to_dock         = []
         self._to_focus        = None
+        self._need_set_window_title = False
         self._main_dock_node_id = None
 
         self.selected_computers: dict[int, bool] = {k:False for k in self.master.clients}
@@ -206,6 +217,20 @@ class MainGUI:
             self._make_main_space_window("Login", self._login_GUI),
         ]
 
+        if self.master_provided_by_user:
+            # user passed in an existing master. Figure out what state we are in
+            if self.master.username and self.master.password:
+                self.username       = self.master.username
+                self.password       = self.master.password
+                self._login_done()
+            if self.master.project:
+                self.proj_idx = list(self.master.projects.keys()).index(self.master.project)
+                self._project_selected()
+            # check if running without login
+            self.no_login_mode = self.proj_select_state==structs.Status.Pending and self.master.is_serving()
+            if self.no_login_mode:
+                self._continue_without_login()
+
         ################################################################################################
         # Part 3: Run the app
         ################################################################################################
@@ -213,7 +238,12 @@ class MainGUI:
         addons_params.with_markdown = True
         immapp.run(runner_params, addons_params)
 
+    def quit(self):
+        hello_imgui.get_runner_params().app_shall_exit = True
+
     def _update_windows(self):
+        if self._need_set_window_title:
+            self._set_window_title()
         # update windows to be shown
         if self._window_list:
             hello_imgui.get_runner_params().docking_params.dockable_windows = self._window_list
@@ -223,8 +253,8 @@ class MainGUI:
             hello_imgui.get_runner_params().docking_params.dockable_windows = \
                 [w for w in hello_imgui.get_runner_params().docking_params.dockable_windows if not w.label.endswith('computer_view') or w.is_visible]
 
-        # we also handle docking requests here
-        if self._to_dock:
+        # we also handle docking requests here, once we can (need self._main_dock_node_id)
+        if self._to_dock and self._main_dock_node_id:
             for w in self._to_dock:
                 imgui.internal.dock_builder_dock_window(w, self._main_dock_node_id)
             self._to_dock = []
@@ -251,7 +281,7 @@ class MainGUI:
         return main_space_view
 
     def _show_app_menu_items(self):
-        if imgui.begin_menu("Open project", self.login_state==structs.Status.Finished):
+        if imgui.begin_menu("Open project", self.login_state==structs.Status.Finished and not self.master_provided_by_user):
             for i,(p,pn) in enumerate(self.master.projects.items()):
                 if self.proj_select_state==structs.Status.Finished and i==self.proj_idx:
                     # don't show currently loaded project in menu
@@ -262,13 +292,13 @@ class MainGUI:
                     self.proj_idx = i
                     self.project_select_immediately = True
             imgui.end_menu()
-        if imgui.menu_item("Close project", "", False, enabled=self.proj_select_state==structs.Status.Finished)[0]:
+        if imgui.menu_item("Close project", "", False, enabled=self.proj_select_state==structs.Status.Finished and not self.master_provided_by_user)[0]:
             self._unload_project()
         if self.no_login_mode:
-            if imgui.menu_item("Return to login", "", False)[0]:
+            if imgui.menu_item("Return to login", "", False, enabled=not self.master_provided_by_user)[0]:
                 self._logout()
         else:
-            if imgui.menu_item("Log out", "", False, enabled=self.login_state==structs.Status.Finished)[0]:
+            if imgui.menu_item("Log out", "", False, enabled=self.login_state==structs.Status.Finished and not self.master_provided_by_user)[0]:
                 self._logout()
 
     def _show_menu_gui(self):
@@ -287,17 +317,21 @@ class MainGUI:
             title+= f' ({self.username})'
         return title
 
-    def _set_window_title(self, add_user=False, add_project=False, no_login_mode=False):
-        new_title = self._get_window_title(add_user,add_project,no_login_mode)
+    def _set_window_title(self):
+        new_title = self._get_window_title(
+            self.login_state==structs.Status.Finished,
+            self.proj_select_state==structs.Status.Finished,
+            self.no_login_mode)
         # this is just for show, doesn't trigger an update. But lets keep them in sync
         hello_imgui.get_runner_params().app_window_params.window_title = new_title
         # actually update window title
         win = glfw_utils.glfw_window_hello_imgui()
         glfw.set_window_title(win, new_title)
+        self._need_set_window_title = False
 
     def _login_done(self):
         self.login_state = structs.Status.Finished
-        self._set_window_title(add_user=True)
+        self._need_set_window_title = True
 
     def _logout(self):
         self._unload_project()
@@ -306,8 +340,9 @@ class MainGUI:
         self.password         = ''
         self.login_state      = structs.Status.Pending
         self.no_login_mode    = False
-        self.master.logout()
-        self._set_window_title()
+        if not self.master_provided_by_user:
+            self.master.logout()
+        self._need_set_window_title = True
 
     def _continue_without_login(self):
         self.no_login_mode = True
@@ -318,9 +353,10 @@ class MainGUI:
             ]
         self._to_focus = "Tasks"
         self._to_dock = ["Tasks", "File Management"]
-        self._set_window_title(no_login_mode=True)
+        self._need_set_window_title = True
         # start server
-        async_thread.run(self.master.start_server())
+        if not self.master_provided_by_user:
+            async_thread.run(self.master.start_server())
 
     def _project_selected(self):
         self.proj_select_state = structs.Status.Finished
@@ -338,11 +374,12 @@ class MainGUI:
             ]
         self._to_focus = "Tasks"
         self._to_dock = ["Tasks", "Image Management", "File Management"]
-        self._set_window_title(add_user=True, add_project=True)
+        self._need_set_window_title = True
         # prep for image management
         async_thread.run(self._get_project_images())
         # start server
-        async_thread.run(self.master.start_server())
+        if not self.master_provided_by_user:
+            async_thread.run(self.master.start_server())
 
     async def _get_project_images(self):
         n_tries = 0
@@ -380,7 +417,8 @@ class MainGUI:
 
 
     def _unload_project(self):
-        self.master.unset_project()
+        if not self.master_provided_by_user:
+            self.master.unset_project()
         self.selected_computers.clear()
         with self.master.clients_lock:
             self.selected_computers |= {k:False for k in self.master.clients}
@@ -395,16 +433,20 @@ class MainGUI:
         # reset GUI
         self._task_prep = TaskDef()
         self._window_list = [self.computer_list, self._make_main_space_window("Login", self._login_GUI)]
-        self._set_window_title(add_user=True)
+        self._need_set_window_title = True
 
     def _login_GUI(self):
         if not self._main_dock_node_id:
-            # this window is docked to the right dock node, query id of this dock node as we'll need it for later
+            # this window is docked to the right dock node, if we don't
+            # have it yet, query id of this dock node as we'll need it for later
             # windows
             self._main_dock_node_id = imgui.get_window_dock_id()
+        global_disabled = self.master_provided_by_user
+        if global_disabled:
+            utils.push_disabled()
         if self.login_state != structs.Status.Finished:
-            disabled = self.login_state==structs.Status.Running
-            if disabled:
+            local_disabled = self.login_state==structs.Status.Running and not global_disabled
+            if local_disabled:
                 utils.push_disabled()
             if 'login' in config.master:
                 i1,self.username = imgui.input_text_with_hint('User name',config.master['login']['hint'], self.username, flags=imgui.InputTextFlags_.enter_returns_true)
@@ -428,7 +470,7 @@ class MainGUI:
                 if imgui.button("Continue without logging in"):
                     self._continue_without_login()
 
-            if disabled:
+            if local_disabled:
                 utils.pop_disabled()
         else:
             if not self.master.projects:
@@ -441,8 +483,8 @@ class MainGUI:
                 if self.project_select_immediately:
                     self._do_select_project()
                     self.project_select_immediately = False
-                disabled = self.proj_select_state==structs.Status.Running
-                if disabled:
+                local_disabled = self.proj_select_state==structs.Status.Running and not global_disabled
+                if local_disabled:
                     utils.push_disabled()
                 imgui.text('Select project:')
                 projects = []
@@ -464,8 +506,10 @@ class MainGUI:
                     if imgui.button("Select") or selection_done:
                         self._do_select_project()
 
-                if disabled:
+                if local_disabled:
                     utils.pop_disabled()
+        if global_disabled:
+            utils.pop_disabled()
     def _do_select_project(self):
         self.proj_select_state = structs.Status.Running
         async_thread.run(self.master.set_project(list(self.master.projects.keys())[self.proj_idx]), lambda fut: self._login_projectsel_result('project',fut))
@@ -507,6 +551,49 @@ class MainGUI:
         # not handled by above, display more generic error
         tb = utils.get_traceback(type(exc), exc, exc.__traceback__)
         utils.push_popup(self, msgbox.msgbox, "Login error", f"Something went wrong when {'logging in' if stage=='login' else 'selecting project'}...", msgbox.MsgBox.error, more=tb)
+
+    # NB: these three hooks are only attached when user passed in an existing master that
+    # we are observing. We're listening to potentially relevant changes and update the GUI
+    # state if needed
+    def _login_state_change(self, status: structs.Status, error: Exception|None = None):
+        match status:
+            case structs.Status.Pending:
+                # not logged in (e.g. just logged out)
+                self._logout()
+            case structs.Status.Running:
+                # busy logging in
+                self.login_state = structs.Status.Running
+            case structs.Status.Finished:
+                # now logged in
+                self.username       = self.master.username
+                self.password       = self.master.password
+                self._login_done()
+            case structs.Status.Errored:
+                # an error occured when logging in, show it
+                self._show_login_projectsel_error(error, 'login')
+    def _projsel_state_change(self, status: structs.Status, error: Exception|None = None):
+        match status:
+            case structs.Status.Pending:
+                # no project loaded (e.g. just unloaded)
+                self._unload_project()
+            case structs.Status.Running:
+                # busy loading project
+                self.proj_select_state = structs.Status.Running
+            case structs.Status.Finished:
+                # project now loaded
+                self.proj_idx = list(self.master.projects.keys()).index(self.master.project)
+                self._project_selected()
+            case structs.Status.Errored:
+                # an error occured when loading a project, show it
+                self._show_login_projectsel_error(error, 'project')
+    def _server_state_change(self, status: structs.Status):
+        if status==structs.Status.Running:
+            # check if running without login
+            self.no_login_mode = self.proj_select_state==structs.Status.Pending
+            if self.no_login_mode:
+                self._continue_without_login()
+        elif status==structs.Status.Pending and self.no_login_mode:
+            self._logout()
 
     def _lost_client(self, client: structs.ConnectedClient, client_id: int):
         # we lost this client. Clear out all state related to it
@@ -629,6 +716,11 @@ class MainGUI:
         return utils.popup("About labManager", popup_content, closable=True, outside=True)
 
     def _task_GUI(self):
+        if not self._main_dock_node_id:
+            # this window is docked to the right dock node, if we don't
+            # have it yet, query id of this dock node as we'll need it for later
+            # windows
+            self._main_dock_node_id = imgui.get_window_dock_id()
         dock_space_id = imgui.get_id("TasksDockSpace")
         if not imgui.internal.dock_builder_get_node(dock_space_id):
             # first time this GUI is shown, set up as follows:
