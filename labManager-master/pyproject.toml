@@ -30,7 +30,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-GUI  = ["imgui_bundle==1.1.0",
+GUI  = ["imgui_bundle==1.2.1",
         "natsort"]
 
 [project.urls]

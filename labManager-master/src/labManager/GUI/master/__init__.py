@@ -1629,7 +1629,7 @@ class MainGUI:
                             # need one frame delay for win.scroll_max.y to be updated
                             tid[2]=0
                         else:
-                            win_name = f'task_log_pane_{item.id}' # imgui.get_current_context().current_window.name -- not available
+                            win_name = imgui.get_current_context().current_window.name
                             win = imgui.internal.find_window_by_name(f'{win_name}/##output_content_{imgui.get_id("##output_content"):08X}') # https://github.com/ocornut/imgui/issues/5484#issuecomment-1189989347
                             imgui.internal.set_scroll_y(win, win.scroll_max.y)
                             tid[2] = output_length
