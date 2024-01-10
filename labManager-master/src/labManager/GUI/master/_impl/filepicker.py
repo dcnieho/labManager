@@ -333,6 +333,7 @@ class FilePicker:
         self.last_clicked_id: int = None
 
         self.machine: str = None
+        self.allow_selecting_machine = True
         self.loc: pathlib.Path = None
         self.refreshing = False
         self.new_loc = False
@@ -368,6 +369,10 @@ class FilePicker:
                     path = path.resolve()
 
         if machine!=self.machine or path!=self.loc:
+            if machine!=self.machine and not self.allow_selecting_machine:
+                # delete history, new location is about to be appended
+                self.history.clear()
+                self.history_loc = -1
             self.machine = self.file_action_provider.resolve_machine(machine)[0]
             self.loc = path
             self.new_loc = True
@@ -721,7 +726,7 @@ class FilePicker:
                         if i==0:
                             # if remote machines potentially available,
                             # enqueue opening machine selection dropdown
-                            if self.file_action_provider.supports_remote():
+                            if self.file_action_provider.supports_remote() and self.allow_selecting_machine:
                                 open_popup = 1
                                 self.path_bar_popup['pos'] = button_pos
                                 self.path_bar_popup['which_selected'] = self.machine
