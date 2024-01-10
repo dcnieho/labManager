@@ -678,16 +678,18 @@ class Master:
         # clients has a special value '*' which means all clients
         if clients=='*':
             with self.clients_lock:
-                clients = [c for c in self.clients]
+                clients = [c for c in self.clients if self.clients[c].online]
         elif isinstance(clients, int):
             clients = [clients]
+        # check clients. must be known and online
+        for c in clients:
+            if c not in self.clients:
+                raise ValueError(f'client with id {c} is not known')
+            if not self.clients[c].online:
+                raise ValueError(f'client with id {c} ({self.clients[c].name}) is not online')
         if not clients:
             # nothing to do
             return None, None
-        else:
-            for c in clients:
-                if c not in self.clients:
-                    raise ValueError(f'client with id {c} is not known')
 
         # handle payload
         match payload_type:
