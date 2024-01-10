@@ -63,6 +63,10 @@ class FileCommander:
         imgui.same_line()
 
         imgui.begin_child('##actions',size=(w,space.y))
+        enabled = self.left.machine.startswith(filepicker.FileActionProvider.remote_prefix) and self.right.machine.startswith(filepicker.FileActionProvider.remote_prefix)
+        enabled = enabled and any(self.left.selected.values())
+        if not enabled:
+            utils.push_disabled()
         imgui.push_font(self.mainGUI.icon_font)
         # get button size, center horizontally and vertically
         button_text_size = imgui.calc_text_size(icons_fontawesome.ICON_FA_ARROW_RIGHT)
@@ -74,7 +78,9 @@ class FileCommander:
         # center checkbox+label horizontally
         imgui.set_cursor_pos_x(imgui.get_cursor_pos_x()+(imgui.get_content_region_avail().x-w)/2)
         self.append_station_name = imgui.checkbox(cb_label,self.append_station_name)[1]
-        utils.draw_hover_text('When enabled, a folder will be made for each machine to receive the files copied from the left side. That means you won\'t have all files mixed together, but organized in folders per machine.', text='')
+        if not enabled:
+            utils.pop_disabled()
+        utils.draw_hover_text('When enabled, a folder will be made for each machine to receive the files copied from the left side. That means you won\'t have all files mixed together, but organized in folders per machine.', text='', hovered_flags=imgui.HoveredFlags_.allow_when_disabled)
         imgui.end_child()
         imgui.same_line()
 
