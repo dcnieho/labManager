@@ -21,8 +21,11 @@ class FileCommander:
 
         self.title = title
 
-        self.left  = filepicker.FilePicker(start_dir=start_dir_left , file_action_provider_args=file_action_provider_args)
-        self.right = filepicker.FilePicker(start_dir=start_dir_right, file_action_provider_args=file_action_provider_args)
+        # get first selected client, open file pickers to that location
+        with self.master.clients_lock:
+            client_name = next(self.master.clients[c].name for c in self.selected_clients if self.selected_clients[c])
+        self.left  = filepicker.FilePicker(start_machine=client_name, start_dir=start_dir_left , file_action_provider_args=file_action_provider_args)
+        self.right = filepicker.FilePicker(start_machine=client_name, start_dir=start_dir_right, file_action_provider_args=file_action_provider_args)
         self.right._listing_cache = self.left._listing_cache    # share listing cache
         # route remote actions through us
         self.left.file_action_provider.remote_action_provider   = self.remote_action_provider
