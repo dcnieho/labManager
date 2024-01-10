@@ -69,7 +69,8 @@ class MainGUI:
         self._main_dock_node_id = None
 
         self.selected_computers: dict[int, bool] = {k:False for k in self.master.clients}
-        self.computer_lister  = computer_list.ComputerList(self.master.clients, self.selected_computers, info_callback=self._open_computer_detail)
+        # NB: use self.master.clients_lock also for self.selected_computers, extra safety
+        self.computer_lister  = computer_list.ComputerList(self.master.clients, self.master.clients_lock, self.selected_computers, info_callback=self._open_computer_detail)
 
         # task GUI
         self._task_prep: TaskDef = TaskDef()
@@ -419,8 +420,8 @@ class MainGUI:
     def _unload_project(self):
         if not self.master_provided_by_user:
             self.master.unset_project()
-        self.selected_computers.clear()
         with self.master.clients_lock:
+            self.selected_computers.clear()
             self.selected_computers |= {k:False for k in self.master.clients}
         self._selected_image_id = None
         self._active_imaging_tasks_updater_should_stop = True
@@ -1652,23 +1653,23 @@ class MainGUI:
         imgui.align_text_to_frame_padding()
         imgui.text('Select:')
         imgui.same_line()
-        if imgui.button('On'):
-            utils.set_all(self.selected_computers, False)
-            utils.set_all(self.selected_computers, True, predicate=lambda id: self.master.clients[id].online)
-        utils.draw_hover_text('Select all running computers',text='')
-        imgui.same_line()
-        if imgui.button('Off'):
-            utils.set_all(self.selected_computers, False)
-            utils.set_all(self.selected_computers, True, predicate=lambda id: not self.master.clients[id].online)
-        utils.draw_hover_text('Select all computers that are shut down',text='')
-        imgui.same_line()
-        if imgui.button('Invert'):
-            new_vals = {k: not self.selected_computers[k] for k in self.selected_computers}
-            self.selected_computers.clear()
-            self.selected_computers |= new_vals
-        utils.draw_hover_text('Invert selection of computers',text='')
-
         with self.master.clients_lock:
+            if imgui.button('On'):
+                utils.set_all(self.selected_computers, False)
+                utils.set_all(self.selected_computers, True, predicate=lambda id: self.master.clients[id].online)
+            utils.draw_hover_text('Select all running computers',text='')
+            imgui.same_line()
+            if imgui.button('Off'):
+                utils.set_all(self.selected_computers, False)
+                utils.set_all(self.selected_computers, True, predicate=lambda id: not self.master.clients[id].online)
+            utils.draw_hover_text('Select all computers that are shut down',text='')
+            imgui.same_line()
+            if imgui.button('Invert'):
+                new_vals = {k: not self.selected_computers[k] for k in self.selected_computers}
+                self.selected_computers.clear()
+                self.selected_computers |= new_vals
+            utils.draw_hover_text('Invert selection of computers',text='')
+
             if len(self.selected_computers)!=len(self.master.clients):
                 # update: remove from or add to selected as needed
                 # NB: slightly complicated as we cannot replace the dict. A ref to it is
@@ -1676,6 +1677,7 @@ class MainGUI:
                 new_vals = {k:(self.selected_computers[k] if k in self.selected_computers else False) for k in self.master.clients}
                 self.selected_computers.clear()
                 self.selected_computers |= new_vals
-            imgui.begin_child("##computer_list_frame", size=(0,-imgui.get_frame_height_with_spacing()), window_flags=imgui.WindowFlags_.horizontal_scrollbar)
-            self.computer_lister.draw()
-            imgui.end_child()
+
+        imgui.begin_child("##computer_list_frame", size=(0,-imgui.get_frame_height_with_spacing()), window_flags=imgui.WindowFlags_.horizontal_scrollbar)
+        self.computer_lister.draw()
+        imgui.end_child()
