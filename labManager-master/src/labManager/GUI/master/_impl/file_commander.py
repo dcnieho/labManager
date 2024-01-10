@@ -79,7 +79,8 @@ class FileCommander:
         button_size = [t+p*2 for t,p in zip(button_text_size,imgui.get_style().frame_padding)]#+imgui.get_style().item_spacing.y
         margin = [(a-b)/2 for a,b in zip(imgui.get_content_region_avail(), button_size)]
         imgui.set_cursor_pos([a+b for a,b in zip(imgui.get_cursor_pos(),margin)])
-        imgui.button(icons_fontawesome.ICON_FA_ARROW_RIGHT+"##action")
+        if imgui.button(icons_fontawesome.ICON_FA_ARROW_RIGHT+"##action"):
+            self.do_copy()
         imgui.pop_font()
         # center checkbox+label horizontally
         imgui.set_cursor_pos_x(imgui.get_cursor_pos_x()+(imgui.get_content_region_avail().x-w)/2)
@@ -131,6 +132,17 @@ class FileCommander:
 
         utils.handle_popup_stack(self.popup_stack)
         return opened, closed
+
+    def do_copy(self):
+        # TODO: confirmation popup:
+        # This will copy the following items:
+        #   <list files and folders>
+        # from the path <remote path>
+        # from each of the following stations:
+        #   <list stations>
+        # to the folder <dest path>[optionally /<Station_name>]
+        # Continue?
+        pass
 
     async def remote_action_provider(self, action: str, path: pathlib.Path, path2: pathlib.Path|None = None):
         # got an action, route to all selected clients
