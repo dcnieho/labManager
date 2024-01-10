@@ -1,8 +1,11 @@
+from __future__ import annotations
+
 import asyncio
 import pathlib
 from imgui_bundle import imgui, icons_fontawesome
 
 from . import filepicker, utils
+from .... import GUI
 from .... import master
 
 class FileCommander:
@@ -11,7 +14,8 @@ class FileCommander:
         imgui.WindowFlags_.no_saved_settings
     )
 
-    def __init__(self, master: master.Master, selected_clients: dict[int, bool], title = "File commander", start_dir_left: str | pathlib.Path = None, start_dir_right: str | pathlib.Path = None, file_action_provider_args=None):
+    def __init__(self, mainGUI: GUI.MainGUI, master: master.Master, selected_clients: dict[int, bool], title = "File commander", start_dir_left: str | pathlib.Path = None, start_dir_right: str | pathlib.Path = None, file_action_provider_args=None):
+        self.mainGUI = mainGUI
         self.master = master
         self.selected_clients = selected_clients
 
@@ -50,10 +54,20 @@ class FileCommander:
         self.left.draw_listing(leave_space_for_bottom_bar=False)
         imgui.end_child()
         imgui.same_line()
+
         imgui.begin_child('##actions',size=(space.x*.2,space.y))
-        imgui.text('button')
+        imgui.push_font(self.mainGUI.icon_font)
+        button_text_size = imgui.calc_text_size(icons_fontawesome.ICON_FA_ARROW_RIGHT)
+        imgui.pop_font()
+        button_size = [t+p*2 for t,p in zip(button_text_size,imgui.get_style().frame_padding)]#+imgui.get_style().item_spacing.y
+        margin = [(a-b)/2 for a,b in zip(imgui.get_content_region_avail(), button_size)]
+        imgui.push_font(self.mainGUI.icon_font)
+        imgui.set_cursor_pos([a+b for a,b in zip(imgui.get_cursor_pos(),margin)])
+        imgui.button(icons_fontawesome.ICON_FA_ARROW_RIGHT+"##action")
+        imgui.pop_font()
         imgui.end_child()
         imgui.same_line()
+
         imgui.begin_child('##right_picker',size=(space.x*.4,space.y))
         self.right.draw_top_bar()
         self.right.draw_listing(leave_space_for_bottom_bar=False)

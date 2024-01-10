@@ -1,4 +1,3 @@
-from enum import Enum, auto
 import asyncio
 import concurrent
 import json
@@ -1209,7 +1208,7 @@ class MainGUI:
             utils.push_disabled()
         if imgui.button('Start new action'):
             file_action_provider_args = {'network': config.master['network'], 'master': self.master}
-            utils.push_popup(self, file_commander.FileCommander(master=self.master, selected_clients=self.selected_computers, file_action_provider_args=file_action_provider_args))
+            utils.push_popup(self, file_commander.FileCommander(mainGUI=self, master=self.master, selected_clients=self.selected_computers, file_action_provider_args=file_action_provider_args))
         if disabled:
             utils.pop_disabled()
             utils.draw_hover_text('You should select at least one client to perform the actions on', text='', hovered_flags=imgui.HoveredFlags_.allow_when_disabled)
