@@ -157,10 +157,16 @@ if __name__ == "__main__":
     # so to keep it simple in this example we just run everything from there)
     labManager.common.async_thread.setup()
     if args.show_GUI:
+        # start master
         master = labManager.master.Master()
         master.load_known_clients()
-        labManager.common.async_thread.run(run(master), execution_monitor)
+        # start our task using master to issue commands etc.
+        fut = labManager.common.async_thread.run(run(master), execution_monitor)
+        # attach a GUI
         labManager.master.run_GUI(master, gui_container)
+        # in case user closes GUI before task is done, wait for task to finish
+        if not fut.done():
+            fut.result()
     else:
         labManager.common.async_thread.wait(run())
     labManager.common.async_thread.cleanup()

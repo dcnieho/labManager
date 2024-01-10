@@ -993,7 +993,9 @@ def run_GUI(master: Master|None = None, gui_ref: GUIContainer|None = None):
     if gui_ref:
         gui_ref.gui = gui
     gui.run()
-    async_thread.wait(gui.master.stop_server())
+    if not master:
+        # if GUI started its own master, clean up
+        async_thread.wait(gui.master.stop_server())
 # GUI (and master in general) requires some setup, call these functions
 def set_up():
     async_thread.setup()
