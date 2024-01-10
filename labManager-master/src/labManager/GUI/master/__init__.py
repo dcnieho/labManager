@@ -44,8 +44,8 @@ class MainGUI:
 
         self.username         = ''
         self.password         = ''
-        self.login_state      = structs.State.Pending
-        self.proj_select_state= structs.State.Pending
+        self.login_state      = structs.Status.Pending
+        self.proj_select_state= structs.Status.Pending
         self.proj_idx         = -1
         self.project_select_immediately = False
         self.project          = ''  # NB: display name, self.master.project for real name
@@ -251,9 +251,9 @@ class MainGUI:
         return main_space_view
 
     def _show_app_menu_items(self):
-        if imgui.begin_menu("Open project", self.login_state==structs.State.Finished):
+        if imgui.begin_menu("Open project", self.login_state==structs.Status.Finished):
             for i,(p,pn) in enumerate(self.master.projects.items()):
-                if self.proj_select_state==structs.State.Finished and i==self.proj_idx:
+                if self.proj_select_state==structs.Status.Finished and i==self.proj_idx:
                     # don't show currently loaded project in menu
                     continue
                 lbl = p if pn==p else f'{p} ({pn})'
@@ -262,13 +262,13 @@ class MainGUI:
                     self.proj_idx = i
                     self.project_select_immediately = True
             imgui.end_menu()
-        if imgui.menu_item("Close project", "", False, enabled=self.proj_select_state==structs.State.Finished)[0]:
+        if imgui.menu_item("Close project", "", False, enabled=self.proj_select_state==structs.Status.Finished)[0]:
             self._unload_project()
         if self.no_login_mode:
             if imgui.menu_item("Return to login", "", False)[0]:
                 self._logout()
         else:
-            if imgui.menu_item("Log out", "", False, enabled=self.login_state==structs.State.Finished)[0]:
+            if imgui.menu_item("Log out", "", False, enabled=self.login_state==structs.Status.Finished)[0]:
                 self._logout()
 
     def _show_menu_gui(self):
@@ -296,7 +296,7 @@ class MainGUI:
         glfw.set_window_title(win, new_title)
 
     def _login_done(self):
-        self.login_state = structs.State.Finished
+        self.login_state = structs.Status.Finished
         self._set_window_title(add_user=True)
 
     def _logout(self):
@@ -304,7 +304,7 @@ class MainGUI:
 
         self.username         = ''
         self.password         = ''
-        self.login_state      = structs.State.Pending
+        self.login_state      = structs.Status.Pending
         self.no_login_mode    = False
         self.master.logout()
         self._set_window_title()
@@ -323,7 +323,7 @@ class MainGUI:
         async_thread.run(self.master.start_server())
 
     def _project_selected(self):
-        self.proj_select_state = structs.State.Finished
+        self.proj_select_state = structs.Status.Finished
         # update GUI
         project = list(self.master.projects.keys())[self.proj_idx]
         self.project = self.master.projects[project]
@@ -387,7 +387,7 @@ class MainGUI:
         self._selected_image_id = None
         self._active_imaging_tasks_updater_should_stop = True
         self._images_list       = []
-        self.proj_select_state  = structs.State.Pending
+        self.proj_select_state  = structs.Status.Pending
         self.proj_idx           = -1
         self.project            = ''
         self.computer_lister.set_project(self.project)
@@ -402,8 +402,8 @@ class MainGUI:
             # this window is docked to the right dock node, query id of this dock node as we'll need it for later
             # windows
             self._main_dock_node_id = imgui.get_window_dock_id()
-        if self.login_state != structs.State.Finished:
-            disabled = self.login_state==structs.State.Running
+        if self.login_state != structs.Status.Finished:
+            disabled = self.login_state==structs.Status.Running
             if disabled:
                 utils.push_disabled()
             if 'login' in config.master:
@@ -412,7 +412,7 @@ class MainGUI:
                 i1,self.username = imgui.input_text          ('User name',                                self.username, flags=imgui.InputTextFlags_.enter_returns_true)
             i2,self.password = imgui.input_text('Password', self.password, flags=imgui.InputTextFlags_.enter_returns_true|imgui.InputTextFlags_.password)
 
-            if self.login_state==structs.State.Running:
+            if self.login_state==structs.Status.Running:
                 symbol_size = imgui.calc_text_size("x").y
                 spinner_radii = [x/22*symbol_size for x in [22, 16, 10]]
                 lw = 3.5/22*symbol_size
@@ -422,7 +422,7 @@ class MainGUI:
                     if not self.username:
                         utils.push_popup(self, msgbox.msgbox, "Login error", 'Fill in a username', msgbox.MsgBox.error)
                     else:
-                        self.login_state = structs.State.Running
+                        self.login_state = structs.Status.Running
                         async_thread.run(self.master.login(self.username,self.password), lambda fut: self._login_projectsel_result('login',fut))
                 imgui.same_line()
                 if imgui.button("Continue without logging in"):
@@ -441,7 +441,7 @@ class MainGUI:
                 if self.project_select_immediately:
                     self._do_select_project()
                     self.project_select_immediately = False
-                disabled = self.proj_select_state==structs.State.Running
+                disabled = self.proj_select_state==structs.Status.Running
                 if disabled:
                     utils.push_disabled()
                 imgui.text('Select project:')
@@ -455,7 +455,7 @@ class MainGUI:
                 # select on double-click or press of enter key
                 selection_done = (imgui.is_item_clicked() and imgui.is_mouse_double_clicked(imgui.MouseButton_.left)) or imgui.is_key_pressed(imgui.Key.enter)
 
-                if self.proj_select_state==structs.State.Running:
+                if self.proj_select_state==structs.Status.Running:
                     symbol_size = imgui.calc_text_size("x").y
                     spinner_radii = [x/22*symbol_size for x in [22, 16, 10]]
                     lw = 3.5/22*symbol_size
@@ -467,7 +467,7 @@ class MainGUI:
                 if disabled:
                     utils.pop_disabled()
     def _do_select_project(self):
-        self.proj_select_state = structs.State.Running
+        self.proj_select_state = structs.Status.Running
         async_thread.run(self.master.set_project(list(self.master.projects.keys())[self.proj_idx]), lambda fut: self._login_projectsel_result('project',fut))
 
     def _login_projectsel_result(self, stage, future: asyncio.Future):
@@ -485,9 +485,9 @@ class MainGUI:
 
         # error occurred
         if stage=='login':
-            self.login_state = structs.State.Pending
+            self.login_state = structs.Status.Pending
         elif stage=='project':
-            self.proj_select_state = structs.State.Pending
+            self.proj_select_state = structs.Status.Pending
         self._show_login_projectsel_error(exc, stage)
 
     def _show_login_projectsel_error(self, exc, stage):
@@ -1531,7 +1531,7 @@ class MainGUI:
         utils.handle_popup_stack(self.popup_stack)
 
         # now render actual pane
-        if self.proj_select_state!=structs.State.Finished and not self.no_login_mode:
+        if self.proj_select_state!=structs.Status.Finished and not self.no_login_mode:
             return
 
         imgui.align_text_to_frame_padding()
