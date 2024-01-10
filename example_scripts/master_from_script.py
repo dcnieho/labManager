@@ -18,7 +18,7 @@ def execution_monitor(fut):
     finally:
         # run() errored. Show GUI for 5 more seconds in case the error led to a popup there, and then quit
         # don't wait if task finished normally, extra time to show GUI is handled there
-        if errored and gui_container.gui.running:
+        if errored and gui_container.gui and gui_container.gui.running:
             time.sleep(5)
         gui_container.gui.quit()
 
