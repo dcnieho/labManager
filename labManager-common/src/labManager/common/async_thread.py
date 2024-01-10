@@ -3,7 +3,7 @@ import asyncio
 import typing
 import time
 
-loop: asyncio.BaseEventLoop = None
+loop: asyncio.AbstractEventLoop = None
 thread: threading.Thread = None
 done_callback: typing.Callable = None
 
