@@ -196,7 +196,7 @@ class Master:
 
 
     async def start_server(self, local_addr: tuple[str,int]=None, start_ssdp_advertise=True):
-        if self._server and self.is_serving():
+        if self.is_serving():
             return
 
         self._loop = asyncio.get_running_loop()
