@@ -996,14 +996,14 @@ class GUIContainer:
         self.gui: labManager.GUI.master.MainGUI = None
 
 # run GUI master - returns when GUI is closed
-def run_GUI(master: Master|None = None, gui_ref: GUIContainer|None = None):
+def run_GUI(master: Master|None = None, use_GUI_login=False, gui_ref: GUIContainer|None = None):
     _check_has_GUI()
     from labManager.GUI import master as master_GUI
     if getattr(sys, "frozen", False) and "nohide" not in sys.argv:
         import ctypes
         ctypes.windll.user32.ShowWindow(ctypes.windll.kernel32.GetConsoleWindow(), 0)
 
-    gui = master_GUI.MainGUI(master)
+    gui = master_GUI.MainGUI(master, use_GUI_login)
     if gui_ref:
         gui_ref.gui = gui
     gui.run()

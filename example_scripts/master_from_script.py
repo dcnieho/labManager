@@ -22,24 +22,32 @@ def execution_monitor(fut):
             time.sleep(5)
         gui_container.gui.quit()
 
-async def run(master: labManager.master.Master):
+async def run(master: labManager.master.Master, use_GUI_login: bool = False):
     # login and start server
-    want_login = input(f'Do you want to log in to a project? (y/n): ').casefold()=='y'
-    if want_login:
-        await labManager.master.cmd_login_flow(master)
-        # NB: instead of doing this login flow on the command line, you can
-        # do most of the flow automatically, prompting only for the password:
-        # await labManager.master.cmd_login_flow(master, '<username>', project='<project name>')
-        # also hardcode the password:
-        # await labManager.master.cmd_login_flow(master, '<username>', '<password>', '<project name>')
-        # or directly use the master functions for login and project selection:
-        # await master.login('huml-dkn','4Freedomlu')
-        # await master.set_project('0000-03')
+    if use_GUI_login:
+        # wait for login+project select, or continue without login
+        print('waiting for login in GUI... ', end='')
+        waiters = [master.add_waiter('login-project-select'), master.add_waiter('server-started')]
+        await asyncio.wait(waiters, return_when=asyncio.FIRST_COMPLETED)
+        print('done')
     else:
-        print('You didn\'t answer y, so not logging in')
-    print('starting server for communicating with clients... ', end='')
-    await master.start_server()
-    print('done')
+        want_login = input(f'Do you want to log in to a project? (y/n): ').casefold()=='y'
+        if want_login:
+            await labManager.master.cmd_login_flow(master)
+            # NB: instead of doing this login flow on the command line, you can
+            # do most of the flow automatically, prompting only for the password:
+            # await labManager.master.cmd_login_flow(master, '<username>', project='<project name>')
+            # also hardcode the password:
+            # await labManager.master.cmd_login_flow(master, '<username>', '<password>', '<project name>')
+            # or directly use the master functions for login and project selection:
+            # await master.login('huml-dkn','4Freedomlu')
+            # await master.set_project('0000-03')
+        else:
+            print('You didn\'t answer y, so not logging in')
+        # NB: when using GUI login flow, GUI takes care of starting server
+        print('starting server for communicating with clients... ', end='')
+        await master.start_server()
+        print('done')
 
     # wait until a client connects (irrespective of how many are already connected, this waits for a new one)
     print('waiting for client... ', end='')
@@ -139,6 +147,7 @@ async def run(master: labManager.master.Master):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="labManager master script example")
     parser.add_argument('--show-GUI', action='store_true', help="Show GUI for observing what script tells master to do")
+    parser.add_argument('--use-GUI-login', action='store_true', help="When showing GUI, use GUI for the login and project selection flow")
     args = parser.parse_args()
 
     path = pathlib.Path('.').resolve()
@@ -156,17 +165,18 @@ if __name__ == "__main__":
     # anyway run in the separate thread's loop provided by async_thread
     # so to keep it simple in this example we just run everything from there)
     labManager.common.async_thread.setup()
+    # start master
+    master = labManager.master.Master()
+    master.load_known_clients()
     if args.show_GUI:
-        # start master
-        master = labManager.master.Master()
-        master.load_known_clients()
         # start our task using master to issue commands etc.
-        fut = labManager.common.async_thread.run(run(master), execution_monitor)
+        fut = labManager.common.async_thread.run(run(master, args.use_GUI_login), execution_monitor)
         # attach a GUI
-        labManager.master.run_GUI(master, gui_container)
+        labManager.master.run_GUI(master, args.use_GUI_login, gui_container)
         # in case user closes GUI before task is done, wait for task to finish
         if not fut.done():
             fut.result()
     else:
-        labManager.common.async_thread.wait(run())
+        # just run the task, no GUI
+        labManager.common.async_thread.wait(run(master))
     labManager.common.async_thread.cleanup()

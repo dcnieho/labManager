@@ -32,17 +32,18 @@ class TaskDef:
     python_unbuf: bool      = False
 
 class MainGUI:
-    def __init__(self, mstr: master.Master = None):
-        # Constants
+    def __init__(self, mstr: master.Master = None, use_GUI_login=False):
         self.popup_stack = []
 
         if not mstr:
             self.master = master.Master()
             self.master.load_known_clients()
             self.master_provided_by_user = False
+            self.use_GUI_login_flow = True          # ignored in this mode, but set for symmetry
         else:
             self.master = mstr
             self.master_provided_by_user = True
+            self.use_GUI_login_flow = use_GUI_login # only for logging in, not for logging out
         # install hooks
         self.master.add_hook('client_disconnected', self._lost_client)
         self.master.add_hook('task_state_change', self._task_status_changed)
@@ -362,7 +363,7 @@ class MainGUI:
         self._to_dock = ["Tasks", "File Management"]
         self._need_set_window_title = True
         # start server
-        if not self.master_provided_by_user:
+        if not self.master_provided_by_user or self.use_GUI_login_flow:
             async_thread.run(self.master.start_server())
 
     def _project_selected(self):
@@ -385,7 +386,7 @@ class MainGUI:
         # prep for image management
         async_thread.run(self._get_project_images())
         # start server
-        if not self.master_provided_by_user:
+        if not self.master_provided_by_user or self.use_GUI_login_flow:
             async_thread.run(self.master.start_server())
 
     async def _get_project_images(self):
@@ -448,7 +449,7 @@ class MainGUI:
             # have it yet, query id of this dock node as we'll need it for later
             # windows
             self._main_dock_node_id = imgui.get_window_dock_id()
-        global_disabled = self.master_provided_by_user
+        global_disabled = self.master_provided_by_user and not self.use_GUI_login_flow
         if global_disabled:
             utils.push_disabled()
         if self.login_state != structs.Status.Finished:
@@ -530,7 +531,9 @@ class MainGUI:
             # log in or project selection successful
             if stage=='login':
                 self._login_done()
-            elif stage=='project':
+            elif stage=='project' and not self.master_provided_by_user:
+                # NB: if self.master_provided_by_user, _project_selected() is called by
+                # _projsel_state_change() already
                 self._project_selected()
             return
 
