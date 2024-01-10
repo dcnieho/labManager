@@ -42,7 +42,7 @@ class FileCommander:
         imgui.begin_child('##filecommander')
         selected_clients = [c for c in self.selected_clients if self.selected_clients[c]]
         stations_txt = ', '.join((self.master.clients[i].name for i in selected_clients))
-        imgui.text_wrapped('Any remote machine actions you do make in this interface be performed on the following stations: '+stations_txt)
+        imgui.text_wrapped('Any remote machine actions you make in this interface will be performed on the following stations: '+stations_txt)
 
         space = imgui.get_content_region_avail()
         button_text_size = imgui.calc_text_size(icons_fontawesome.ICON_FA_BAN+" Cancel")
