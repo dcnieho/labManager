@@ -490,7 +490,7 @@ class MainGUI:
             self.proj_select_state = structs.Status.Pending
         self._show_login_projectsel_error(exc, stage)
 
-    def _show_login_projectsel_error(self, exc, stage):
+    def _show_login_projectsel_error(self, exc: Exception, stage: str):
         msg = str(exc)
         if '401' in msg:
             msg = msg.splitlines()
