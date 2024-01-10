@@ -308,7 +308,7 @@ class FilePicker:
         imgui.WindowFlags_.no_saved_settings
     )
 
-    def __init__(self, title="File picker", start_dir: str | pathlib.Path = None, callback: typing.Callable = None, allow_multiple = True, file_action_provider_args=None, custom_popup_flags=0):
+    def __init__(self, title="File picker", start_machine: str = None, start_dir: str | pathlib.Path = None, callback: typing.Callable = None, allow_multiple = True, file_action_provider_args=None, custom_popup_flags=0):
         self.title = title
         self.elapsed = 0.0
         self.callback = callback
@@ -343,7 +343,7 @@ class FilePicker:
         self.default_flags = custom_popup_flags or FilePicker.default_flags
         self.platform_is_windows = sys.platform.startswith("win")
 
-        self.goto(self.file_action_provider.local_name, start_dir or '.')
+        self.goto(start_machine or self.file_action_provider.local_name, start_dir or '.')
         self._request_listing(self.machine, 'root')   # request root listing so we have the drive names
 
     def goto(self, machine: str, path: str | pathlib.Path, add_history=True):
