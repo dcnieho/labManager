@@ -977,15 +977,21 @@ def _check_has_GUI():
     if 'imgui-bundle' not in {pkg.key for pkg in pkg_resources.working_set}:
         raise RuntimeError('You must install labManager-master with the [GUI] extra if you wish to use the GUI. Required dependencies for the GUI not available...')
 
+class GUIContainer:
+    def __init__(self):
+        self.gui: labManager.GUI.master.MainGUI = None
+
 # run GUI master - returns when GUI is closed
-def run_GUI():
+def run_GUI(master: Master|None = None, gui_ref: GUIContainer|None = None):
     _check_has_GUI()
     from labManager.GUI import master as master_GUI
     if getattr(sys, "frozen", False) and "nohide" not in sys.argv:
         import ctypes
         ctypes.windll.user32.ShowWindow(ctypes.windll.kernel32.GetConsoleWindow(), 0)
 
-    gui = master_GUI.MainGUI()
+    gui = master_GUI.MainGUI(master)
+    if gui_ref:
+        gui_ref.gui = gui
     gui.run()
     async_thread.wait(gui.master.stop_server())
 # GUI (and master in general) requires some setup, call these functions
