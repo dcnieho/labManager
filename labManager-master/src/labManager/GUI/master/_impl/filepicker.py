@@ -344,6 +344,10 @@ class FilePicker:
         self.default_flags = custom_popup_flags or FilePicker.default_flags
         self.platform_is_windows = sys.platform.startswith("win")
 
+        if start_machine and not start_dir:
+            if not self.file_action_provider.resolve_machine(start_machine)[1]:
+                # remote machine, default to root as current path ('.') would make no sense
+                start_dir = 'root'
         self.goto(start_machine or self.file_action_provider.local_name, start_dir or '.')
         self._request_listing(self.machine, 'root')   # request root listing so we have the drive names
 
