@@ -515,7 +515,7 @@ class FilePicker:
                 parent = 'root'
         return parent
 
-    def _get_path_display_name(self, machine: str, path: str | pathlib.Path):
+    def _get_path_display_name(self, machine: str, path: str | pathlib.Path, for_edit=False):
         path_str = str(path)
         if path_str=='root':
             loc_str = self.file_action_provider.get_machine_name(machine)
@@ -524,8 +524,10 @@ class FilePicker:
                 # pathlib.Path's str() doesn't do the right thing here, render it ourselves
                 loc_str = f'\\\\{comp}'
             else:
-                if isinstance(path,pathlib.Path) and self._get_parent(path)=='root' and (machine,'root') in self._listing_cache:
+                if not for_edit and isinstance(path,pathlib.Path) and self._get_parent(path)=='root' and (machine,'root') in self._listing_cache:
                     # this is a drive root, lookup name of this drive
+                    # except when this is meant to be a string to be edited, then we
+                    # just want the raw drive location string
                     loc_str = None
                     for _,l in self._listing_cache[(machine,'root')].items():
                         if l.full_path==path:
@@ -840,7 +842,7 @@ class FilePicker:
                 if not imgui.is_mouse_clicked(imgui.MouseButton_.left):
                     state |= 0b100
 
-            loc_str = self._get_path_display_name(self.machine, self.loc)
+            loc_str = self._get_path_display_name(self.machine, self.loc, for_edit=True)
             confirmed, loc = imgui.input_text("##pathbox_input",loc_str,imgui.InputTextFlags_.enter_returns_true)
             if confirmed:
                 self.goto(self.machine, loc)
