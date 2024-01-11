@@ -143,16 +143,16 @@ class FileActionProvider:
             else:
                 # check whether this is a path to a network computer (e.g. \\SERVER)
                 net_comp = file_actions.get_net_computer(path)
-                if net_comp:
-                    # network computer name, get its shares
-                    fut = async_thread.run(smb.get_shares(net_comp,'Guest',''), lambda f: self._listing_done(f, machine, path))
-                else:
-                    # normal directory or share on a network computer, no special handling needed
-                    try:
+                try:
+                    if net_comp:
+                        # network computer name, get its shares
+                        result = file_actions.get_shares(net_comp,'Guest','')
+                    else:
+                        # normal directory or share on a network computer, no special handling needed
                         result = file_actions.get_dir_list_sync(path)
-                    except Exception as exc:
-                        result = exc
-                    self._listing_done(result, machine, path)
+                except Exception as exc:
+                    result = exc
+                self._listing_done(result, machine, path)
         else:
             if not self.supports_remote():
                 self._listing_done(ValueError(f'Remote machine selected ("{machine}") but not supported'), machine, path)
