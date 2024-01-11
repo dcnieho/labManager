@@ -71,7 +71,7 @@ class ConnectedClient:
         self.host,self.port = self.writer.get_extra_info('peername')
 
     def __repr__(self):
-        return f'{self.name}@{self.host}:{self.port}'
+        return f'ConnectedClient {self.host}:{self.port}'
 
 _client_id_provider = counter.CounterContext()
 @dataclass
