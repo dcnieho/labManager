@@ -267,7 +267,7 @@ class Master:
                             self.clients[c].online.writer.close()
                         except:
                             pass
-            close_waiters = [self.clients[c].online.writer.wait_closed() for c in self.clients if self.clients[c].online]
+            close_waiters = [self.clients[c].online.writer.wait_closed() for c in self.clients if self.clients[c].online and self.clients[c].online.writer]
         if close_waiters:
             _, not_finished = await asyncio.wait(close_waiters, timeout=1)
             # it seems sometimes no progress is made, not sure why
