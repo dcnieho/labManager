@@ -577,7 +577,7 @@ class Master:
         client_id = None
         with self.clients_lock:
             for c in self.clients:
-                if client_id:
+                if client_id is not None:
                     break
                 if self.clients[c].name != name:
                     continue
@@ -589,7 +589,7 @@ class Master:
                         break
 
             # client not known, add
-            if not client_id:
+            if client_id is None:
                 c = structs.Client(name, MACs, online=client)
                 client_id = c.id
                 self.clients[client_id] = c
