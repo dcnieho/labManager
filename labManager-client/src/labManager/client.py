@@ -10,7 +10,7 @@ import threading
 from dataclasses import dataclass, field
 
 from labManager.common import async_thread, config, eye_tracker, file_actions, message, share, structs, task
-from labManager.common.network import comms, ifs, keepalive, net_names, smb, ssdp
+from labManager.common.network import comms, ifs, keepalive, net_names, ssdp
 
 
 __version__ = '0.9.0'
@@ -293,7 +293,7 @@ class Client:
                         out = msg
                         msg['net_name'] = msg['net_name'].strip('\\/')  # support SERVER, \\SERVER, \\SERVER\, //SERVER and //SERVER/
                         try:
-                            out['listing'] = await smb.get_shares(msg['net_name'], msg['user'], msg['password'], msg['domain'], check_access_level=msg['access_level'])
+                            out['listing'] = file_actions.get_shares(msg['net_name'], msg['user'], msg['password'], msg['domain'])
                         except Exception as exc:
                             msg['error'] = exc
                             msg['listing'] = []
