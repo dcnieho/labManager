@@ -700,6 +700,8 @@ class FilePicker:
                 loc = self._get_parent(loc)
             del btn_list[-1]    # remove last separator
             btn_list.reverse()
+            # simply show machine as an icon, show machine name upon hover
+            btn_list[0] = (btn_list[0][0], (icons_fontawesome.ICON_FA_DESKTOP, btn_list[0][1]), btn_list[0][2])
 
             # check if whole path fits, else shorten
             get_total_width = lambda x: sum([b[2] for b in x]) + len(btn_list)*2*imgui.get_style().frame_padding.x
@@ -724,6 +726,10 @@ class FilePicker:
                 id_str      = f'###path_comp_{i}'
                 button_pos  = imgui.get_cursor_screen_pos()
                 lbl = b[1]
+                hover = None
+                if isinstance(lbl, tuple):
+                    hover = lbl[1]
+                    lbl = lbl[0]
                 if 'which' in self.path_bar_popup and \
                     self.path_bar_popup['which']==i-1 and \
                     imgui.is_popup_open('##dir_list_popup'):
@@ -755,6 +761,8 @@ class FilePicker:
                     else:
                         self.goto(self.machine, b[0])
                 path_element_hc = path_element_hc or imgui.is_item_hovered() or imgui.is_item_clicked()
+                if hover and imgui.is_item_hovered():
+                    utils.draw_tooltip(hover)
                 imgui.same_line()
             imgui.pop_style_var(2)
             imgui.pop_clip_rect()
