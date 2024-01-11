@@ -590,7 +590,7 @@ class Master:
 
             # client not known, add
             if client_id is None:
-                c = structs.Client(name, MACs, online=client)
+                c = structs.Client(name, list(MACs), online=client)
                 client_id = c.id
                 self.clients[client_id] = c
             num_clients = len([c for c in self.clients if self.clients[c].online])
