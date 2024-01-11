@@ -374,7 +374,9 @@ class FilePicker:
 
         if machine!=self.machine or path!=self.loc:
             if machine!=self.machine and not self.allow_selecting_machine:
-                # delete history, new location is about to be appended
+                # delete history so we can't go back to other machine,
+                # this is ok, new location is about to be appended
+                add_history = True  # make sure we put this location in the history
                 self.history.clear()
                 self.history_loc = -1
             self.machine = self.file_action_provider.resolve_machine(machine)[0]
