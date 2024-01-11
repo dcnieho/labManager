@@ -577,6 +577,8 @@ class Master:
         client_id = None
         with self.clients_lock:
             for c in self.clients:
+                if client_id:
+                    break
                 if self.clients[c].name != name:
                     continue
                 for m in self.clients[c].MACs:
@@ -584,6 +586,7 @@ class Master:
                         # known client, registrer online instance to it
                         self.clients[c].online = client
                         client_id = self.clients[c].id
+                        break
 
             # client not known, add
             if not client_id:
