@@ -477,8 +477,13 @@ async def _format_drives_file_listing_msg(drives: list[structs.DirEntry], net_na
     # format as a standard listing so its uniform for the receiver
     # use special mime-types to flag that the content is drives and network computers
     out['listing'] = drives.copy()
-    for n in out['net_names']:  # key is the machine name (value is tuple[DirEntry,ip:str]), get the DirEntry
-        # NB: //SERVER/ is the format pathlib understands and can concatenate share names to
-        out['listing'].append(out['net_names'][n][0])
+    for n in out['net_names']:  # key is the machine name (value is tuple[DirEntry,ip:str]), get the DirEntrys
+        # NB: //SERVER/ is the format pathlib understands and can concatenate share names to. It seems that this
+        # isn't pickled and unpickled correctly over the network (indeed pathlib.Path(str(pathlib.Path('//SERVER/')))
+        # is wrong). So send at plain strings that would be interpreted correctly by pathlib
+        entry = out['net_names'][n][0]
+        comp = str(entry.full_path).strip('\\/')
+        entry.full_path = f'//{comp}/'
+        out['listing'].append(entry)
 
     return out
