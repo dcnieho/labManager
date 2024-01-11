@@ -54,7 +54,7 @@ class FileCommander:
         imgui.begin_child('##filecommander')
         with self.master.clients_lock:
             selected_clients = [c for c in self.selected_clients if self.selected_clients[c]]
-        computers_txt = ', '.join((self.master.clients[i].name for i in selected_clients))
+            computers_txt = ', '.join((self.master.clients[i].name for i in selected_clients))
         imgui.text_wrapped('The action you do in this interface will be performed on the following computers: '+computers_txt)
 
         # figure out layout: get width of middle section, divide leftover equally between the other two
@@ -85,7 +85,7 @@ class FileCommander:
         margin = [(a-b)/2 for a,b in zip(imgui.get_content_region_avail(), button_size)]
         imgui.set_cursor_pos([a+b for a,b in zip(imgui.get_cursor_pos(),margin)])
         if imgui.button(icons_fontawesome.ICON_FA_ARROW_RIGHT+"##action"):
-            async_thread.run(self.do_copy())
+            self.do_copy()
         imgui.pop_font()
         # center checkbox+label horizontally
         imgui.set_cursor_pos_x(imgui.get_cursor_pos_x()+(imgui.get_content_region_avail().x-w)/2)
@@ -138,50 +138,59 @@ class FileCommander:
         utils.handle_popup_stack(self.popup_stack)
         return opened, closed
 
-    async def do_copy(self):
-        # TODO: confirmation popup:
-        # This will copy the following items:
-        #   <list files and folders>
-        # from the path <remote path>
-        # from each of the following stations:
-        #   <list stations>
-        # to the folder <dest path>[optionally /<Station_name>]
-        # Continue?
-
+    def do_copy(self):
         # get info
         with self.left.items_lock:
-            sources = [self.left.items[c] for c in self.left.items if self.left.selected[c]]
+            sources = [self.left.items[c] for c in self.left.sorted_items if self.left.selected[c]]
             source_paths = [s.full_path for s in sources]
+            source_paths_disp = [s.display_name for s in sources]
         dest = self.right.loc
-        clients = [c for c in self.selected_clients if self.selected_clients[c]]
+        with self.master.clients_lock:
+            clients = [c for c in self.selected_clients if self.selected_clients[c]]
+            computers_txt = '\n  '.join((self.master.clients[i].name for i in clients))
 
-        # first make folders with computer name
-        if self.append_computer_name:
+        sources_disp = '\n  '.join(source_paths_disp)
+        def _confirmation_popup():
+            extra = "\\<computer_name>" if self.append_computer_name else ""
+            imgui.text(f'This will copy the following items:\n  {sources_disp}\nfrom the path {source_paths[0].parent}\nto the folder {dest}{extra}\non each of the following computers:\n  {computers_txt}\nContinue?')
+            return 0 if imgui.is_key_released(imgui.Key.enter) else None
+
+        async def _do_it():
+            nonlocal clients
+
+            # first make folders with computer name
+            if self.append_computer_name:
+                coros   = []
+                for c in clients:
+                    dest_path = dest / self.master.clients[c].name
+                    coros.append(self.master.make_client_folder(self.master.clients[c], dest_path))
+                action_ids = await asyncio.gather(*coros)
+
+                # get waiters and wait for them to complete
+                coros = [asyncio.wait_for(self.master.add_waiter('file-action', aid), timeout=None) for aid in action_ids]
+                await asyncio.gather(*coros)
+
+                # done. check results, filter out clients where this failed
+                results = [self.master.clients[c].online.file_actions[aid] if c in self.master.clients and self.master.clients[c].online and aid in self.master.clients[c].online.file_actions else None for c,aid in zip(clients,action_ids)]
+                clients = [c for c,r in zip(clients,results) if r['status']==structs.Status.Finished]
+
+            # launch copy action
             coros   = []
             for c in clients:
-                dest_path = dest / self.master.clients[c].name
-                coros.append(self.master.make_client_folder(self.master.clients[c], dest_path))
-            action_ids = await asyncio.gather(*coros)
-
-            # get waiters and wait for them to complete
-            coros = [asyncio.wait_for(self.master.add_waiter('file-action', aid), timeout=None) for aid in action_ids]
+                if self.append_computer_name:
+                    dest_path = dest / self.master.clients[c].name
+                else:
+                    dest_path = dest
+                for s in source_paths:
+                    d = dest_path / s.name
+                    coros.append(self.master.copy_client_file_folder(self.master.clients[c], s, d))
             await asyncio.gather(*coros)
 
-            # done. check results, filter out clients where this failed
-            results = [self.master.clients[c].online.file_actions[aid] if c in self.master.clients and self.master.clients[c].online and aid in self.master.clients[c].online.file_actions else None for c,aid in zip(clients,action_ids)]
-            clients = [c for c,r in zip(clients,results) if r['status']==structs.Status.Finished]
-
-        # launch copy action
-        coros   = []
-        for c in clients:
-            if self.append_computer_name:
-                dest_path = dest / self.master.clients[c].name
-            else:
-                dest_path = dest
-            for s in source_paths:
-                d = dest_path / s.name
-                coros.append(self.master.copy_client_file_folder(self.master.clients[c], s, d))
-        await asyncio.gather(*coros)
+        buttons = {
+            icons_fontawesome.ICON_FA_CHECK+" Yes": lambda: async_thread.run(_do_it()),
+            icons_fontawesome.ICON_FA_BAN+" Cancel": None
+        }
+        utils.push_popup(self, lambda: utils.popup("Confirm copy", _confirmation_popup, buttons = buttons, closable=True))
 
     async def remote_action_provider(self, action: str, path: pathlib.Path, path2: pathlib.Path|None = None):
         # got an action, route to all selected clients
