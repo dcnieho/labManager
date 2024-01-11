@@ -334,6 +334,7 @@ class FilePicker:
 
         self.machine: str = None
         self.allow_selecting_machine = True
+        self.show_local_machine = True  # show local machine in list of machines? Its callers responsibility to set a valid remote machine so that this interface doesn't open showing the local machine
         self.loc: pathlib.Path = None
         self.refreshing = False
         self.new_loc = False
@@ -774,7 +775,11 @@ class FilePicker:
                 self.path_bar_popup['pos'].y += imgui.calc_text_size('x').y+2*imgui.get_style().frame_padding.y+imgui.get_style().item_spacing.y
                 imgui.set_next_window_pos(self.path_bar_popup['pos'])
             if imgui.begin_popup('##machine_list_popup'):
-                display_names = [self.file_action_provider.local_name]+list(self.file_action_provider.get_remotes().values())
+                if self.show_local_machine:
+                    display_names = [self.file_action_provider.local_name]
+                else:
+                    display_names = []
+                display_names += list(self.file_action_provider.get_remotes().values())
                 machines = [self.file_action_provider.get_full_machine_name(r) for r in display_names]
                 idx = machines.index(self.machine)
 

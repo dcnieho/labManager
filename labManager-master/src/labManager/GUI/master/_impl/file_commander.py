@@ -27,8 +27,12 @@ class FileCommander:
         self.left  = filepicker.FilePicker(start_machine=client_name, start_dir=start_dir_left , file_action_provider_args=file_action_provider_args)
         self.right = filepicker.FilePicker(start_machine=client_name, start_dir=start_dir_right, file_action_provider_args=file_action_provider_args)
         self.right._listing_cache = self.left._listing_cache    # share listing cache
+        # right pane cannot chose machine, we track machine selected on the left and force right to match
         self.right.allow_selecting_machine = False
         self.left_machine = self.left.machine
+        # don't show local machine
+        self.left.show_local_machine  = False
+        self.right.show_local_machine = False
         # route remote actions through us
         self.left.file_action_provider.remote_action_provider   = self.remote_action_provider
         self.right.file_action_provider.remote_action_provider  = self.remote_action_provider
