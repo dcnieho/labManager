@@ -4,6 +4,7 @@ import asyncio
 import pathlib
 from imgui_bundle import imgui, icons_fontawesome
 
+from labManager.common import async_thread, structs
 from . import filepicker, utils
 from .... import GUI
 from .... import master
@@ -42,7 +43,7 @@ class FileCommander:
         self.right.disable_keyboard_navigation = True
 
         # GUI state
-        self.append_station_name = False
+        self.append_computer_name = False
         # shared popup stack
         self.popup_stack = []
         self.left.popup_stack  = self.popup_stack
@@ -84,11 +85,11 @@ class FileCommander:
         margin = [(a-b)/2 for a,b in zip(imgui.get_content_region_avail(), button_size)]
         imgui.set_cursor_pos([a+b for a,b in zip(imgui.get_cursor_pos(),margin)])
         if imgui.button(icons_fontawesome.ICON_FA_ARROW_RIGHT+"##action"):
-            self.do_copy()
+            async_thread.run(self.do_copy())
         imgui.pop_font()
         # center checkbox+label horizontally
         imgui.set_cursor_pos_x(imgui.get_cursor_pos_x()+(imgui.get_content_region_avail().x-w)/2)
-        self.append_station_name = imgui.checkbox(cb_label,self.append_station_name)[1]
+        self.append_computer_name = imgui.checkbox(cb_label,self.append_computer_name)[1]
         if not enabled:
             utils.pop_disabled()
         utils.draw_hover_text('When enabled, a folder will be made for each machine to receive the files copied from the left side. That means you won\'t have all files mixed together, but organized in folders per machine.', text='', hovered_flags=imgui.HoveredFlags_.allow_when_disabled)
@@ -137,7 +138,7 @@ class FileCommander:
         utils.handle_popup_stack(self.popup_stack)
         return opened, closed
 
-    def do_copy(self):
+    async def do_copy(self):
         # TODO: confirmation popup:
         # This will copy the following items:
         #   <list files and folders>
@@ -146,7 +147,41 @@ class FileCommander:
         #   <list stations>
         # to the folder <dest path>[optionally /<Station_name>]
         # Continue?
-        pass
+
+        # get info
+        with self.left.items_lock:
+            sources = [self.left.items[c] for c in self.left.items if self.left.selected[c]]
+            source_paths = [s.full_path for s in sources]
+        dest = self.right.loc
+        clients = [c for c in self.selected_clients if self.selected_clients[c]]
+
+        # first make folders with computer name
+        if self.append_computer_name:
+            coros   = []
+            for c in clients:
+                dest_path = dest / self.master.clients[c].name
+                coros.append(self.master.make_client_folder(self.master.clients[c], dest_path))
+            action_ids = await asyncio.gather(*coros)
+
+            # get waiters and wait for them to complete
+            coros = [asyncio.wait_for(self.master.add_waiter('file-action', aid), timeout=None) for aid in action_ids]
+            await asyncio.gather(*coros)
+
+            # done. check results, filter out clients where this failed
+            results = [self.master.clients[c].online.file_actions[aid] if c in self.master.clients and self.master.clients[c].online and aid in self.master.clients[c].online.file_actions else None for c,aid in zip(clients,action_ids)]
+            clients = [c for c,r in zip(clients,results) if r['status']==structs.Status.Finished]
+
+        # launch copy action
+        coros   = []
+        for c in clients:
+            if self.append_computer_name:
+                dest_path = dest / self.master.clients[c].name
+            else:
+                dest_path = dest
+            for s in source_paths:
+                d = dest_path / s.name
+                coros.append(self.master.copy_client_file_folder(self.master.clients[c], s, d))
+        await asyncio.gather(*coros)
 
     async def remote_action_provider(self, action: str, path: pathlib.Path, path2: pathlib.Path|None = None):
         # got an action, route to all selected clients
