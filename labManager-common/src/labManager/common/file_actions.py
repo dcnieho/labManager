@@ -216,7 +216,7 @@ def get_drives() -> list[structs.DirEntry]:
 
     return drives
 
-def get_shares(server: str):
+def get_shares(server: str, user: str, password: str, domain=''):
     # TODO: use WNetAddConnection2W to support credentials. CONNECT_TEMPORARY, no redirect and also close connection after
     # should support same interface as smb.py functions. probably should move the matching etc logic
     # to the master or some generic helper
@@ -228,11 +228,7 @@ def get_shares(server: str):
     nr = NETRESOURCE(scope=RESOURCE_GLOBALNET, type=RESOURCETYPE_ANY, remote_name=f'\\\\{server}')
 
     hEnum = ctypes.wintypes.HANDLE()
-    try:
-        WNetOpenEnum(RESOURCE_GLOBALNET, RESOURCETYPE_ANY, 0, nr, ctypes.byref(hEnum))
-    except Exception as exc:
-        print(exc)
-        return
+    WNetOpenEnum(RESOURCE_GLOBALNET, RESOURCETYPE_ANY, 0, nr, ctypes.byref(hEnum))
 
     # allocate a buffer
     cbBuffer = ctypes.wintypes.DWORD(16384)     # 16K is a good size
@@ -248,13 +244,15 @@ def get_shares(server: str):
         for idx in range(cEntries.value):
             share = lpnrLocal[idx]
             share_path = share.remote_name
-            path_comps = get_net_computer(share_path)
+            path_comps = split_network_path(share_path)
             if len(path_comps)>=2:
                 shares.append(structs.DirEntry(path_comps[1],True,pathlib.Path(share_path),None,None,None,'labManager/net_share'))
 
     # clean up
     GlobalFree(mem_handle)
     WNetCloseEnum(hEnum)
+
+    return shares
 
 async def get_dir_list(path: pathlib.Path) -> list[structs.DirEntry]:
     # will throw when path doesn't exist or is not a directory
