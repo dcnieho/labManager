@@ -2,6 +2,7 @@ import threading
 import asyncio
 import typing
 import time
+import concurrent
 
 loop: asyncio.AbstractEventLoop = None
 thread: threading.Thread = None
@@ -38,7 +39,7 @@ def cleanup():
         thread = None
 
 
-def run(coroutine: typing.Coroutine, override_done_callback: typing.Callable = None) -> asyncio.Future:
+def run(coroutine: typing.Coroutine, override_done_callback: typing.Callable = None) -> concurrent.futures.Future:
     future = asyncio.run_coroutine_threadsafe(coroutine, loop)
     if override_done_callback:
         future.add_done_callback(override_done_callback)
