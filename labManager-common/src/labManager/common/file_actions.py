@@ -324,7 +324,7 @@ async def delete_path(path: str | pathlib.Path):
     pathvalidate.validate_filepath(path, "auto")
     path = aiopath.AsyncPath(path)
     if await path.is_dir():
-        await aioshutil.rmtree(path, ignore_errors=True)
+        await aioshutil.rmtree(path)
     else:
         await path.unlink()
 
