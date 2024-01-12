@@ -1331,7 +1331,7 @@ class MainGUI:
                                 case structs.Status.Errored:
                                     imgui.text_colored((1.,.0,.0,1.),icons_fontawesome.ICON_FA_EXCLAMATION_TRIANGLE)
                                     if imgui.is_item_hovered():
-                                        utils.draw_tooltip(f'Error: {action[2]["error"]}')
+                                        utils.draw_tooltip(f'Error: {utils.trim_str(str(action[2]["error"]),1000)}')
                         case 3:
                             # Action
                             imgui.text(f'{action[3]}')
