@@ -26,9 +26,10 @@ class FileCommander:
         # get first selected client, open file pickers to that location
         with self.master.clients_lock:
             client_name = next(self.master.clients[c].name for c in self.selected_clients if self.selected_clients[c])
-        self.left  = filepicker.FilePicker(start_machine=client_name, start_dir=start_dir_left , file_action_provider_args=file_action_provider_args)
-        self.right = filepicker.FilePicker(start_machine=client_name, start_dir=start_dir_right, file_action_provider_args=file_action_provider_args)
-        self.right._listing_cache = self.left._listing_cache    # share listing cache
+        file_action_provider = filepicker.FileActionProvider(**file_action_provider_args)   # share file action provider
+        self.left  = filepicker.FilePicker(start_machine=client_name, start_dir=start_dir_left , file_action_provider=file_action_provider)
+        self.right = filepicker.FilePicker(start_machine=client_name, start_dir=start_dir_right, file_action_provider=file_action_provider)
+        self.right._listing_cache = self.left._listing_cache                # share listing cache
         # right pane cannot chose machine, we track machine selected on the left and force right to match
         self.right.allow_selecting_machine = False
         self.left_machine = self.left.machine
@@ -37,7 +38,6 @@ class FileCommander:
         self.right.show_local_machine = False
         # route remote actions through us
         self.left.file_action_provider.remote_action_provider   = self.remote_action_provider
-        self.right.file_action_provider.remote_action_provider  = self.remote_action_provider
 
         # disable keyboard navigation as we don't know which of the file pickers has focus upon key presses
         self.left.disable_keyboard_navigation = True

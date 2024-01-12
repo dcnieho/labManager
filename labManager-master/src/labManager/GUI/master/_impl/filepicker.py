@@ -61,11 +61,15 @@ class DirEntryWithCache(structs.DirEntry):
 
 
 class FileActionProvider:
-    def __init__(self, listing_callback: Callable[[str, str|pathlib.Path, list[structs.DirEntry]|Exception], None], action_callback: Callable[[str, pathlib.Path, str, pathlib.Path|Exception], None], master: master.Master, network: str = None):
+    def __init__(self, listing_callback: Callable[[str, str|pathlib.Path, list[structs.DirEntry]|Exception], None]=None, action_callback: Callable[[str, pathlib.Path, str, pathlib.Path|Exception], None] = None, master: master.Master = None, network: str = None):
         self.waiters: set[concurrent.futures.Future] = set()
 
-        self.listing_callback: Callable[[list[structs.DirEntry]|Exception, bool], None] = listing_callback
-        self.action_callback:  Callable[[pathlib.Path|Exception, str], None] = action_callback
+        self.listing_callbacks: list[Callable[[list[structs.DirEntry]|Exception, bool], None]] = []
+        if listing_callback:
+            self.listing_callbacks.append(listing_callback)
+        self.action_callbacks:  list[Callable[[pathlib.Path|Exception, str], None]] = []
+        if action_callback:
+            self.action_callback.append(action_callback)
 
         self.master = master
 
@@ -193,7 +197,7 @@ class FileActionProvider:
         if result=='cancelled':
             return  # nothing more to do
 
-        if self.listing_callback is None:
+        if not self.listing_callbacks:
             return
 
         machine, is_local, client_id = self.resolve_machine(machine)
@@ -211,7 +215,8 @@ class FileActionProvider:
                 # retrieve result
                 result = self.master.clients[client_id].online.file_listings[str(path)]['listing']
         # call callback
-        self.listing_callback(machine, path, result)
+        for c in self.listing_callbacks:
+            c(machine, path, result)
 
     def make_dir(self, machine: str, path: pathlib.Path):
         machine, is_local, client_id = self.resolve_machine(machine)
@@ -273,11 +278,11 @@ class FileActionProvider:
         if result=='cancelled':
             return  # nothing more to do
 
-        if self.action_callback is None:
+        if not self.action_callbacks:
             return
 
         # get result and call callback
-        if client_id and client_id in self.master.clients and action_id in self.master.clients[client_id].online.file_actions:
+        if client_id and self.master and client_id in self.master.clients and action_id in self.master.clients[client_id].online.file_actions:
             result = self.master.clients[client_id].online.file_actions[action_id]
             if result['status']==structs.Status.Errored:
                 result = result['error']
@@ -287,7 +292,8 @@ class FileActionProvider:
                 result = result['return_path']
             else:
                 result = None
-        self.action_callback(machine, path, action, result)
+        for c in self.action_callbacks:
+            c(machine, path, action, result)
 
     def _get_result_from_future(self, fut: concurrent.futures.Future|list[structs.DirEntry]) -> list[structs.DirEntry]:
         if isinstance(fut, concurrent.futures.Future):
@@ -308,14 +314,16 @@ class FilePicker:
         imgui.WindowFlags_.no_saved_settings
     )
 
-    def __init__(self, title="File picker", start_machine: str = None, start_dir: str | pathlib.Path = None, callback: typing.Callable = None, allow_multiple = True, file_action_provider_args=None, custom_popup_flags=0):
+    def __init__(self, title="File picker", start_machine: str = None, start_dir: str | pathlib.Path = None, callback: typing.Callable = None, allow_multiple = True, file_action_provider: FileActionProvider=None, custom_popup_flags=0):
         self.title = title
         self.elapsed = 0.0
         self.callback = callback
-        if file_action_provider_args:
-            self.file_action_provider = FileActionProvider(self._listing_done, self._action_done, **file_action_provider_args)
+        if file_action_provider:
+            self.file_action_provider = file_action_provider
         else:
-            self.file_action_provider = FileActionProvider(self._listing_done, self._action_done)
+            self.file_action_provider = FileActionProvider()
+        file_action_provider.listing_callbacks.append(self._listing_done)
+        file_action_provider.action_callbacks .append(self._action_done)
 
         self._listing_cache: dict[tuple(str,str|pathlib.Path), dict[int,DirEntryWithCache]] = {}
         self.popup_stack = []

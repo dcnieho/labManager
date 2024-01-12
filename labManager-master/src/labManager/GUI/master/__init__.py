@@ -893,8 +893,8 @@ class MainGUI:
                     if imgui.button("Append path"):
                         def append_path(tsk: TaskDef, path: str):
                             tsk.payload_text += str(path[0])
-                        file_action_provider_args = {'network': config.master['network'], 'master': self.master}
-                        utils.push_popup(self, filepicker.FilePicker(title='Select path to append', allow_multiple=False, file_action_provider_args=file_action_provider_args, callback=lambda path: append_path(self._task_prep, path)))
+                        fap = filepicker.FileActionProvider(network=config.master['network'], master=self.master)
+                        utils.push_popup(self, filepicker.FilePicker(title='Select path to append', allow_multiple=False, file_action_provider=fap, callback=lambda path: append_path(self._task_prep, path)))
                 else:
                     imgui.push_font(imgui_md.get_code_font())
                     _, self._task_prep.payload_file = imgui.input_text('##file_inputter',self._task_prep.payload_file)
