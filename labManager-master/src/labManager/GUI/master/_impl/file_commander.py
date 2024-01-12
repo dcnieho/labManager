@@ -153,7 +153,7 @@ class FileCommander:
         sources_disp = '\n  '.join(source_paths_disp)
         def _confirmation_popup():
             extra = "\\<computer_name>" if self.append_computer_name else ""
-            imgui.text(f'This will copy the following items:\n  {sources_disp}\nfrom the path {source_paths[0].parent}\nto the folder {dest}{extra}\non each of the following computers:\n  {computers_txt}\nContinue?')
+            imgui.text(f'This will copy the following items:\n  {sources_disp}\nfrom the path {source_paths[0].parent}\ninto the folder {dest}{extra}\non each of the following computers:\n  {computers_txt}\nContinue?')
             return 0 if imgui.is_key_released(imgui.Key.enter) else None
 
         async def _do_it():
@@ -177,7 +177,7 @@ class FileCommander:
                     coros   = []
                     for c in clients:
                         dest_path = dest / self.master.clients[c].name
-                        coros.append(self.master.make_client_folder(self.master.clients[c], dest_path))
+                        coros.append(self.master.make_client_folder(self.master.clients[c], dest_path, exist_ok=True))
                     action_ids = await asyncio.gather(*coros)
 
                     # get waiters and wait for them to complete
@@ -200,7 +200,7 @@ class FileCommander:
                             d = dest_path / s.name
                             # NB: this just launches the task, doesn't wait for it to finish
                             # which is good, user can see results in file action GUI
-                            tsk = CopyTask(c, asyncio.create_task(self.master.copy_client_file_folder(self.master.clients[c], s, d)))
+                            tsk = CopyTask(c, asyncio.create_task(self.master.copy_client_file_folder(self.master.clients[c], s, d, dirs_exist_ok=True)))
                             tasks.add(tsk)
                     clients_for_copy = []
 
