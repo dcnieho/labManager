@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import pathlib
+from dataclasses import dataclass
 from imgui_bundle import imgui, icons_fontawesome
 
 from labManager.common import async_thread, structs
@@ -158,33 +159,76 @@ class FileCommander:
         async def _do_it():
             nonlocal clients
 
-            # first make folders with computer name
-            if self.append_computer_name:
-                coros   = []
-                for c in clients:
-                    dest_path = dest / self.master.clients[c].name
-                    coros.append(self.master.make_client_folder(self.master.clients[c], dest_path))
-                action_ids = await asyncio.gather(*coros)
+            @dataclass(frozen=True)
+            class CopyTask:
+                client: int
+                task: asyncio.Task | asyncio.Future
+                is_make_folder: bool = False
 
-                # get waiters and wait for them to complete
-                coros = [asyncio.wait_for(self.master.add_waiter('file-action', aid), timeout=None) for aid in action_ids]
-                await asyncio.gather(*coros)
+            tasks: set[CopyTask] = set()
+            launched_make_folder = False
+            clients_for_copy = []
+            # somewhat complicated logic so that we do not get stuck if for some
+            # reason a client doesn't do the make_folder action. For each client,
+            # once the folder is made, we launch the copy action
+            while True:
+                # first make folders with computer name
+                if self.append_computer_name and not launched_make_folder:
+                    coros   = []
+                    for c in clients:
+                        dest_path = dest / self.master.clients[c].name
+                        coros.append(self.master.make_client_folder(self.master.clients[c], dest_path))
+                    action_ids = await asyncio.gather(*coros)
 
-                # done. check results, filter out clients where this failed
-                results = [self.master.clients[c].online.file_actions[aid] if c in self.master.clients and self.master.clients[c].online and aid in self.master.clients[c].online.file_actions else None for c,aid in zip(clients,action_ids)]
-                clients = [c for c,r in zip(clients,results) if r['status']==structs.Status.Finished]
-
-            # launch copy action
-            coros   = []
-            for c in clients:
-                if self.append_computer_name:
-                    dest_path = dest / self.master.clients[c].name
+                    # get waiters and wait for them to complete
+                    for c,aid in zip(clients,action_ids):
+                        if c in self.master.clients and self.master.clients[c].online and aid in self.master.clients[c].online.file_actions:
+                            tsk = CopyTask(c, self.master.add_waiter('file-action', aid), is_make_folder=True)
+                            tasks.add(tsk)
+                    launched_make_folder = True
                 else:
-                    dest_path = dest
-                for s in source_paths:
-                    d = dest_path / s.name
-                    coros.append(self.master.copy_client_file_folder(self.master.clients[c], s, d))
-            await asyncio.gather(*coros)
+                    clients_for_copy = clients
+
+                # launch copy actions
+                if clients_for_copy:
+                    for c in clients_for_copy:
+                        if self.append_computer_name:
+                            dest_path = dest / self.master.clients[c].name
+                        else:
+                            dest_path = dest
+                        for s in source_paths:
+                            d = dest_path / s.name
+                            # NB: this just launches the task, doesn't wait for it to finish
+                            # which is good, user can see results in file action GUI
+                            tsk = CopyTask(c, asyncio.create_task(self.master.copy_client_file_folder(self.master.clients[c], s, d)))
+                            tasks.add(tsk)
+                    clients_for_copy = []
+
+                done, _ = await asyncio.wait([t.task for t in tasks], timeout=0.1)
+
+                # check what's done and if there is any need for follow up
+                for t in done:
+                    # find task
+                    for tsk in tasks:
+                        if tsk.task==t:
+                            my_task = tsk
+                            break
+                    tasks.discard(my_task)
+                    # check if its a make folder or a copy action to determine next action
+                    if my_task.is_make_folder:
+                        # check result of make folder, launch copy if succeeded
+                        c = my_task.client
+                        if c in self.master.clients and self.master.clients[c].online and aid in self.master.clients[c].online.file_actions:
+                            result = self.master.clients[c].online.file_actions[aid]
+                            if result['status']==structs.Status.Finished:
+                                clients_for_copy.append(c)
+                    else:
+                        # nothing to do for file copy action
+                        pass
+
+                # we're done if there is nothing more to wait for or to schedule
+                if not tasks and not clients_for_copy:
+                    break
 
         buttons = {
             icons_fontawesome.ICON_FA_CHECK+" Yes": lambda: async_thread.run(_do_it()),
