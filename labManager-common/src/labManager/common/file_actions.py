@@ -288,28 +288,28 @@ def get_dir_list_sync(path: pathlib.Path) -> list[structs.DirEntry]:
 
     return out
 
-async def make_dir(path: str | pathlib.Path):
+async def make_dir(path: str | pathlib.Path, exist_ok: bool = False):
     pathvalidate.validate_filepath(path, "auto")
     path = aiopath.AsyncPath(path)
-    await path.mkdir()
+    await path.mkdir(exist_ok=exist_ok)
 
-async def make_file(path: str | pathlib.Path):
+async def make_file(path: str | pathlib.Path, exist_ok: bool = True):
     pathvalidate.validate_filepath(path, "auto")
     path = aiopath.AsyncPath(path)
-    await path.touch()
+    await path.touch(exist_ok=exist_ok)
 
 async def rename_path(old_path: str | pathlib.Path, new_path: str | pathlib.Path):
     pathvalidate.validate_filepath(old_path, "auto")
     pathvalidate.validate_filepath(new_path, "auto")
     return await aiopath.AsyncPath(old_path).rename(new_path)
 
-async def copy_path(source_path: str | pathlib.Path, dest_path: str | pathlib.Path):
+async def copy_path(source_path: str | pathlib.Path, dest_path: str | pathlib.Path, dirs_exist_ok: bool = False):
     pathvalidate.validate_filepath(source_path, "auto")
     pathvalidate.validate_filepath(dest_path, "auto")
     source_path = aiopath.AsyncPath(source_path)
     dest_path   = aiopath.AsyncPath(dest_path)
     if await source_path.is_dir():
-        return await aioshutil.copytree(source_path, dest_path)
+        return await aioshutil.copytree(source_path, dest_path, dirs_exist_ok=dirs_exist_ok)
     else:
         return await aioshutil.copy2(source_path, dest_path)
 

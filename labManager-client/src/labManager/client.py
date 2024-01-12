@@ -329,9 +329,9 @@ class Client:
 
                         try:
                             if msg['is_dir']:
-                                await file_actions.make_dir(msg['path'])
+                                await file_actions.make_dir(msg['path'], msg['exist_ok'])
                             else:
-                                await file_actions.make_file(msg['path'])
+                                await file_actions.make_file(msg['path'], msg['exist_ok'])
                         except Exception as exc:
                             if isinstance(exc,pathvalidate.ValidationError):
                                 exc = str(exc)  # these don't unpickle well, also can't assume receiver to have the same package installed
@@ -379,7 +379,7 @@ class Client:
                             if msg['is_move']:
                                 return_path = await file_actions.move_path(msg['source_path'], msg['dest_path'])
                             else:
-                                return_path = await file_actions.copy_path(msg['source_path'], msg['dest_path'])
+                                return_path = await file_actions.copy_path(msg['source_path'], msg['dest_path'], msg['dirs_exist_ok'])
                         except Exception as exc:
                             if isinstance(exc,pathvalidate.ValidationError):
                                 exc = str(exc)  # these don't unpickle well, also can't assume receiver to have the same package installed

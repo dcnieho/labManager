@@ -762,29 +762,31 @@ class Master:
         client.online.file_actions[action_id] = msg
         # return action's id
         return action_id
-    async def _make_client_file_folder(self, client: structs.Client, path: str|pathlib.Path, is_dir: bool):
+    async def _make_client_file_folder(self, client: structs.Client, path: str|pathlib.Path, exist_ok: bool, is_dir: bool):
         return await self._send_file_action(client, message.Message.FILE_MAKE,
                                             {'path': path,
+                                             'exist_ok': exist_ok,
                                              'is_dir': is_dir})
-    async def make_client_file  (self, client: structs.Client, path: str|pathlib.Path):
-        return await self._make_client_file_folder(client, path, False)
-    async def make_client_folder(self, client: structs.Client, path: str|pathlib.Path):
-        return await self._make_client_file_folder(client, path, True)
+    async def make_client_file  (self, client: structs.Client, path: str|pathlib.Path, exist_ok: bool = False):
+        return await self._make_client_file_folder(client, path, exist_ok, False)
+    async def make_client_folder(self, client: structs.Client, path: str|pathlib.Path, exist_ok: bool = False):
+        return await self._make_client_file_folder(client, path, exist_ok, True)
 
     async def rename_client_file_folder(self, client: structs.Client, old_path: str|pathlib.Path, new_path: str|pathlib.Path):
         return await self._send_file_action(client, message.Message.FILE_RENAME,
                                             {'old_path': old_path,
                                              'new_path': new_path})
 
-    async def _copy_move_client_file_folder(self, client: structs.Client, source_path: str|pathlib.Path, dest_path: str|pathlib.Path, is_move: bool):
+    async def _copy_move_client_file_folder(self, client: structs.Client, source_path: str|pathlib.Path, dest_path: str|pathlib.Path, dirs_exist_ok: bool, is_move: bool):
         return await self._send_file_action(client, message.Message.FILE_COPY_MOVE,
                                             {'source_path': source_path,
                                              'dest_path': dest_path,
+                                             'dirs_exist_ok': dirs_exist_ok,    # NB: applies only to copy of a directory, not to copy of file or move of anything
                                              'is_move': is_move})
-    async def copy_client_file_folder(self, client: structs.Client, source_path: str|pathlib.Path, dest_path: str|pathlib.Path):
-        return await self._copy_move_client_file_folder(client, source_path, dest_path, False)
+    async def copy_client_file_folder(self, client: structs.Client, source_path: str|pathlib.Path, dest_path: str|pathlib.Path, dirs_exist_ok: bool = False):
+        return await self._copy_move_client_file_folder(client, source_path, dest_path, dirs_exist_ok, False)
     async def move_client_file_folder(self, client: structs.Client, source_path: str|pathlib.Path, dest_path: str|pathlib.Path):
-        return await self._copy_move_client_file_folder(client, source_path, dest_path, True)
+        return await self._copy_move_client_file_folder(client, source_path, dest_path, False, True)
 
     async def delete_client_file_folder(self, client: structs.Client, path: str|pathlib.Path):
         return await self._send_file_action(client, message.Message.FILE_DELETE,
