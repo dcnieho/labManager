@@ -56,6 +56,7 @@ RESOURCEDISPLAYTYPE_NDSCONTAINER    = 0x0000000B
 
 ERROR_NO_MORE_ITEMS = 259
 ERROR_EXTENDED_ERROR= 1208
+ERROR_SESSION_CREDENTIAL_CONFLICT = 1219
 
 def _error_check_non0_is_error_ex(allowed, result, func, args):
     if not result or result in allowed:
@@ -94,7 +95,7 @@ CONNECT_TEMPORARY = 0x00000004
 WNetAddConnection2 = _mpr.WNetAddConnection2W
 WNetAddConnection2.argtypes = LPNETRESOURCE, ctypes.wintypes.LPCWSTR, ctypes.wintypes.LPCWSTR, ctypes.wintypes.DWORD
 WNetAddConnection2.restype = ctypes.wintypes.DWORD
-WNetAddConnection2.errcheck = _error_check_non0_is_error
+WNetAddConnection2.errcheck = lambda r,f,a: _error_check_non0_is_error_ex([ERROR_SESSION_CREDENTIAL_CONFLICT], r, f, a)
 
 WNetGetUser = _mpr.WNetGetUserW
 WNetGetUser.argtypes = ctypes.wintypes.LPCWSTR, ctypes.wintypes.LPWSTR, ctypes.wintypes.LPDWORD
@@ -390,7 +391,12 @@ def _server_login(server: str, user: str, password: str, domain=''):
         nr = NETRESOURCE(type=RESOURCETYPE_DISK, remote_name=server)
         if domain:
             user = f'{domain}\\{user}'
-        WNetAddConnection2(nr, password, user, CONNECT_TEMPORARY)
+        res = WNetAddConnection2(nr, password, user, CONNECT_TEMPORARY)
+        if res==ERROR_SESSION_CREDENTIAL_CONFLICT:
+            # apparently we are connected even if WNetGetUser() doesn't know. Carry on and hope for the best
+            need_conn = False
+        elif res!=0:
+            _error_check_non0_is_error(res,None,None)
     return need_conn
 def _server_logout(server: str):
     server = server.strip('\\/')
