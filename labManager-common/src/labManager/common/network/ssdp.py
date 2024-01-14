@@ -284,6 +284,7 @@ class SimpleServiceDiscoveryProtocol(asyncio.DatagramProtocol):
             ssdp_response.sendto(self.transport, addr)
 
     def error_received(self, exc):
+        print(f'SSDP error: {exc}')
         if exc == errno.EAGAIN or exc == errno.EWOULDBLOCK:
             pass
         else:
