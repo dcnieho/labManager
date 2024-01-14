@@ -933,7 +933,12 @@ class MainGUI:
                     utils.draw_hover_text('If enabled, the "-u" switch is specified for the python call, so that all output of the process is directly visible in the task result view',text='')
         imgui.end()
         if imgui.begin('task_confirm_pane'):
-            disabled1 = not any(self.selected_computers.values())
+            with self.master.clients_lock:
+                if self._task_prep.type==task.Type.Wake_on_LAN:
+                    selected_clients = [cid for cid in self.selected_computers if self.selected_computers[cid] and cid in self.master.clients and not self.master.clients[cid].online]
+                else:
+                    selected_clients = [cid for cid in self.selected_computers if self.selected_computers[cid] and cid in self.master.clients and self.master.clients[cid].online]
+            disabled1 = not selected_clients
             if self._task_prep.type==task.Type.Wake_on_LAN:
                 disabled2 = False
             elif self._task_prep.payload_type=='text':
@@ -944,7 +949,6 @@ class MainGUI:
             if disabled:
                 utils.push_disabled()
             if imgui.button("Run"):
-                selected_clients = [id for id in self.selected_computers if self.selected_computers[id]]
                 async_thread.run(
                     self.master.run_task(
                         self._task_prep.type,
@@ -959,7 +963,12 @@ class MainGUI:
                 )
             if disabled:
                 utils.pop_disabled()
-                utils.draw_hover_text('Select computer(s) for which to execute this task' if disabled1 else 'Provide task parameters', text='', hovered_flags=imgui.HoveredFlags_.allow_when_disabled)
+                if disabled1:
+                    if self._task_prep.type==task.Type.Wake_on_LAN:
+                        reason = 'Select offline computer(s) to start up'
+                    else:
+                        reason = 'Select running computer(s) on which to execute this task'
+                utils.draw_hover_text(reason if disabled1 else 'Provide task parameters', text='', hovered_flags=imgui.HoveredFlags_.allow_when_disabled)
             imgui.same_line(imgui.get_content_region_avail().x-imgui.calc_text_size('Clear').x-2*imgui.get_style().frame_padding.x)
             if imgui.button('Clear'):
                 self._task_prep = TaskDef()
