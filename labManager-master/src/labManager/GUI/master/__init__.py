@@ -933,7 +933,15 @@ class MainGUI:
                     utils.draw_hover_text('If enabled, the "-u" switch is specified for the python call, so that all output of the process is directly visible in the task result view',text='')
         imgui.end()
         if imgui.begin('task_confirm_pane'):
-            if disabled := not any(self.selected_computers.values()):
+            disabled1 = not any(self.selected_computers.values())
+            if self._task_prep.type==task.Type.Wake_on_LAN:
+                disabled2 = False
+            elif self._task_prep.payload_type=='text':
+                disabled2 = not self._task_prep.payload_text
+            else:
+                disabled2 = not self._task_prep.payload_file
+            disabled = disabled1 or disabled2
+            if disabled:
                 utils.push_disabled()
             if imgui.button("Run"):
                 selected_clients = [id for id in self.selected_computers if self.selected_computers[id]]
@@ -951,7 +959,7 @@ class MainGUI:
                 )
             if disabled:
                 utils.pop_disabled()
-                utils.draw_hover_text('Select computer(s) for which to execute this task', text='', hovered_flags=imgui.HoveredFlags_.allow_when_disabled)
+                utils.draw_hover_text('Select computer(s) for which to execute this task' if disabled1 else 'Provide task parameters', text='', hovered_flags=imgui.HoveredFlags_.allow_when_disabled)
             imgui.same_line(imgui.get_content_region_avail().x-imgui.calc_text_size('Clear').x-2*imgui.get_style().frame_padding.x)
             if imgui.button('Clear'):
                 self._task_prep = TaskDef()
