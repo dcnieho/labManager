@@ -360,8 +360,9 @@ class Base:
         if not self._is_started:
             return
         await self._stop()
-        self.transport.close()
-        if self._want_second:
+        if not self.transport.is_closing():
+            self.transport.close()
+        if self._want_second and not self.transport_multicast.is_closing():
             self.transport_multicast.close()
         waiters = []
         if self.protocol:
