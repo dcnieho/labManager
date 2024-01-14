@@ -351,13 +351,14 @@ class FilePicker:
                 path = 'root'
             is_root = path=='root'
 
+        machine, is_local, _ = self.file_action_provider.resolve_machine(machine)
         if not is_root:
             if (comp := file_actions.get_net_computer(path)):
                 # ensure loc has the format //SERVER/, which is what pathlib understands
                 path = pathlib.Path(f'//{comp}/')
             else:
                 path = pathlib.Path(path)
-                if path.is_file():
+                if is_local and path.is_file():
                     path = path.parent
                 if path is None:
                     path = pathlib.Path('.')
@@ -372,7 +373,7 @@ class FilePicker:
                 add_history = True  # make sure we put this location in the history
                 self.history.clear()
                 self.history_loc = -1
-            self.machine = self.file_action_provider.resolve_machine(machine)[0]
+            self.machine = machine
             self.loc = path
             self.new_loc = True
             if add_history:
