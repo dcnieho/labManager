@@ -1,6 +1,7 @@
 import enum
 import pathlib
 
+# Needs aiosmb, not installed by default
 from aiosmb.commons.connection.factory import SMBConnectionFactory
 from aiosmb.commons.interfaces.machine import SMBMachine
 from aiosmb.commons.interfaces.share import SMBShare
