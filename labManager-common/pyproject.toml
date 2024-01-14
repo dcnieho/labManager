@@ -26,7 +26,6 @@ classifiers = [
 dependencies = [
     "aiopath",
     "aioshutil",
-    "icmplib",
     "jsonpickle",
     "psutil ; sys_platform != 'win32'",
     "strictyaml"
