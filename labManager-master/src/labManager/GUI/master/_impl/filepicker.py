@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from typing import Awaitable, Any, Callable
 
 from labManager.common import async_thread, file_actions, structs
-from labManager.common.network import net_names, smb
+from labManager.common.network import nmb
 from . import msgbox, utils
 from .... import master
 
@@ -76,14 +76,14 @@ class FileActionProvider:
         self.remote_action_provider: Callable[[str, pathlib.Path, pathlib.Path|None], Awaitable[int|None]] = None
 
         self.network: str|None = network
-        self.network_computers: dict[str,tuple[structs.DirEntry,str]] = {}
-        self.network_computer_getter: concurrent.futures.Future = None
+        self.network_computer_getter: nmb.NetBIOSDiscovery = None
         if self.network:
-            self.network_computer_getter = async_thread.run(self._get_network_computers())
+            self.network_computer_getter = nmb.NetBIOSDiscovery(self.network, 30)
+            async_thread.run(self.network_computer_getter.start())
 
     def __del__(self):
-        if self.network_computer_getter and not self.network_computer_getter.done():
-            self.network_computer_getter.cancel()
+        if self.network_computer_getter and not self.network_computer_getter.is_running():
+            async_thread.run(self.network_computer_getter.stop())
         for w in self.waiters:
             if not w.done():
                 w.cancel()
@@ -141,6 +141,9 @@ class FileActionProvider:
             if path=='root':
                 try:
                     result = file_actions.get_drives()
+                    if self.network_computer_getter:
+                        network_computers = self.network_computer_getter.get_machines(as_direntry=True)
+                        result.extend([m for m,_ in network_computers])
                 except Exception as exc:
                     result = exc
                 self._listing_done(result, machine, 'root')
@@ -177,21 +180,6 @@ class FileActionProvider:
             self.waiters.add(fut)
         return fut
 
-    async def _get_network_computers(self):
-        try:
-            first_time = True
-            while True:
-                self.network_computers = await net_names.get_network_computers(self.network)
-                if first_time:
-                    # push out an update to notify listener of network machines
-                    first_time = False
-                    self.get_listing(self.get_full_machine_name(self.local_name), 'root')
-
-                # rate-limit to every x seconds
-                await asyncio.sleep(30)
-        except concurrent.futures.CancelledError:
-            pass    # we broke out of the loop: cancellation processed
-
     def _listing_done(self, fut: concurrent.futures.Future|list[structs.DirEntry], machine: str, path: str|pathlib.Path):
         result = self._get_result_from_future(fut)
         if result=='cancelled':
@@ -204,10 +192,6 @@ class FileActionProvider:
         if is_local:
             if result is None:
                 return
-            if isinstance(result,list) and isinstance(path,str) and path=='root':
-                # add network computers
-                for n in self.network_computers:    # indexed by name, so can just use n
-                    result.append(self.network_computers[n][0]) # (value is tuple[DirEntry,ip:str]), get the DirEntry
         else:
             if not self.supports_remote():
                 result = None
