@@ -1566,6 +1566,7 @@ class MainGUI:
             if item.online and (tid := self._computer_GUI_tasks[item.id]) is not None:
                 if tid[0]=='task':
                     tsk = item.online.tasks[tid[1]]
+                    width = imgui.get_content_region_avail().x
                     if tsk.type==task.Type.Wake_on_LAN:
                         imgui.text(tsk.type.value)
                     else:
@@ -1576,7 +1577,6 @@ class MainGUI:
                                 self._task_GUI_editor.set_text(tsk.payload)
                             if not self._task_GUI_editor.is_read_only():
                                 self._task_GUI_editor.set_read_only(True)
-                            width = imgui.get_content_region_max().x - imgui.get_window_content_region_min().x - imgui.get_style().item_spacing.x
                             line_height = imgui.get_font_size()
                             num_visible_lines = 10
                             editor_size = imgui.ImVec2(width, line_height*(num_visible_lines+1))
@@ -1584,6 +1584,7 @@ class MainGUI:
                             imgui.pop_font()
                         else:
                             utils.push_disabled()
+                            imgui.set_next_item_width(width-imgui.calc_text_size(icons_fontawesome.ICON_FA_COPY+' ').x-2*imgui.get_style().frame_padding.x-imgui.get_style().item_spacing.x)
                             imgui.input_text(f'##task_payload', tsk.payload)
                             utils.pop_disabled()
                             imgui.pop_font()
@@ -1601,6 +1602,7 @@ class MainGUI:
                         imgui.text('cwd')
                         imgui.push_font(imgui_md.get_code_font())
                         utils.push_disabled()
+                        imgui.set_next_item_width(width-imgui.calc_text_size(icons_fontawesome.ICON_FA_COPY+' ').x-2*imgui.get_style().frame_padding.x-imgui.get_style().item_spacing.x)
                         imgui.input_text(f'##task_cwd', tsk.cwd)
                         utils.pop_disabled()
                         imgui.pop_font()
@@ -1645,7 +1647,7 @@ class MainGUI:
             if item.online and (tid := self._computer_GUI_tasks[item.id]) is not None:
                 if tid[0]=='task' and (tsk:=item.online.tasks[tid[1]]).type!=task.Type.Wake_on_LAN:
                     imgui.push_font(imgui_md.get_code_font())
-                    imgui.input_text_multiline(f"##output_content", tsk.output, size=(imgui.get_content_region_avail().x,-imgui.get_frame_height_with_spacing()), flags=imgui.InputTextFlags_.read_only | imgui.InputTextFlags_.no_horizontal_scroll)
+                    imgui.input_text_multiline(f"##output_content", tsk.output, size=(imgui.get_content_region_avail().x,-imgui.get_frame_height_with_spacing()), flags=imgui.InputTextFlags_.read_only)
                     # scroll to bottom if output has changed
                     output_length = len(tsk.output)
                     if tid[2]!=output_length:
@@ -1662,6 +1664,7 @@ class MainGUI:
                     if tsk.interactive and tsk.status==structs.Status.Running and ((item.id, tid[1]) not in self._computer_GUI_interactive_sent_finish or not self._computer_GUI_interactive_sent_finish[(item.id, tid[1])]):
                         if (item.id, tid[1]) not in self._computer_GUI_interactive_tasks:
                             self._computer_GUI_interactive_tasks[(item.id, tid[1])] = ''
+                        imgui.set_next_item_width(width-imgui.calc_text_size("Send").x-2*imgui.get_style().frame_padding.x-imgui.get_style().item_spacing.x)
                         enter_pressed, self._computer_GUI_interactive_tasks[(item.id, tid[1])] = \
                             imgui.input_text(f'##interactive_input{item.id},{tid[1]}', self._computer_GUI_interactive_tasks[(item.id, tid[1])], flags=imgui.InputTextFlags_.enter_returns_true|imgui.InputTextFlags_.escape_clears_all)
                         if enter_pressed:
