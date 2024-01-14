@@ -10,7 +10,7 @@ import threading
 from dataclasses import dataclass, field
 
 from labManager.common import async_thread, config, eye_tracker, file_actions, message, share, structs, task
-from labManager.common.network import comms, ifs, keepalive, nmb, net_names, ssdp
+from labManager.common.network import comms, ifs, keepalive, nmb, ssdp
 
 
 __version__ = '0.9.0'
