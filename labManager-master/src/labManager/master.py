@@ -608,7 +608,7 @@ class Master:
             if w.waiter_type==structs.WaiterType.Client_Disconnect_Any:
                 # waiting for any client to disconnect
                 finish_future = True
-            elif w.waiter_type==structs.WaiterType.Client_Disconnect_Name and (client_id not in self.clients or self.clients[client_id].name==w.parameter):
+            elif w.waiter_type==structs.WaiterType.Client_Disconnect_Name and (client_id not in self.clients or (self.clients[client_id].name==w.parameter and not self.clients[client_id].online)):
                 # waiting for client with a specific name to disconnect
                 finish_future = True
             elif w.waiter_type==structs.WaiterType.Client_Connected_Nr and num_clients==w.parameter:
