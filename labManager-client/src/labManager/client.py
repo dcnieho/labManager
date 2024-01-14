@@ -293,7 +293,7 @@ class Client:
                         out = msg
                         msg['net_name'] = msg['net_name'].strip('\\/')  # support SERVER, \\SERVER, \\SERVER\, //SERVER and //SERVER/
                         try:
-                            out['listing'] = file_actions.get_shares(msg['net_name'], msg['user'], msg['password'], msg['domain'])
+                            out['listing'] = file_actions.get_visible_shares(msg['net_name'], msg['user'], msg['password'], msg['domain'])
                         except Exception as exc:
                             msg['error'] = exc
                             msg['listing'] = []

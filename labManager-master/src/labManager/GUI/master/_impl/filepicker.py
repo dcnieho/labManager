@@ -150,7 +150,7 @@ class FileActionProvider:
                 try:
                     if net_comp:
                         # network computer name, get its shares
-                        result = file_actions.get_shares(net_comp,'Guest','')
+                        result = file_actions.get_visible_shares(net_comp,'Guest','')
                     else:
                         # normal directory or share on a network computer, no special handling needed
                         result = file_actions.get_dir_list_sync(path)
