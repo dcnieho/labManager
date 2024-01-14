@@ -674,7 +674,7 @@ class Master:
         for c in clients:
             if c not in self.clients:
                 raise ValueError(f'client with id {c} is not known')
-            if not self.clients[c].online:
+            if tsk_type!=task.Type.Wake_on_LAN and not self.clients[c].online:
                 raise ValueError(f'client with id {c} ({self.clients[c].name}) is not online')
         if not clients:
             # nothing to do
