@@ -294,7 +294,7 @@ class Client:
                             msg['error'] = exc
                             msg['listing'] = []
                         del out['password']
-                        out['path'] = f'\\\\{out["net_name"]}'
+                        out['path'] = f'//{out["net_name"]}/'
                         out['share_names'] = [s.name for s in out['listing']]
                         await comms.typed_send(writer,
                                                message.Message.FILE_LISTING,

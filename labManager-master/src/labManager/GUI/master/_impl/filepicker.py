@@ -171,7 +171,7 @@ class FileActionProvider:
                 if net_comp:
                     # network computer name, get its shares
                     async_thread.run(self.master.get_client_remote_shares(self.master.clients[client_id],net_comp,'Guest',''))
-                    path = f'\\\\{net_comp}'
+                    path = f'//{net_comp}/'
                 else:
                     # normal directory or share on a network computer, no special handling needed
                     async_thread.run(self.master.get_client_file_listing(self.master.clients[client_id],path))
@@ -355,7 +355,8 @@ class FilePicker:
         if not is_root:
             if (comp := file_actions.get_net_computer(path)):
                 # ensure loc has the format //SERVER/, which is what pathlib understands
-                path = pathlib.Path(f'//{comp}/')
+                # but keep it as a string, these things don't round-trip in pathlib
+                path = f'//{comp}/'
             else:
                 path = pathlib.Path(path)
                 if is_local and path.is_file():
