@@ -73,6 +73,8 @@ class FileActionProvider:
 
         self.master = master
 
+        # remote action provider. If set, any actions on remotes are routed
+        # through this provider. If not, self.master member functions are used
         self.remote_action_provider: Callable[[str, pathlib.Path, pathlib.Path|None], Awaitable[int|None]] = None
 
         self.network: str|None = network
