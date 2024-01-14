@@ -711,14 +711,20 @@ class Master:
 
 
     async def get_client_drives(self, client: structs.Client):
+        if not client.online:
+            return
         await comms.typed_send(client.online.writer, message.Message.FILE_GET_DRIVES)
 
     async def get_client_file_listing(self, client: structs.Client, path: str|pathlib.Path):
+        if not client.online:
+            return
         await comms.typed_send(client.online.writer, message.Message.FILE_GET_LISTING,
                                {'path': path})
 
     async def get_client_remote_shares(self, client: structs.Client, net_name: str, user: str = 'Guest', password: str = '', domain: str = '', access_level: smb.AccessLevel = smb.AccessLevel.READ):
         # list shares on specified target machine that are accessible from this client
+        if not client.online:
+            return
         await comms.typed_send(client.online.writer, message.Message.FILE_GET_SHARES,
                                {'net_name': net_name.strip('\\/'),  # support SERVER, \\SERVER, \\SERVER\, //SERVER and //SERVER/
                                 'user': user,
@@ -727,6 +733,8 @@ class Master:
                                 'access_level': access_level})
 
     async def _send_file_action(self, client: structs.Client, action: message.Message, msg: dict[str, str]):
+        if not client.online:
+            return None # no action launched
         # add action id to message
         msg['action_id'] = self._file_action_id_provider.get_next()
         msg['action'] = action
