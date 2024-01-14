@@ -110,7 +110,7 @@ class SSDPMessage:
             lines.append("%s: %s" % (header, self.headers[header]))
         return lines
 
-    async def sendto(self, transport, addr):
+    def sendto(self, transport, addr):
         """
         Send request/response to a given address via given transport.
         Args:
@@ -204,9 +204,7 @@ class SimpleServiceDiscoveryProtocol(asyncio.DatagramProtocol):
         # if verbose, print each message received, also those not acted upon
         self.verbose = verbose
 
-        self.loop = asyncio.get_running_loop()
-        self.done = self.loop.create_future()
-        self.reply_tasks = set()
+        self.done = asyncio.get_running_loop().create_future()
 
     def connection_made(self, transport):
         self.transport = transport
@@ -282,10 +280,8 @@ class SimpleServiceDiscoveryProtocol(asyncio.DatagramProtocol):
             if self.verbose:
                 print("header:\n{}\n".format(str(ssdp_response)))
 
-            # fire off the reply task, and make sure it is kept alive until finished
-            task = asyncio.create_task(ssdp_response.sendto(self.transport, addr))
-            self.reply_tasks.add(task)
-            task.add_done_callback(self.reply_tasks.discard)
+            # send reply
+            ssdp_response.sendto(self.transport, addr)
 
     def error_received(self, exc):
         if exc == errno.EAGAIN or exc == errno.EWOULDBLOCK:
@@ -415,7 +411,7 @@ class Server(Base):
         )
         if self.verbose:
             print("Sending a notification\nheader:\n{}\n".format(str(ssdp_notification)))
-        await ssdp_notification.sendto(self.transport, (MULTICAST_ADDRESS_IPV4, PORT))
+        ssdp_notification.sendto(self.transport, (MULTICAST_ADDRESS_IPV4, PORT))
 
     async def _stop(self):
         pass
@@ -496,7 +492,7 @@ class Client(Base):
         if self.verbose:
             print("Sending a request to {}:{}:".format(*addr))
             print("header:\n{}\n".format(str(ssdp_request)))
-        await ssdp_request.sendto(self.transport, addr)
+        ssdp_request.sendto(self.transport, addr)
 
     async def _stop(self):
         if self._response_fut and not self._response_fut.done():
