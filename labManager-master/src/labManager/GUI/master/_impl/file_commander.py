@@ -54,7 +54,7 @@ class FileCommander:
     def draw(self):
         imgui.begin_child('##filecommander')
         with self.master.clients_lock:
-            selected_clients = [c for c in self.selected_clients if self.selected_clients[c]]
+            selected_clients = [c for c in self.selected_clients if self.selected_clients[c] and c in self.master.clients and self.master.clients[c].online]
             computers_txt = ', '.join((self.master.clients[i].name for i in selected_clients))
         imgui.text_wrapped('The action you do in this interface will be performed on the following computers: '+computers_txt)
 
@@ -147,7 +147,7 @@ class FileCommander:
             source_paths_disp = [s.display_name for s in sources]
         dest = self.right.loc
         with self.master.clients_lock:
-            clients = [c for c in self.selected_clients if self.selected_clients[c]]
+            clients = [c for c in self.selected_clients if self.selected_clients[c] and c in self.master.clients and self.master.clients[c].online]
             computers_txt = '\n  '.join((self.master.clients[i].name for i in clients))
 
         sources_disp = '\n  '.join(source_paths_disp)
@@ -239,7 +239,7 @@ class FileCommander:
     async def remote_action_provider(self, action: str, path: pathlib.Path, path2: pathlib.Path|None = None):
         # got an action, route to all selected clients
         coros = []
-        for c in (c for c in self.selected_clients if self.selected_clients[c]):
+        for c in (c for c in self.selected_clients if self.selected_clients[c] and c in self.master.clients and self.master.clients[c].online):
             match action:
                 case 'make_dir':
                     coros.append(self.master.make_client_folder(self.master.clients[c], path))
