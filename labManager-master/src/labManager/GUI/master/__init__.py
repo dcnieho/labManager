@@ -836,7 +836,7 @@ class MainGUI:
                     if imgui.radio_button('file', self._task_prep.payload_type=='file'):
                         self._task_prep.payload_type='file'
 
-                width = imgui.get_content_region_max().x - imgui.get_window_content_region_min().x - imgui.get_style().item_spacing.x
+                width = imgui.get_content_region_avail().x
                 if self._task_prep.payload_type=='text':
                     if use_code_editor:
                         # based on immapp.snippets.show_code_snippet
