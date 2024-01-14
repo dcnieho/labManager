@@ -806,7 +806,7 @@ class MainGUI:
             if self._task_prep.type==task.Type.Wake_on_LAN:
                 imgui.text('Wake on LAN action has no parameters')
             else:
-                multiline = False
+                use_code_editor = False
                 can_select_payload_type = False
                 match self._task_prep.type:
                     case task.Type.Shell_command:
@@ -816,7 +816,7 @@ class MainGUI:
                     case task.Type.Batch_file:
                         if self._task_prep.payload_type=='text':
                             field_name = 'Batch file contents'
-                            multiline = True
+                            use_code_editor = True
                         else:
                             field_name = 'Batch file'
                         can_select_payload_type = True
@@ -825,7 +825,7 @@ class MainGUI:
                     case task.Type.Python_script:
                         if self._task_prep.payload_type=='text':
                             field_name = 'Python script contents'
-                            multiline = True
+                            use_code_editor = True
                         else:
                             field_name = 'Python script'
                         can_select_payload_type = True
@@ -835,11 +835,11 @@ class MainGUI:
                     imgui.same_line()
                     if imgui.radio_button('file', self._task_prep.payload_type=='file'):
                         self._task_prep.payload_type='file'
-                if self._task_prep.payload_type=='text':
-                    if multiline:
-                        # based on immapp.snippets.show_code_snippet
-                        width = imgui.get_content_region_max().x - imgui.get_window_content_region_min().x - imgui.get_style().item_spacing.x
 
+                width = imgui.get_content_region_max().x - imgui.get_window_content_region_min().x - imgui.get_style().item_spacing.x
+                if self._task_prep.payload_type=='text':
+                    if use_code_editor:
+                        # based on immapp.snippets.show_code_snippet
                         imgui.push_font(imgui_md.get_code_font())
                         line_height = imgui.get_font_size()
                         imgui.pop_font()
@@ -888,6 +888,7 @@ class MainGUI:
                     else:
                         imgui.text(field_name)
                         imgui.push_font(imgui_md.get_code_font())
+                        imgui.set_next_item_width(width)
                         _, self._task_prep.payload_text = imgui.input_text(f'##{field_name}', self._task_prep.payload_text)
                         imgui.pop_font()
                     if imgui.button("Append path"):
@@ -897,6 +898,7 @@ class MainGUI:
                         utils.push_popup(self, filepicker.FilePicker(title='Select path to append', allow_multiple=False, file_action_provider=fap, callback=lambda path: append_path(self._task_prep, path)))
                 else:
                     imgui.push_font(imgui_md.get_code_font())
+                    imgui.set_next_item_width(width)
                     _, self._task_prep.payload_file = imgui.input_text('##file_inputter',self._task_prep.payload_file)
                     imgui.pop_font()
                     if imgui.button("Select file"):
@@ -922,6 +924,7 @@ class MainGUI:
                 imgui.begin_group()
                 imgui.text('Working directory')
                 imgui.push_font(imgui_md.get_code_font())
+                imgui.set_next_item_width(width)
                 _, self._task_prep.cwd = imgui.input_text('##cwd', self._task_prep.cwd)
                 imgui.pop_font()
                 imgui.end_group()
