@@ -8,7 +8,7 @@ from aiosmb.commons.interfaces.share import SMBShare
 from aiosmb.commons.connection.target import SMBTarget
 from aiosmb.wintypes.access_mask import FileAccessMask
 
-from ..import structs
+from .. import structs
 
 class AccessLevel(enum.IntFlag):
     READ = enum.auto()
