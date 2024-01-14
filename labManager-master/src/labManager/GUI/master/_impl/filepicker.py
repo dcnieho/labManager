@@ -59,6 +59,8 @@ class DirEntryWithCache(structs.DirEntry):
             else:
                 self.size_str = f'{size:.1f} {units[i]}'
 
+class RemoteNotFound(Exception):
+    ...
 
 class FileActionProvider:
     def __init__(self, listing_callback: Callable[[str, str|pathlib.Path, list[structs.DirEntry]|Exception], None]=None, action_callback: Callable[[str, pathlib.Path, str, pathlib.Path|Exception], None] = None, master: master.Master = None, network: str = None):
@@ -70,8 +72,11 @@ class FileActionProvider:
         self.action_callbacks:  list[Callable[[pathlib.Path|Exception, str], None]] = []
         if action_callback:
             self.action_callback.append(action_callback)
+        self.remote_disconnected_callbacks: list[Callable[[structs.ConnectedClient, int],None]] = []
 
         self.master = master
+        # install hook
+        self.master.add_hook('client_disconnected', self._remote_disconnected)
 
         # remote action provider. If set, any actions on remotes are routed
         # through this provider. If not, self.master member functions are used
@@ -131,14 +136,27 @@ class FileActionProvider:
                 if name==machine:
                     client_id = cid
             if client_id is None:
-                raise ValueError(f"Machine {machine} was not found among connected machines")
+                raise RemoteNotFound(f"Machine {machine} was not found among connected machines")
             is_local = False
             machine = self.get_full_machine_name(machine)
         return machine, is_local, client_id
 
+    def _remote_disconnected(self, client: structs.ConnectedClient, client_id: int):
+        with self.master.clients_lock:
+            remote_name = self.master.clients[client_id].name
+        remote_full_name = self.get_full_machine_name(remote_name)
+        for c in self.remote_disconnected_callbacks:
+            c(remote_name, remote_full_name)
+
 
     def get_listing(self, machine: str, path: str|pathlib.Path) -> list[structs.DirEntry]|concurrent.futures.Future:
-        machine, is_local, client_id = self.resolve_machine(machine)
+        try:
+            machine, is_local, client_id = self.resolve_machine(machine)
+        except RemoteNotFound as exc:
+            machine = self.get_full_machine_name(self.get_machine_name(machine))
+            self._listing_done(exc, machine, path)
+            return
+
         fut = None
         if is_local:
             if path=='root':
@@ -191,74 +209,92 @@ class FileActionProvider:
         if not self.listing_callbacks:
             return
 
-        machine, is_local, client_id = self.resolve_machine(machine)
-        if is_local:
-            if result is None:
-                return
+        try:
+            machine, is_local, client_id = self.resolve_machine(machine)
+        except RemoteNotFound as exc:
+            result = exc
         else:
-            if not self.supports_remote():
-                result = None
+            if is_local:
+                if result is None:
+                    return
             else:
-                # retrieve result
-                result = self.master.clients[client_id].online.file_listings[str(path)]['listing']
+                if not self.supports_remote():
+                    result = None
+                else:
+                    # retrieve result
+                    result = self.master.clients[client_id].online.file_listings[str(path)]['listing']
         # call callback
         for c in self.listing_callbacks:
             c(machine, path, result)
 
     def make_dir(self, machine: str, path: pathlib.Path):
-        machine, is_local, client_id = self.resolve_machine(machine)
         action = 'make_dir'
-        if is_local:
-            fut = async_thread.run(file_actions.make_dir(path), lambda f: self._action_done(f, machine, path, action))
+        try:
+            machine, is_local, client_id = self.resolve_machine(machine)
+        except RemoteNotFound as exc:
+            machine = self.get_full_machine_name(self.get_machine_name(machine))
+            self._action_done(exc, machine, path, action)
         else:
-            if not self.supports_remote():
-                self._action_done(ValueError(f'Remote machine selected ("{machine}") but not supported'), machine, path, action)
-            if self.remote_action_provider:
-                fut = async_thread.run(self.remote_action_provider(action, path), lambda f: self._finish_remote_action(f, client_id, machine, path, action))
+            if is_local:
+                fut = async_thread.run(file_actions.make_dir(path), lambda f: self._action_done(f, machine, path, action))
             else:
-                fut = async_thread.run(self.master.make_client_folder(self.master.clients[client_id], path), lambda f: self._finish_remote_action(f, client_id, machine, path, action))
-        self.waiters.add(fut)
-        return fut
+                if not self.supports_remote():
+                    self._action_done(ValueError(f'Remote machine selected ("{machine}") but not supported'), machine, path, action)
+                if self.remote_action_provider:
+                    fut = async_thread.run(self.remote_action_provider(action, path), lambda f: self._finish_remote_action(f, client_id, machine, path, action))
+                else:
+                    fut = async_thread.run(self.master.make_client_folder(self.master.clients[client_id], path), lambda f: self._finish_remote_action(f, client_id, machine, path, action))
+            self.waiters.add(fut)
+            return fut
 
     def rename_path(self, machine: str, old_path: pathlib.Path, new_path: pathlib.Path):
-        machine, is_local, client_id = self.resolve_machine(machine)
         action = 'rename_path'
-        if is_local:
-            fut = async_thread.run(file_actions.rename_path(old_path, new_path), lambda f: self._action_done(f, machine, old_path, action))
+        try:
+            machine, is_local, client_id = self.resolve_machine(machine)
+        except RemoteNotFound as exc:
+            machine = self.get_full_machine_name(self.get_machine_name(machine))
+            self._action_done(exc, machine, old_path, action)
         else:
-            if not self.supports_remote():
-                self._action_done(ValueError(f'Remote machine selected ("{machine}") but not supported'), machine, old_path, action)
-            if self.remote_action_provider:
-                fut = async_thread.run(self.remote_action_provider(action, old_path, new_path), lambda f: self._finish_remote_action(f, client_id, machine, old_path, action))
+            if is_local:
+                fut = async_thread.run(file_actions.rename_path(old_path, new_path), lambda f: self._action_done(f, machine, old_path, action))
             else:
-                fut = async_thread.run(self.master.rename_client_file_folder(self.master.clients[client_id], old_path, new_path), lambda f: self._finish_remote_action(f, client_id, machine, old_path, action))
-        self.waiters.add(fut)
-        return fut
+                if not self.supports_remote():
+                    self._action_done(ValueError(f'Remote machine selected ("{machine}") but not supported'), machine, old_path, action)
+                if self.remote_action_provider:
+                    fut = async_thread.run(self.remote_action_provider(action, old_path, new_path), lambda f: self._finish_remote_action(f, client_id, machine, old_path, action))
+                else:
+                    fut = async_thread.run(self.master.rename_client_file_folder(self.master.clients[client_id], old_path, new_path), lambda f: self._finish_remote_action(f, client_id, machine, old_path, action))
+            self.waiters.add(fut)
+            return fut
 
     def delete_path(self, machine: str, path: pathlib.Path):
-        machine, is_local, client_id = self.resolve_machine(machine)
         action = 'delete_path'
-        if is_local:
-            fut = async_thread.run(file_actions.delete_path(path), lambda f: self._action_done(f, machine, path, action))
+        try:
+            machine, is_local, client_id = self.resolve_machine(machine)
+        except RemoteNotFound as exc:
+            machine = self.get_full_machine_name(self.get_machine_name(machine))
+            self._action_done(exc, machine, path, action)
         else:
-            if not self.supports_remote():
-                self._action_done(ValueError(f'Remote machine selected ("{machine}") but not supported'), machine, path, action)
-            if self.remote_action_provider:
-                fut = async_thread.run(self.remote_action_provider(action, path), lambda f: self._finish_remote_action(f, client_id, machine, path, action))
+            if is_local:
+                fut = async_thread.run(file_actions.delete_path(path), lambda f: self._action_done(f, machine, path, action))
             else:
-                fut = async_thread.run(self.master.delete_client_file_folder(self.master.clients[client_id], path), lambda f: self._finish_remote_action(f, client_id, machine, path, action))
-        self.waiters.add(fut)
-        return fut
+                if not self.supports_remote():
+                    self._action_done(ValueError(f'Remote machine selected ("{machine}") but not supported'), machine, path, action)
+                if self.remote_action_provider:
+                    fut = async_thread.run(self.remote_action_provider(action, path), lambda f: self._finish_remote_action(f, client_id, machine, path, action))
+                else:
+                    fut = async_thread.run(self.master.delete_client_file_folder(self.master.clients[client_id], path), lambda f: self._finish_remote_action(f, client_id, machine, path, action))
+            self.waiters.add(fut)
+            return fut
 
     def _finish_remote_action(self, fut: concurrent.futures.Future, client_id: int, machine: str, path: pathlib.Path, action: str):
         action_id = self._get_result_from_future(fut)
-        if action_id=='cancelled':
+        if action_id is None or action_id=='cancelled':
             return  # nothing more to do
 
         # we should have a file_action_id now, enqueue waiter that calls action_done
-        if action_id:
-            fut = async_thread.run(asyncio.wait_for(self.master.add_waiter('file-action', action_id), timeout=None), lambda f: self._action_done(f, machine, path, action, client_id, action_id))
-            self.waiters.add(fut)
+        fut = async_thread.run(asyncio.wait_for(self.master.add_waiter('file-action', action_id), timeout=None), lambda f: self._action_done(f, machine, path, action, client_id, action_id))
+        self.waiters.add(fut)
 
     def _action_done(self, fut: concurrent.futures.Future, machine: str, path: pathlib.Path, action: str, client_id: int=None, action_id: int=None):
         result = self._get_result_from_future(fut)
@@ -311,6 +347,7 @@ class FilePicker:
             self.file_action_provider = FileActionProvider()
         file_action_provider.listing_callbacks.append(self._listing_done)
         file_action_provider.action_callbacks .append(self._action_done)
+        file_action_provider.remote_disconnected_callbacks.append(self._remote_lost)
 
         self._listing_cache: dict[tuple(str,str|pathlib.Path), dict[int,DirEntryWithCache]] = {}
         self.popup_stack = []
@@ -354,7 +391,11 @@ class FilePicker:
                 path = 'root'
             is_root = path=='root'
 
-        machine, is_local, _ = self.file_action_provider.resolve_machine(machine)
+        try:
+            machine, is_local, _ = self.file_action_provider.resolve_machine(machine)
+        except RemoteNotFound:
+            machine = self.file_action_provider.get_full_machine_name(self.file_action_provider.get_machine_name(machine))
+            is_local = False
         if not is_root:
             if (comp := file_actions.get_net_computer(path)):
                 # ensure loc has the format //SERVER/, which is what pathlib understands
@@ -396,6 +437,16 @@ class FilePicker:
                 self._update_listing(self.machine, self.loc, True)
             # load new directory
             self.refresh()
+
+    def _remote_lost(self, remote_name: str, remote_full_name: str):
+        if self.machine!=remote_full_name:
+            # nothing to do
+            return
+
+        # stop any ongoing request so that a new request will be kicked off soon
+        # when the client is actually fully gone (at this stage it is about to be
+        # removed)
+        self.refreshing = False
 
     def refresh(self):
         # launch refresh
@@ -521,7 +572,7 @@ class FilePicker:
                 # pathlib.Path's str() doesn't do the right thing here, render it ourselves
                 loc_str = f'\\\\{comp}'
             else:
-                if not for_edit and isinstance(path,pathlib.Path) and self._get_parent(path)=='root' and (machine,'root') in self._listing_cache:
+                if not for_edit and isinstance(path,pathlib.Path) and self._get_parent(path)=='root' and (machine,'root') in self._listing_cache and isinstance(self._listing_cache[(machine,'root')],dict):
                     # this is a drive root, lookup name of this drive
                     # except when this is meant to be a string to be edited, then we
                     # just want the raw drive location string
@@ -788,7 +839,10 @@ class FilePicker:
                     display_names = []
                 display_names += list(self.file_action_provider.get_remotes().values())
                 machines = [self.file_action_provider.get_full_machine_name(r) for r in display_names]
-                idx = machines.index(self.machine)
+                if self.machine in machines:
+                    idx = machines.index(self.machine)
+                else:
+                    idx = -1
 
                 changed, idx = imgui.list_box('##machine_list_popup_select',idx,display_names)
                 if changed:
