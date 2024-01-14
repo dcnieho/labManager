@@ -77,13 +77,14 @@ class FileActionProvider:
 
         self.network: str|None = network
         self.network_computer_getter: nmb.NetBIOSDiscovery = None
+        self.network_computer_getter_task: asyncio.Task = None
         if self.network:
             self.network_computer_getter = nmb.NetBIOSDiscovery(self.network, 30)
-            async_thread.run(self.network_computer_getter.start())
+            self.network_computer_getter_task = async_thread.loop.create_task(self.network_computer_getter.run())
 
     def __del__(self):
-        if self.network_computer_getter and not self.network_computer_getter.is_running():
-            async_thread.run(self.network_computer_getter.stop())
+        if self.network_computer_getter_task and not self.network_computer_getter_task.done():
+            self.network_computer_getter_task.cancel()
         for w in self.waiters:
             if not w.done():
                 w.cancel()

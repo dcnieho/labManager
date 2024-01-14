@@ -59,6 +59,7 @@ class Client:
         self._if_macs:                      list[str]                   = None
 
         self._netname_discoverer:           nmb.NetBIOSDiscovery        = None
+        self._netname_discovery_task:       asyncio.Task                = None
         self._poll_for_eyetrackers_task:    asyncio.Task                = None
         self.connected_eye_tracker:         eye_tracker.ET_class        = None
         self._next_master_id:               int                         = 0
@@ -81,8 +82,8 @@ class Client:
                     raise RuntimeError(f'No interfaces found that are connected to the configured network {self.network}')
 
         # 2. start network name poller
-        self._netname_discoverer = nmb.NetBIOSDiscovery(self.network, 30)
-        await self._netname_discoverer.start()
+        self._netname_discoverer    = nmb.NetBIOSDiscovery(self.network, 30)
+        self._netname_discovery_task= asyncio.create_task(self._netname_discoverer.run())
 
         # 3. start eye tracker poller
         self._poll_for_eyetrackers_task = asyncio.create_task(self._poll_for_eyetrackers())
@@ -146,7 +147,7 @@ class Client:
         # stop and cancel everything
         self._stop_sync()
         await asyncio.sleep(0)  # give cancellation a chance to be sent and processed
-        await self._netname_discoverer.stop()
+        self._netname_discovery_task.cancel()
         self._poll_for_eyetrackers_task.cancel()
 
         # wait till everything is stopped and cancelled
@@ -156,6 +157,7 @@ class Client:
             master_handlers = [self.masters[m].handler for m in self.masters]
         await asyncio.wait(
             running_tasks +
+            [self._netname_discovery_task] +
             [self._poll_for_eyetrackers_task] +
             ([self._ssdp_client.stop()] if self._ssdp_client else []) +
             close_waiters +
@@ -165,6 +167,7 @@ class Client:
 
         # clear out state
         self._netname_discoverer = None
+        self._netname_discovery_task = None
         self._poll_for_eyetrackers_task = None
         self.connected_eye_tracker = None
         self.masters = []
