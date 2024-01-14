@@ -28,6 +28,7 @@ dependencies = [
     "aioshutil",
     "jsonpickle",
     "psutil ; sys_platform != 'win32'",
+    "pysmb",
     "strictyaml"
 ]
 
