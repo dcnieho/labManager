@@ -10,7 +10,7 @@ import unicodedata
 import time
 from typing import Any, Callable
 
-from labManager.common import async_thread, config, counter, eye_tracker, message, structs, task
+from labManager.common import async_thread, config, counter, eye_tracker, file_actions, message, structs, task
 from labManager.common.network import admin_conn, comms, ifs, keepalive, smb, ssdp, toems
 
 __version__ = '0.9.0'
@@ -27,7 +27,6 @@ class Master:
         self.projects           : dict[str, str]                = {}
         self.project            : str                           = None
 
-        self._share_access_task : asyncio.Task                  = None
         self.has_share_access   : bool                          = False
 
         self._waiters           : set[structs.Waiter]           = set()
@@ -157,6 +156,13 @@ class Master:
             await toems_.connect(self.username, self.password)
             self.project = project
             self.toems = toems_
+
+            # check share access
+            domain, user = smb.get_domain_username(self.admin.user['full_name'], config.master["SMB"]["domain"])
+            self.has_share_access = file_actions.check_share(config.master["SMB"]["server"], project+config.master["SMB"]["projects"]["remove_trailing"],
+                                                             user, self.password, domain)
+
+
         except Exception as exc:
             self._call_hooks(self.project_selection_state_change_hooks, structs.Status.Errored, exc)
             raise
@@ -165,25 +171,6 @@ class Master:
             for w in self._waiters:
                 if w.waiter_type==structs.WaiterType.Login_Project_Select and not w.fut.done():
                     w.fut.set_result(None)
-
-    async def _determine_share_access(self, project: str):
-        try:
-            # check if we have access to the SMB share for this project
-            self.has_share_access = await smb.check_share(config.master["SMB"]["server"],
-                                        self.admin.user['full_name'], self.password, project+config.master["SMB"]["projects"]["remove_trailing"],
-                                        config.master["SMB"]["domain"], check_access_level=smb.AccessLevel.READ|smb.AccessLevel.WRITE|smb.AccessLevel.DELETE)
-
-            # if we have access, check if any clients have come online yet
-            # if so, tell them to mount the share
-            if self.has_share_access:
-                coros = []
-                with self.clients_lock:
-                    for c in self.clients:
-                        if self.clients[c].online:
-                            coros.append(self.client_mount_project_share(self.clients[c].online, self.clients[c].id))
-                await asyncio.gather(*coros)
-        except (asyncio.CancelledError, KeyboardInterrupt):
-            pass    # cancellation processed, don't propagate
 
 
     def unset_project(self):
@@ -231,11 +218,6 @@ class Master:
             await self._ssdp_server.start()  # start listening to requests and respond with info about where we are
             await self._ssdp_server.send_notification()  # send one notification upon startup
 
-        # check SMB access
-        if self.project and 'SMB' in config.master and (not self._share_access_task or self._share_access_task.done()):
-            self._share_access_task = asyncio.create_task(self._determine_share_access(self.project))
-            self._share_access_task.add_done_callback(lambda _: setattr(self, '_share_access_task', None))
-
         # done, notify we're running
         self._call_hooks(self.server_state_change_hooks, structs.Status.Running)
         for w in self._waiters:
@@ -248,12 +230,6 @@ class Master:
     async def stop_server(self):
         if self._ssdp_server is not None:
             await self._ssdp_server.stop()
-
-        if self._share_access_task and not self._share_access_task.done():
-            self._share_access_task.cancel()
-            # we want this to cancel before we stop any of the clients, so that
-            # no shares can get mounted just as we're shutting down
-            await self._share_access_task
 
         with self.clients_lock:
             for c in self.clients:
