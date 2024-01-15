@@ -270,7 +270,7 @@ class MainGUI:
         else:
             # check if any computer detail windows were closed. Those should be removed from the list
             hello_imgui.get_runner_params().docking_params.dockable_windows = \
-                [w for w in hello_imgui.get_runner_params().docking_params.dockable_windows if w.is_visible or not w.label.endswith('computer_view') or not w.label.endswith('file_commander')]
+                [w for w in hello_imgui.get_runner_params().docking_params.dockable_windows if w.is_visible or (not w.label.endswith('computer_view') and not w.label.endswith('file_commander'))]
 
         # we also handle docking requests here, once we can (need self._main_dock_node_id)
         if self._to_dock and self._main_dock_node_id:
