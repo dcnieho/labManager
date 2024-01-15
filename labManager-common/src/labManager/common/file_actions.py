@@ -12,6 +12,38 @@ import ctypes
 _kernel32 = ctypes.WinDLL('kernel32',use_last_error=True)
 _mpr = ctypes.WinDLL('mpr',use_last_error=True)
 _netapi32 = ctypes.WinDLL('netapi32',use_last_error=True)
+_shell32 = ctypes.WinDLL('shell32',use_last_error=True)
+
+
+ERROR_NO_MORE_ITEMS = 259
+ERROR_EXTENDED_ERROR= 1208
+ERROR_SESSION_CREDENTIAL_CONFLICT = 1219
+
+def _error_check_non0_is_error_ex(allowed, result, func, args):
+    if not result or result in allowed:
+        return result
+    if result==ERROR_EXTENDED_ERROR:
+        last_error = ctypes.wintypes.DWORD()
+        provider = ctypes.create_unicode_buffer(256)
+        description = ctypes.create_unicode_buffer(256)
+        WNetGetLastError(ctypes.byref(last_error),description,ctypes.sizeof(description),provider,ctypes.sizeof(provider))
+        raise ctypes.WinError(last_error.value, f'{provider.value} failed: {description.value}')
+    if (err := ctypes.get_last_error()):
+        result = err
+    raise ctypes.WinError(result)
+def _error_check_non0_is_error(result, func, args):
+    return _error_check_non0_is_error_ex([], result, func, args)
+def _error_check_0_is_error(result, func, args):
+    if not result:
+        raise ctypes.WinError(ctypes.get_last_error())
+
+SHGFP_TYPE_CURRENT  = 0     # Get current, not default value
+CSIDL_DESKTOP       = 0
+CSIDL_MYDOCUMENTS   = 5     # AKA CSIDL_PERSONAL
+SHGetFolderPath = _shell32.SHGetFolderPathW
+SHGetFolderPath.argtypes = ctypes.wintypes.HWND, ctypes.c_int, ctypes.wintypes.HANDLE, ctypes.wintypes.DWORD, ctypes.wintypes.LPWSTR
+SHGetFolderPath.restype = ctypes.wintypes.DWORD
+SHGetFolderPath.errcheck = _error_check_non0_is_error
 
 class NETRESOURCE(ctypes.Structure):
 	_fields_ = [
@@ -53,28 +85,6 @@ RESOURCEDISPLAYTYPE_SHAREADMIN      = 0x00000008
 RESOURCEDISPLAYTYPE_DIRECTORY       = 0x00000009
 RESOURCEDISPLAYTYPE_TREE            = 0x0000000A
 RESOURCEDISPLAYTYPE_NDSCONTAINER    = 0x0000000B
-
-ERROR_NO_MORE_ITEMS = 259
-ERROR_EXTENDED_ERROR= 1208
-ERROR_SESSION_CREDENTIAL_CONFLICT = 1219
-
-def _error_check_non0_is_error_ex(allowed, result, func, args):
-    if not result or result in allowed:
-        return result
-    if result==ERROR_EXTENDED_ERROR:
-        last_error = ctypes.wintypes.DWORD()
-        provider = ctypes.create_unicode_buffer(256)
-        description = ctypes.create_unicode_buffer(256)
-        WNetGetLastError(ctypes.byref(last_error),description,ctypes.sizeof(description),provider,ctypes.sizeof(provider))
-        raise ctypes.WinError(last_error.value, f'{provider.value} failed: {description.value}')
-    if (err := ctypes.get_last_error()):
-        result = err
-    raise ctypes.WinError(result)
-def _error_check_non0_is_error(result, func, args):
-    return _error_check_non0_is_error_ex([], result, func, args)
-def _error_check_0_is_error(result, func, args):
-    if not result:
-        raise ctypes.WinError(ctypes.get_last_error())
 
 WNetGetLastError = _mpr.WNetGetLastErrorW
 WNetGetLastError.argtypes = ctypes.wintypes.LPDWORD, ctypes.wintypes.LPWSTR, ctypes.wintypes.DWORD, ctypes.wintypes.LPWSTR, ctypes.wintypes.DWORD
@@ -210,22 +220,17 @@ NetApiBufferFree.restype = NET_API_STATUS
 
 
 def get_thispc_listing() -> list[structs.DirEntry]:
-    # TODO: not implemented
-    import ctypes
-    SHGFP_TYPE_CURRENT = 0   # Get current, not default value
-
-    CSIDL_DESKTOP = 0
-    CSIDL_MYDOCUMENTS = 5               # AKA CSIDL_PERSONAL
-    CSIDL_DESKTOPDIRECTORY = 16
-    CSIDL_DRIVES           = 17         # My Computer
-    CSIDL_NETWORK          = 18
-    
-
-    buf= ctypes.create_unicode_buffer(ctypes.wintypes.MAX_PATH)
-    ctypes.windll.shell32.SHGetFolderPathW(None, CSIDL_MYDOCUMENTS, None, SHGFP_TYPE_CURRENT, buf)
-
-    entries = []
-    entry = structs.DirEntry(drive[0:-1],True,pathlib.Path(drive),None,None,None,None)
+    items = []
+    for d in [CSIDL_DESKTOP, CSIDL_MYDOCUMENTS]:
+        buf = ctypes.create_unicode_buffer(ctypes.wintypes.MAX_PATH)
+        SHGetFolderPath(None, d, None, SHGFP_TYPE_CURRENT, buf)
+        path = pathlib.Path(buf.value)
+        stat = path.stat()
+        item = structs.DirEntry(path.name, path.is_dir(), path,
+                                stat.st_ctime, stat.st_mtime, stat.st_size,
+                                mimetypes.guess_type(path)[0])
+        items.append(item)
+    return items
 
 
 def get_drives() -> list[structs.DirEntry]:

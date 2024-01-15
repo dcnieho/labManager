@@ -286,7 +286,7 @@ class Client:
                     case message.Message.FILE_GET_DRIVES:
                         await comms.typed_send(writer,
                                                message.Message.FILE_LISTING,
-                                               await _format_drives_file_listing_msg(file_actions.get_drives(), self._netname_discoverer.get_machines(as_direntry=True))
+                                               await _get_drives_file_listing_msg(self._netname_discoverer)
                                               )
                     case message.Message.FILE_GET_SHARES:
                         out = msg
@@ -452,21 +452,19 @@ class Client:
             pass    # we broke out of the loop: cancellation processed
 
 
-async def _format_drives_file_listing_msg(drives: list[structs.DirEntry], net_names: list[tuple[structs.DirEntry,str]]):
-    # get drives of this computer to add to the information
-    out = {'path': 'root',
-           'drives': [d.name for d in drives],
-           'net_names': net_names}
+async def _get_drives_file_listing_msg(netname_discoverer: nmb.NetBIOSDiscovery):
+    listing = file_actions.get_drives()
+    listing.extend(file_actions.get_thispc_listing())
 
-    # format as a standard listing so its uniform for the receiver
-    # use special mime-types to flag that the content is drives and network computers
-    out['listing'] = drives.copy()
-    for entry,_ in out['net_names']:
+    for entry,_ in netname_discoverer.get_machines(as_direntry=True):
         # NB: //SERVER/ is the format pathlib understands and can concatenate share names to. It seems that this
         # isn't pickled and unpickled correctly over the network (indeed pathlib.Path(str(pathlib.Path('//SERVER/')))
         # is wrong). So send at plain strings that would be interpreted correctly by pathlib
         comp = str(entry.full_path).strip('\\/')
         entry.full_path = f'//{comp}/'
-        out['listing'].append(entry)
+        listing.append(entry)
+
+    # format output
+    out = {'path': 'root', 'listing': listing}
 
     return out

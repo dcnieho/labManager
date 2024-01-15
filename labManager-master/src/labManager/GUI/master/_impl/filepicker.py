@@ -162,6 +162,7 @@ class FileActionProvider:
             if path=='root':
                 try:
                     result = file_actions.get_drives()
+                    result.extend(file_actions.get_thispc_listing())
                     if self.network_computer_getter:
                         network_computers = self.network_computer_getter.get_machines(as_direntry=True)
                         result.extend([m for m,_ in network_computers])
