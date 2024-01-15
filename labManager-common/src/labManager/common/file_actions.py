@@ -39,6 +39,7 @@ def _error_check_0_is_error(result, func, args):
 
 SHGFP_TYPE_CURRENT  = 0     # Get current, not default value
 CSIDL_DESKTOP       = 0
+CSIDL_PROFILE       = 40
 CSIDL_MYDOCUMENTS   = 5     # AKA CSIDL_PERSONAL
 SHGetFolderPath = _shell32.SHGetFolderPathW
 SHGetFolderPath.argtypes = ctypes.wintypes.HWND, ctypes.c_int, ctypes.wintypes.HANDLE, ctypes.wintypes.DWORD, ctypes.wintypes.LPWSTR
@@ -221,10 +222,16 @@ NetApiBufferFree.restype = NET_API_STATUS
 
 def get_thispc_listing() -> list[structs.DirEntry]:
     items = []
-    for d, disp_name in [(CSIDL_DESKTOP, 'Desktop'), (CSIDL_MYDOCUMENTS, 'My Documents')]:
+    # NB: we also check for Downloads folder (doesn't have a CSIDL), add if found
+    # expect it as a subfolder of user's profile folder
+    for d, subdir, disp_name in [(CSIDL_DESKTOP, None, 'Desktop'), (CSIDL_MYDOCUMENTS, None, 'My Documents'), (CSIDL_PROFILE, 'Downloads', 'Downloads')]:
         buf = ctypes.create_unicode_buffer(ctypes.wintypes.MAX_PATH)
         SHGetFolderPath(None, d, None, SHGFP_TYPE_CURRENT, buf)
         path = pathlib.Path(buf.value)
+        if subdir:
+            path /= subdir
+            if not path.is_dir():
+                continue
         stat = path.stat()
         item = structs.DirEntry(disp_name, path.is_dir(), path,
                                 stat.st_ctime, stat.st_mtime, stat.st_size,
