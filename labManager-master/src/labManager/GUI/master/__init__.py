@@ -1257,11 +1257,12 @@ class MainGUI:
                 file_action_provider_args = {'network': config.master['network'], 'master': self.master}
                 self._file_commander = file_commander.FileCommander(mainGUI=self, master=self.master, selected_clients=self.selected_computers, file_action_provider_args=file_action_provider_args, title="Start copy action")
             win_name = f'{self._file_commander.title}##file_commander'
+            self._file_commander.win_name = win_name
             win = next((x for x in hello_imgui.get_runner_params().docking_params.dockable_windows if x.label==win_name), None)
             if win:
                 win.focus_window_at_next_frame = True
             else:
-                self._window_list = hello_imgui.get_runner_params().docking_params.dockable_windows
+                window_list = hello_imgui.get_runner_params().docking_params.dockable_windows
                 new_window = hello_imgui.DockableWindow()
                 new_window.label = win_name
                 new_window.gui_function = self._file_commander.draw
@@ -1269,7 +1270,8 @@ class MainGUI:
                 new_window.imgui_window_flags = imgui.WindowFlags_.no_collapse
                 new_window.window_size = self._file_commander.get_desired_size()
                 new_window.window_size_condition = imgui.Cond_.appearing
-                self._window_list.append(new_window)
+                window_list.append(new_window)
+                self._window_list = window_list
                 self._to_focus= win_name
         if disabled:
             utils.pop_disabled()

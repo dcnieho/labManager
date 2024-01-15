@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import pathlib
 from dataclasses import dataclass
-from imgui_bundle import imgui, icons_fontawesome
+from imgui_bundle import hello_imgui, imgui, icons_fontawesome
 
 from labManager.common import async_thread, structs
 from . import filepicker, utils
@@ -45,6 +45,8 @@ class FileCommander:
 
         # GUI state
         self.append_computer_name = False
+        self._is_popup = False
+        self.win_name: str = '' # caller should set this so that we can close ourselves when running as window (_is_popup==False). If not set, done button does nothing
         # shared popup stack
         self.popup_stack = []
         self.left.popup_stack  = self.popup_stack
@@ -114,7 +116,11 @@ class FileCommander:
 
         closed = False
         if imgui.button(icons_fontawesome.ICON_FA_CHECK+" Done"):
-            imgui.close_current_popup()
+            if self._is_popup:
+                imgui.close_current_popup()
+            else:
+                if win := hello_imgui.get_runner_params().docking_params.dockable_window_of_name(self.win_name):
+                    win.is_visible = False
             closed = True
         imgui.end_child()
         return closed
@@ -126,6 +132,9 @@ class FileCommander:
         return size
 
     def tick(self):
+        # for running as a popup
+        self._is_popup = True
+
         # Setup popup
         if not imgui.is_popup_open(self.title):
             imgui.open_popup(self.title)
