@@ -47,8 +47,12 @@ class Announcer:
         # start announce
         tasks = [self.aiozc.async_register_service(self.info)]
         background_tasks = await asyncio.gather(*tasks)
+        await asyncio.gather(*background_tasks)
+
+        # wait forever
         try:
-            await asyncio.gather(*background_tasks)
+            while True:
+                await asyncio.sleep(1)
         except asyncio.CancelledError:
             return  # cancellation processed
         finally:
