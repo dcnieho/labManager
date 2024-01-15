@@ -10,7 +10,7 @@ import threading
 from dataclasses import dataclass, field
 
 from labManager.common import async_thread, config, eye_tracker, file_actions, message, share, structs, task
-from labManager.common.network import comms, ifs, keepalive, nmb, ssdp
+from labManager.common.network import comms, ifs, keepalive, mdns, nmb, ssdp
 
 
 __version__ = '0.9.0'
@@ -55,6 +55,8 @@ class Client:
 
         self._ssdp_discovery_task:          asyncio.Task                = None
         self._ssdp_client:                  ssdp.Client                 = None
+        self._mdns_discovery_task:          asyncio.Task                = None
+        self._mdns_discoverer:              mdns.Discoverer             = None
         self._if_ips:                       list[str]                   = None
         self._if_macs:                      list[str]                   = None
 
@@ -69,7 +71,7 @@ class Client:
     def __del__(self):
         self._stop_sync()
 
-    async def start(self, server_addr: tuple[str,int] = None, *, keep_ssdp_running = False):
+    async def start(self, server_addr: tuple[str,int] = None, *, discoverer='mdns'):
         # 1. get interfaces we can work with
         for i in range(1,config.client['network_retry']['number_tries']+1):
             self._if_ips, self._if_macs = ifs.get_ifaces(self.network)
@@ -90,32 +92,32 @@ class Client:
 
         # 4. discover master, if needed
         if not server_addr:
-            # start SSDP client
-            self._ssdp_client = ssdp.Client(
-                address=self._if_ips[0],
-                device_type=config.client['SSDP']['device_type'],
-                response_handler=self._handle_ssdp_response if keep_ssdp_running else None,
-                listen_to_notifications=True
-            )
-            await self._ssdp_client.start()
-            # start discovery
-            if keep_ssdp_running:
+            if discoverer.casefold()=='ssdp':
+                # start SSDP client
+                self._ssdp_client = ssdp.Client(
+                    address=self._if_ips[0],
+                    device_type=config.client['SSDP']['device_type'],
+                    response_handler=self._handle_master_discovery,
+                    listen_to_notifications=True
+                )
+                await self._ssdp_client.start()
                 # start discovery and keep running, connecting to anything
                 # new thats found
                 self._ssdp_discovery_task = await self._ssdp_client.discover_forever()
+            elif discoverer.casefold()=='mdns':
+                self._mdns_discoverer = mdns.Discoverer(
+                    ip_network=config.client['network'],
+                    service='_labManager._tcp.local.',
+                    wanted_name='master',
+                    response_handler=self._handle_master_discovery,
+                )
+                self._mdns_discovery_task = await self._mdns_discoverer.run()
             else:
-                # send search request and wait for reply
-                responses,_ = await self._ssdp_client.do_discovery()
-                # stop SSDP client
-                await self._ssdp_client.stop()
-                await self._handle_ssdp_response(responses[0])
+                raise RuntimeError('No known master, and no valid discovery method said. Cannot continue')
         else:
             await self._start_new_master(server_addr)
 
-    async def _handle_ssdp_response(self, response):
-        # get ip and port for master from advertisement
-        ip, _, port = response.headers['HOST'].rpartition(':')
-        port = int(port) # convert to integer
+    async def _handle_master_discovery(self, ip, port, _):
         await self._start_new_master((ip,port))
 
     async def _start_new_master(self, server_addr: tuple[str,int]):
@@ -174,8 +176,10 @@ class Client:
 
     def _stop_sync(self):
         # sync part of stopping
-        if self._ssdp_discovery_task:
+        if self._ssdp_discovery_task and not self._ssdp_discovery_task.done():
             self._ssdp_discovery_task.cancel()
+        if self._mdns_discovery_task and not self._mdns_discovery_task.done():
+            self._mdns_discovery_task.cancel()
         with self.master_lock:
             for m in self.masters:
                 for t in self.masters[m].task_list:
