@@ -11,7 +11,7 @@ import time
 from typing import Any, Callable
 
 from labManager.common import async_thread, config, counter, eye_tracker, file_actions, message, structs, task
-from labManager.common.network import admin_conn, comms, ifs, keepalive, smb, ssdp, toems
+from labManager.common.network import admin_conn, comms, ifs, keepalive, mdns, smb, ssdp, toems
 
 __version__ = '0.9.0'
 
@@ -39,6 +39,8 @@ class Master:
         self.address            : str                           = None
         self._server            : asyncio.Server                = None
         self._ssdp_server       : ssdp.Server                   = None
+        self._mnds_announcer    : mdns.Announcer                = None
+        self._mnds_announcer_task: asyncio.Task                 = None
 
         # clients
         self.clients            : dict[int, structs.Client]     = {}
@@ -188,7 +190,7 @@ class Master:
         # NB: no need to clean up clients, stop_server() above will stop the connections, which cleans them up for us
 
 
-    async def start_server(self, local_addr: tuple[str,int]=None, start_ssdp_advertise=True):
+    async def start_server(self, local_addr: tuple[str,int]=None, announcer: str='mdns'):
         if self.is_serving():
             return
 
@@ -208,15 +210,23 @@ class Master:
         await self._server.start_serving()
 
         # start SSDP server if wanted
-        if start_ssdp_advertise:
+        if announcer.casefold()=='ssdp':
             # start SSDP server to advertise this server
             self._ssdp_server = ssdp.Server(
                 address=local_addr[0],
                 host_ip_port=self.address[0],
                 usn="humlab-b055-master::"+config.master['SSDP']['device_type'],
-                device_type=config.master['SSDP']['device_type'])
+                device_type=config.master['SSDP']['device_type'],
+                allow_loopback=True)
             await self._ssdp_server.start()  # start listening to requests and respond with info about where we are
             await self._ssdp_server.send_notification()  # send one notification upon startup
+        elif announcer.casefold()=='mdns':
+            self._mnds_announcer = mdns.Announcer(
+                ip_network=config.master['network'],
+                service='_labManager._tcp.local.',
+                name = 'master',
+                address=self.address[0])
+            self._mnds_announcer_task = asyncio.create_task(self._mnds_announcer.run())
 
         # done, notify we're running
         self._call_hooks(self.server_state_change_hooks, structs.Status.Running)
