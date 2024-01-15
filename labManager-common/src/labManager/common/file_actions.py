@@ -221,12 +221,12 @@ NetApiBufferFree.restype = NET_API_STATUS
 
 def get_thispc_listing() -> list[structs.DirEntry]:
     items = []
-    for d in [CSIDL_DESKTOP, CSIDL_MYDOCUMENTS]:
+    for d, disp_name in [(CSIDL_DESKTOP, 'Desktop'), (CSIDL_MYDOCUMENTS, 'My Documents')]:
         buf = ctypes.create_unicode_buffer(ctypes.wintypes.MAX_PATH)
         SHGetFolderPath(None, d, None, SHGFP_TYPE_CURRENT, buf)
         path = pathlib.Path(buf.value)
         stat = path.stat()
-        item = structs.DirEntry(path.name, path.is_dir(), path,
+        item = structs.DirEntry(disp_name, path.is_dir(), path,
                                 stat.st_ctime, stat.st_mtime, stat.st_size,
                                 mimetypes.guess_type(path)[0])
         items.append(item)
