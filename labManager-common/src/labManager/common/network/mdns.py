@@ -82,9 +82,11 @@ class Discoverer:
     async def run(self):
         self._if_ip, self.aiozc = await _get_aiozc(self.network)
         self.aiobrowser = AsyncServiceBrowser(self.aiozc.zeroconf, [self.service], handlers=[self._on_service_state_change])
+
+        # wait forever
         try:
-            # wait forever
-            await asyncio.Event().wait()
+            while True:
+                await asyncio.sleep(1)
         except asyncio.CancelledError:
             return  # cancellation processed
         finally:
