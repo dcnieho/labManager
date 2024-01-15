@@ -16,26 +16,6 @@ from labManager.common.network import comms, ifs, keepalive, mdns, nmb, ssdp
 __version__ = '0.9.0'
 
 
-# main function for independently running client
-async def run():
-    async_thread.setup()
-
-    client = Client(config.client['network'])
-    await client.start()
-
-    # run: wait forever
-    try:
-        while True:
-            await asyncio.sleep(1)
-    except asyncio.CancelledError:
-        return  # cancellation processed
-    finally:
-        # shut down client if necessary, wait for it to quit
-        await client.stop()
-        # other cleanup
-        async_thread.cleanup()
-
-
 @dataclass
 class ConnectedMaster:
     writer:         asyncio.streams.StreamWriter
@@ -49,8 +29,8 @@ class ConnectedMaster:
     mounted_drives: set[str]                = field(default_factory=set)
 
 class Client:
-    def __init__(self, network):
-        self.network  = network
+    def __init__(self, network = None):
+        self.network  = network or config.client['network']
         self.name     = platform.node()
 
         self._ssdp_discovery_task:          asyncio.Task                = None
@@ -68,10 +48,7 @@ class Client:
         self.masters:                       dict[int,ConnectedMaster]   = {}
         self.master_lock                                                = threading.Lock()
 
-    def __del__(self):
-        self._stop_sync()
-
-    async def start(self, server_addr: tuple[str,int] = None, *, discoverer='mdns'):
+    async def run(self, server_addr: tuple[str,int] = None, *, discoverer='mdns'):
         # 1. get interfaces we can work with
         for i in range(1,config.client['network_retry']['number_tries']+1):
             self._if_ips, self._if_macs = ifs.get_ifaces(self.network)
@@ -115,7 +92,53 @@ class Client:
             else:
                 raise RuntimeError('No known master, and no valid discovery method said. Cannot continue')
         else:
+            # master provided, connect directly to it
             await self._start_new_master(server_addr)
+
+        # loop forever
+        while True:
+            await asyncio.sleep(1)
+
+    async def cleanup(self):
+        # cleanup
+        tasks = [t for t in [self._netname_discovery_task, self._poll_for_eyetrackers_task, self._ssdp_discovery_task, self._mdns_discovery_task] if t and not t.done()]
+        for t in tasks:
+            t.cancel()
+        with self.master_lock:
+            for m in self.masters:
+                # cancel running tasks
+                for t in self.masters[m].task_list:
+                    t.handler.cancel()
+
+                # cancel master itself
+                self.masters[m].handler.cancel()
+                try:
+                    self.masters[m].writer.close()
+                except:
+                    pass
+        # wait till everything is stopped and cancelled
+        with self.master_lock:
+            running_tasks = [t.handler for m in self.masters for t in self.masters[m].task_list]
+            close_waiters = [self.masters[m].writer.wait_closed() for m in self.masters]
+            master_handlers = [self.masters[m].handler for m in self.masters]
+        await asyncio.wait(
+            tasks +
+            running_tasks +
+            close_waiters +
+            master_handlers +
+            ([self._ssdp_client.stop()] if self._ssdp_client else []),
+            timeout=2   # 2 s is long enough, then just abandon this
+        )
+        # clear out state
+        self._ssdp_discovery_task = None
+        self._ssdp_client = None
+        self._mdns_discovery_task = None
+        self._mdns_discoverer = None
+        self._netname_discoverer = None
+        self._netname_discovery_task = None
+        self._poll_for_eyetrackers_task = None
+        self.connected_eye_tracker = None
+        self.masters = []
 
     async def _handle_master_discovery(self, ip, port, _):
         await self._start_new_master((ip,port))
@@ -144,58 +167,6 @@ class Client:
         m = self._next_master_id
         self._next_master_id += 1
         return m
-
-    async def stop(self, timeout=2):
-        # stop and cancel everything
-        self._stop_sync()
-        await asyncio.sleep(0)  # give cancellation a chance to be sent and processed
-        await asyncio.sleep(0)
-        await asyncio.sleep(0)
-        self._netname_discovery_task.cancel()
-        self._poll_for_eyetrackers_task.cancel()
-
-        # wait till everything is stopped and cancelled
-        with self.master_lock:
-            running_tasks = [t.handler for m in self.masters for t in self.masters[m].task_list]
-            close_waiters = [self.masters[m].writer.wait_closed() for m in self.masters]
-            master_handlers = [self.masters[m].handler for m in self.masters]
-        await asyncio.wait(
-            running_tasks +
-            [self._netname_discovery_task] +
-            [self._poll_for_eyetrackers_task] +
-            ([self._ssdp_client.stop()] if self._ssdp_client else []) +
-            close_waiters +
-            master_handlers,
-            timeout=timeout
-        )
-
-        # clear out state
-        self._netname_discoverer = None
-        self._netname_discovery_task = None
-        self._poll_for_eyetrackers_task = None
-        self.connected_eye_tracker = None
-        self.masters = []
-
-    def _stop_sync(self):
-        # sync part of stopping
-        if self._ssdp_discovery_task and not self._ssdp_discovery_task.done():
-            self._ssdp_discovery_task.cancel()
-        if self._mdns_discovery_task and not self._mdns_discovery_task.done():
-            self._mdns_discovery_task.cancel()
-        with self.master_lock:
-            for m in self.masters:
-                for t in self.masters[m].task_list:
-                    t.handler.cancel()
-
-                self.masters[m].handler.cancel()
-                try:
-                    self.masters[m].writer.close()
-                except:
-                    pass
-
-    def get_waiters(self) -> list[asyncio.Task]:
-        with self.master_lock:
-            return [self.masters[m].handler for m in self.masters]
 
     async def broadcast(self, msg_type: str|message.Message, msg: str=''):
         msg_type = message.Message.get(msg_type)
@@ -475,3 +446,16 @@ async def _get_drives_file_listing_msg(netname_discoverer: nmb.NetBIOSDiscovery)
     out = {'path': 'root', 'listing': listing}
 
     return out
+
+
+# main function for independently running client
+async def runner(client: Client):
+    t = asyncio.create_task(client.run())
+    try:
+        await asyncio.gather(*[t])
+    except asyncio.CancelledError:
+        t.cancel()
+        await asyncio.wait([t])
+        return
+    finally:
+        await client.cleanup()
