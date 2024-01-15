@@ -95,7 +95,8 @@ class Discoverer:
             await self.aiozc.async_close()
 
     def _on_service_state_change(self, zeroconf: Zeroconf, service_type: str, name: str, state_change: ServiceStateChange):
-        if state_change is not ServiceStateChange.Added:
+        # NB: updated may occur is master just disappeared without deregistering
+        if state_change not in [ServiceStateChange.Added, ServiceStateChange.Updated]:
             return
         # check wanted service name (if looking for master of type _labManager._tcp.local. but get some other in the _labManager space, ignore)
         if name.removesuffix('.'+service_type) != self.wanted_name:
