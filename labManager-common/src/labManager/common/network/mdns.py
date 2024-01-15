@@ -98,7 +98,7 @@ class Discoverer:
         if state_change is not ServiceStateChange.Added:
             return
         # check wanted service name (if looking for master of type _labManager._tcp.local. but get some other in the _labManager space, ignore)
-        if name.removesuffix(service_type) != self.wanted_name:
+        if name.removesuffix('.'+service_type) != self.wanted_name:
             return
         async_thread.run(self._process_new_service(zeroconf, service_type, name))
 
