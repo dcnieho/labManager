@@ -21,7 +21,7 @@ async def run(duration: float = None):
     async_thread.setup()
 
     client = Client(config.client['network'])
-    await client.start(keep_ssdp_running=True)
+    await client.start()
 
     # run
     if not duration:
