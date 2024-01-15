@@ -253,6 +253,10 @@ class MainGUI:
         self._logout()
 
     def _update_windows(self):
+        if not self.running:
+            # fix up the style: fully opaque window backgrounds
+            window_bg = imgui.get_style().color_(imgui.Col_.window_bg)
+            window_bg.w = 1
         self.running = True
         if self._need_set_window_title:
             self._set_window_title()
