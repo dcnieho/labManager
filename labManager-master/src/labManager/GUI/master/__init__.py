@@ -1258,8 +1258,7 @@ class MainGUI:
                 self._file_commander = file_commander.FileCommander(mainGUI=self, master=self.master, selected_clients=self.selected_computers, file_action_provider_args=file_action_provider_args, title="Start copy action")
             win_name = f'{self._file_commander.title}##file_commander'
             self._file_commander.win_name = win_name
-            win = next((x for x in hello_imgui.get_runner_params().docking_params.dockable_windows if x.label==win_name), None)
-            if win:
+            if win := hello_imgui.get_runner_params().docking_params.dockable_window_of_name(win_name):
                 win.focus_window_at_next_frame = True
             else:
                 window_list = hello_imgui.get_runner_params().docking_params.dockable_windows
@@ -1498,8 +1497,7 @@ class MainGUI:
 
     def _open_computer_detail(self, item: structs.Client):
         win_name = f'{item.name}##computer_view'
-        win = next((x for x in hello_imgui.get_runner_params().docking_params.dockable_windows if x.label==win_name), None)
-        if win:
+        if win := hello_imgui.get_runner_params().docking_params.dockable_window_of_name(win_name):
             win.focus_window_at_next_frame = True
         else:
             window_list = hello_imgui.get_runner_params().docking_params.dockable_windows
