@@ -29,7 +29,8 @@ dependencies = [
     "jsonpickle",
     "psutil ; sys_platform != 'win32'",
     "pysmb",
-    "strictyaml"
+    "strictyaml",
+    "zeroconf"
 ]
 
 [project.urls]
