@@ -26,7 +26,7 @@ import struct
 import time
 import inspect
 
-from ...common import async_thread
+from .. import async_thread
 
 MULTICAST_ADDRESS_IPV4 = "239.255.255.250"
 PORT = 1900
