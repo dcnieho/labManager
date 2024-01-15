@@ -474,7 +474,9 @@ class Client(Base):
 
         # if user defined a response handler, always call it
         if self._response_handler:
-            res = self._response_handler(response)
+            ip, _, port = response.headers['HOST'].rpartition(':')
+            port = int(port) # convert to integer
+            res = self._response_handler(ip, port, response)
             # if awaitable, make sure its scheduled
             if inspect.isawaitable(res):
                 task = asyncio.create_task(res)
