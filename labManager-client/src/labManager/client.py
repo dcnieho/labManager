@@ -107,8 +107,8 @@ class Client:
             elif discoverer.casefold()=='mdns':
                 self._mdns_discoverer = mdns.Discoverer(
                     ip_network=config.client['network'],
-                    service='_labManager._tcp.local.',
-                    wanted_name='master',
+                    service=config.client['MDNS']['service'],
+                    wanted_name=config.client['MDNS']['name'],
                     response_handler=self._handle_master_discovery,
                 )
                 self._mdns_discovery_task = await self._mdns_discoverer.run()

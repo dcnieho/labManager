@@ -4,5 +4,9 @@ network_retry:
     number_tries: 30
     wait:         1     # seconds
 
+service_discovery_protocol: MDNS
+MDNS:
+    service: _labManager._tcp.local.
+    name: master
 SSDP:
     device_type: urn:schemas-upnp-org:device:labManager

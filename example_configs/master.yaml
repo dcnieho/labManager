@@ -1,6 +1,10 @@
 # where to listen
 network: 10.0.1.0/24
 
+service_discovery_protocol: MDNS
+MDNS:
+    service: _labManager._tcp.local.
+    name: master
 SSDP:
     device_type: urn:schemas-upnp-org:device:labManager
 

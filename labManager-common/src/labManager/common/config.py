@@ -5,7 +5,12 @@ from . import task
 
 _master_schema = s.Map({
     'network': s.Str(),
-    'SSDP': s.Map({
+    'service_discovery_protocol':  s.Enum(['MDNS','SSDP']),
+    s.Optional('MDNS'): s.Map({
+        'service': s.Str(),
+        'name': s.Str(),
+    }),
+    s.Optional('SSDP'): s.Map({
         'device_type': s.Str(),
     }),
     s.Optional('projects'): s.Map({
@@ -68,7 +73,12 @@ _client_schema = s.Map({
         'number_tries': s.Int(),
         'wait': s.Int(),
     }),
-    'SSDP': s.Map({
+    'service_discovery_protocol': s.Str(),
+    s.Optional('MDNS'): s.Map({
+        'service': s.Str(),
+        'name': s.Str(),
+    }),
+    s.Optional('SSDP'): s.Map({
         'device_type': s.Str(),
     }),
 })
@@ -126,8 +136,18 @@ def load(which: str, file: str|pathlib.Path = None):
 
     match which:
         case 'master':
+            # extra validation
+            if config['service_discovery_protocol']=='MDNS' and 'MDNS' not in config:
+                raise ValueError("If the key 'service_discovery_protocol' is set to 'MDNS', the 'MDNS' key is required, but it was not found")
+            elif config['service_discovery_protocol']=='SSDP' and 'SSDP' not in config:
+                raise ValueError("If the key 'service_discovery_protocol' is set to 'SSDP', the 'SSDP' key is required, but it was not found")
             master = config
         case 'client':
+            # extra validation
+            if config['service_discovery_protocol']=='MDNS' and 'MDNS' not in config:
+                raise ValueError("If the key 'service_discovery_protocol' is set to 'MDNS', the 'MDNS' key is required, but it was not found")
+            elif config['service_discovery_protocol']=='SSDP' and 'SSDP' not in config:
+                raise ValueError("If the key 'service_discovery_protocol' is set to 'SSDP', the 'SSDP' key is required, but it was not found")
             client = config
         case 'admin_server':
             admin_server = config

@@ -223,8 +223,8 @@ class Master:
         elif announcer.casefold()=='mdns':
             self._mnds_announcer = mdns.Announcer(
                 ip_network=config.master['network'],
-                service='_labManager._tcp.local.',
-                name = 'master',
+                service=config.master['MDNS']['service'],
+                name=config.master['MDNS']['name'],
                 address=self.address[0])
             self._mnds_announcer_task = asyncio.create_task(self._mnds_announcer.run())
 
