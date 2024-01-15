@@ -50,7 +50,6 @@ class ComputerList():
             num_items = len(self.items)
         if num_items != self._num_items:
             self._num_items = num_items
-            self._require_sort = True
         if self._num_items==0:
             imgui.text_wrapped('There are no clients. Is your network setup correct?')
             return
@@ -79,6 +78,8 @@ class ComputerList():
             with self.items_lock:
                 sort_specs = imgui.table_get_sort_specs()
                 sorted_ids_len = len(self.sorted_ids)
+                if sorted_ids_len != len(self.items):
+                    self._require_sort = True
                 self._sort_items(sort_specs)
                 if len(self.sorted_ids) < sorted_ids_len:
                     # we've just filtered out some items from view. Deselect those
