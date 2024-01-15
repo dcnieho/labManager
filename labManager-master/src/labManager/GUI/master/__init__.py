@@ -1502,10 +1502,11 @@ class MainGUI:
         if win:
             win.focus_window_at_next_frame = True
         else:
-            self._window_list = hello_imgui.get_runner_params().docking_params.dockable_windows
-            self._window_list.append(
+            window_list = hello_imgui.get_runner_params().docking_params.dockable_windows
+            window_list.append(
                 self._make_main_space_window(win_name, lambda: self._computer_detail_GUI(item), can_be_closed=True)
             )
+            self._window_list = window_list
             self._to_dock = [win_name]
             self._to_focus= win_name
             self._computer_GUI_tasks[item.id] = None
