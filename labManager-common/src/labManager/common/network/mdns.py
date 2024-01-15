@@ -14,6 +14,17 @@ from . import ifs
 from .. import async_thread
 
 
+async def _get_aiozc(network):
+    # get if on configured network that we'll open the socket on
+    if_ips, _ = ifs.get_ifaces(network)
+    if not if_ips:
+        raise RuntimeError(f'No interfaces found that are connected to the configured network {network}')
+    if_ip = if_ips[0]
+
+    aiozc = AsyncZeroconf(interfaces=[if_ip])
+    await aiozc.zeroconf.async_wait_for_start()
+    return if_ip, aiozc
+
 class Announcer:
     def __init__(self, ip_network: str|ipaddress.IPv4Network, service: str, name: str, address: tuple[str,int]):
         network = ipaddress.IPv4Network(ip_network)
@@ -31,14 +42,7 @@ class Announcer:
         self.aiozc              : Optional[AsyncZeroconf]       = None
 
     async def run(self):
-        # get if on configured network that we'll open the socket on
-        if_ips, _ = ifs.get_ifaces(self.network)
-        if not if_ips:
-            raise RuntimeError(f'No interfaces found that are connected to the configured network {self.network}')
-        self._if_ip = if_ips[0]
-
-        self.aiozc = AsyncZeroconf(interfaces=[self._if_ip])
-        await self.aiozc.zeroconf.async_wait_for_start()
+        self._if_ip, self.aiozc = await _get_aiozc(self.network)
 
         # start announce
         tasks = [self.aiozc.async_register_service(self.info)]
@@ -72,14 +76,7 @@ class Discoverer:
         self.aiozc              : Optional[AsyncZeroconf]       = None
 
     async def run(self):
-        # get if on configured network that we'll open the socket on
-        if_ips, _ = ifs.get_ifaces(self.network)
-        if not if_ips:
-            raise RuntimeError(f'No interfaces found that are connected to the configured network {self.network}')
-        self._if_ip = if_ips[0]
-
-        self.aiozc = AsyncZeroconf(interfaces=[self._if_ip])
-        await self.aiozc.zeroconf.async_wait_for_start()
+        self._if_ip, self.aiozc = await _get_aiozc(self.network)
         self.aiobrowser = AsyncServiceBrowser(self.aiozc.zeroconf, [self.service], handlers=[self._on_service_state_change])
         try:
             # wait forever
