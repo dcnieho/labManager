@@ -84,7 +84,7 @@ class NetBIOSDiscovery:
         finally:
             if self._transport and not self._transport.is_closing():
                 self._transport.close()
-    
+
     async def _make_transport(self):
         if self._transport is not None:
             try:
