@@ -128,6 +128,9 @@ class FileCommander:
                     win.is_visible = False
             closed = True
         imgui.end_child()
+
+        utils.handle_popup_stack(self.popup_stack)
+
         return closed
 
     def get_desired_size(self):
@@ -154,7 +157,6 @@ class FileCommander:
             opened = 0
             closed = True
 
-        utils.handle_popup_stack(self.popup_stack)
         return opened, closed
 
     def do_copy(self):
