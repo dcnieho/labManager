@@ -149,6 +149,8 @@ class Client:
         # stop and cancel everything
         self._stop_sync()
         await asyncio.sleep(0)  # give cancellation a chance to be sent and processed
+        await asyncio.sleep(0)
+        await asyncio.sleep(0)
         self._netname_discovery_task.cancel()
         self._poll_for_eyetrackers_task.cancel()
 
@@ -185,6 +187,7 @@ class Client:
                 for t in self.masters[m].task_list:
                     t.handler.cancel()
 
+                self.masters[m].handler.cancel()
                 try:
                     self.masters[m].writer.close()
                 except:
