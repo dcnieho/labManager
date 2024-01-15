@@ -17,23 +17,23 @@ __version__ = '0.9.0'
 
 
 # main function for independently running client
-async def run(duration: float = None):
+async def run():
     async_thread.setup()
 
     client = Client(config.client['network'])
     await client.start()
 
-    # run
-    if not duration:
-        # wait forever
-        await asyncio.Event().wait()
-    else:
-        await asyncio.sleep(duration)
-
-    # shut down client if necessary, wait for it to quit
-    await client.stop()
-
-    async_thread.cleanup()
+    # run: wait forever
+    try:
+        while True:
+            await asyncio.sleep(1)
+    except asyncio.CancelledError:
+        return  # cancellation processed
+    finally:
+        # shut down client if necessary, wait for it to quit
+        await client.stop()
+        # other cleanup
+        async_thread.cleanup()
 
 
 @dataclass
