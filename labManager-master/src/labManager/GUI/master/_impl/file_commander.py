@@ -68,6 +68,11 @@ class FileCommander:
         with self.master.clients_lock:
             selected_clients = [c for c in self.selected_clients if self.selected_clients[c] and c in self.master.clients and self.master.clients[c].online]
             computers_txt = ', '.join((self.master.clients[i].name for i in selected_clients))
+        if not selected_clients:
+            imgui.text_wrapped('You do not have any running clients selected in the main GUI, nothing to do here')
+            imgui.end_child()
+            return
+
         imgui.text_wrapped('The action you do in this interface will be performed on the following computers: '+computers_txt)
 
         # figure out layout: get width of middle section, divide leftover equally between the other two
