@@ -82,6 +82,8 @@ class MainGUI:
         self._task_GUI_editor.set_language_definition(self._task_GUI_editor.LanguageDefinition.python())  # there is no batch, have to live with this...
         self._task_GUI_editor_copy_t = None
         self._task_GUI_open_file_diag = None
+        self._task_GUI_cursor_pos = 0
+        self._task_GUI_selection_pos = [0, 0]
 
         # image management GUI
         self._images_list = []
@@ -783,6 +785,8 @@ class MainGUI:
                         self._task_prep.env         = t['env']
                         self._task_prep.interactive = t['interactive']
                         self._task_prep.python_unbuf= t['python_unbuffered']
+                        self._task_GUI_cursor_pos = 0
+                        self._task_GUI_selection_pos = [0, 0]
             else:
                 imgui.text_wrapped('There are no preconfigured tasks. Launch your own task using the panels on the right.')
         imgui.end()
@@ -886,16 +890,25 @@ class MainGUI:
                         imgui.end_group()
                         imgui.pop_id()
                     else:
+                        def edit_callback(this: MainGUI, data: imgui.InputTextCallbackData):
+                            this._task_GUI_cursor_pos = data.cursor_pos
+                            this._task_GUI_selection_pos = sorted([data.selection_start, data.selection_end])
+                            return 0
                         imgui.text(field_name)
                         imgui.push_font(imgui_md.get_code_font())
                         imgui.set_next_item_width(width)
-                        _, self._task_prep.payload_text = imgui.input_text(f'##{field_name}', self._task_prep.payload_text)
+                        _, self._task_prep.payload_text = imgui.input_text(f'##{field_name}', self._task_prep.payload_text, flags=imgui.InputTextFlags_.callback_always, callback=lambda x: edit_callback(self, x))
                         imgui.pop_font()
-                    if imgui.button("Append path"):
-                        def append_path(tsk: TaskDef, path: str):
-                            tsk.payload_text += str(path[0])
+                    if imgui.button("Insert path"):
+                        def append_path(this: MainGUI, path: str):
+                            tsk = this._task_prep
+                            if this._task_GUI_selection_pos[1]!=this._task_GUI_selection_pos[0]:
+                                # selection, remove that part of the text
+                                tsk.payload_text = tsk.payload_text[0:this._task_GUI_selection_pos[0]] + tsk.payload_text[this._task_GUI_selection_pos[1]:]
+                                this._task_GUI_cursor_pos = this._task_GUI_selection_pos[0] # would be at wrong position if selection was grown right-to-left
+                            tsk.payload_text = tsk.payload_text[:this._task_GUI_cursor_pos] + str(path[0]) + tsk.payload_text[this._task_GUI_cursor_pos:]
                         fap = filepicker.FileActionProvider(network=config.master['network'], master=self.master)
-                        utils.push_popup(self, filepicker.FilePicker(title='Select path to append', allow_multiple=False, file_action_provider=fap, callback=lambda path: append_path(self._task_prep, path)))
+                        utils.push_popup(self, filepicker.FilePicker(title='Select path to append', allow_multiple=False, file_action_provider=fap, callback=lambda path: append_path(self, path)))
                 else:
                     imgui.push_font(imgui_md.get_code_font())
                     imgui.set_next_item_width(width)
@@ -975,6 +988,8 @@ class MainGUI:
             imgui.same_line(imgui.get_content_region_avail().x-imgui.calc_text_size('Clear').x-2*imgui.get_style().frame_padding.x)
             if imgui.button('Clear'):
                 self._task_prep = TaskDef()
+                self._task_GUI_cursor_pos = 0
+                self._task_GUI_selection_pos = [0, 0]
         imgui.end()
 
     def _imaging_GUI(self):
