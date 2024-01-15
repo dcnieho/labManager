@@ -45,9 +45,7 @@ class Announcer:
         self._if_ip, self.aiozc = await _get_aiozc(self.network)
 
         # start announce
-        tasks = [self.aiozc.async_register_service(self.info)]
-        background_tasks = await asyncio.gather(*tasks)
-        await asyncio.gather(*background_tasks)
+        await (await self.aiozc.async_register_service(self.info))
 
         # wait forever
         try:
