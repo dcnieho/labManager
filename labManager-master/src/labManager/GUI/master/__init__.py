@@ -95,6 +95,9 @@ class MainGUI:
         self._active_upload_tasks = set()  # set of images
         self._active_upload_tasks_map: dict[str,int] = {}
 
+        # file GUI
+        self._file_commander: file_commander.FileCommander = None
+
         # computer detail GUIs
         self._computer_GUI_tasks: dict[int,list[str,int,int]|None] = {}
         self._computer_GUI_interactive_tasks: dict[tuple[int,int],str] = {}
@@ -267,7 +270,7 @@ class MainGUI:
         else:
             # check if any computer detail windows were closed. Those should be removed from the list
             hello_imgui.get_runner_params().docking_params.dockable_windows = \
-                [w for w in hello_imgui.get_runner_params().docking_params.dockable_windows if not w.label.endswith('computer_view') or w.is_visible]
+                [w for w in hello_imgui.get_runner_params().docking_params.dockable_windows if w.is_visible or not w.label.endswith('computer_view') or not w.label.endswith('file_commander')]
 
         # we also handle docking requests here, once we can (need self._main_dock_node_id)
         if self._to_dock and self._main_dock_node_id:
@@ -1250,8 +1253,24 @@ class MainGUI:
         if disabled := not any(self.selected_computers.values()):
             utils.push_disabled()
         if imgui.button('Start new action'):
-            file_action_provider_args = {'network': config.master['network'], 'master': self.master}
-            utils.push_popup(self, file_commander.FileCommander(mainGUI=self, master=self.master, selected_clients=self.selected_computers, file_action_provider_args=file_action_provider_args))
+            if not self._file_commander:
+                file_action_provider_args = {'network': config.master['network'], 'master': self.master}
+                self._file_commander = file_commander.FileCommander(mainGUI=self, master=self.master, selected_clients=self.selected_computers, file_action_provider_args=file_action_provider_args, title="Start copy action")
+            win_name = f'{self._file_commander.title}##file_commander'
+            win = next((x for x in hello_imgui.get_runner_params().docking_params.dockable_windows if x.label==win_name), None)
+            if win:
+                win.focus_window_at_next_frame = True
+            else:
+                self._window_list = hello_imgui.get_runner_params().docking_params.dockable_windows
+                new_window = hello_imgui.DockableWindow()
+                new_window.label = win_name
+                new_window.gui_function = self._file_commander.draw
+                new_window.can_be_closed = True
+                new_window.imgui_window_flags = imgui.WindowFlags_.no_collapse
+                new_window.window_size = self._file_commander.get_desired_size()
+                new_window.window_size_condition = imgui.Cond_.appearing
+                self._window_list.append(new_window)
+                self._to_focus= win_name
         if disabled:
             utils.pop_disabled()
             utils.draw_hover_text('You should select at least one client to perform the actions on', text='', hovered_flags=imgui.HoveredFlags_.allow_when_disabled)

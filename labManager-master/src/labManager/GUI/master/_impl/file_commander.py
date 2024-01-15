@@ -52,6 +52,16 @@ class FileCommander:
 
 
     def draw(self):
+        # check if either of the file pickers needs a refresh
+        if not self.left.refreshing and (self.left.elapsed>2 or imgui.is_key_pressed(imgui.Key.f5)):
+            self.left.refresh()
+        if not self.right.refreshing and (self.right.elapsed>2 or imgui.is_key_pressed(imgui.Key.f5)):
+            self.right.refresh()
+        # if left machine changed, also change for right
+        if self.left.machine!=self.left_machine:
+            self.right.goto(self.left.machine,'root')
+            self.left_machine = self.left.machine
+
         imgui.begin_child('##filecommander')
         with self.master.clients_lock:
             selected_clients = [c for c in self.selected_clients if self.selected_clients[c] and c in self.master.clients and self.master.clients[c].online]
@@ -109,24 +119,18 @@ class FileCommander:
         imgui.end_child()
         return closed
 
-    def tick(self):
-        # check if either of the file pickers needs a refresh
-        if not self.left.refreshing and (self.left.elapsed>2 or imgui.is_key_pressed(imgui.Key.f5)):
-            self.left.refresh()
-        if not self.right.refreshing and (self.right.elapsed>2 or imgui.is_key_pressed(imgui.Key.f5)):
-            self.right.refresh()
-        # if left machine changed, also change for right
-        if self.left.machine!=self.left_machine:
-            self.right.goto(self.left.machine,'root')
-            self.left_machine = self.left.machine
+    def get_desired_size(self):
+        size = imgui.get_io().display_size
+        size.x *= .95
+        size.y *= .95
+        return size
 
+    def tick(self):
         # Setup popup
         if not imgui.is_popup_open(self.title):
             imgui.open_popup(self.title)
         opened = 1
-        size = imgui.get_io().display_size
-        size.x *= .95
-        size.y *= .95
+        size = self.get_desired_size()
         imgui.set_next_window_size(size, cond=imgui.Cond_.appearing)
         if imgui.begin_popup_modal(self.title, True, flags=self.default_flags)[0]:
             closed  = utils.close_weak_popup(check_click_outside=False)
