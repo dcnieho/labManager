@@ -1,4 +1,3 @@
 win-precise-time
 numpy
-pandas
 labmanager-common

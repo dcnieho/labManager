@@ -4,7 +4,6 @@ import argparse
 import pathlib
 import platform
 import numpy as np
-import pandas as pd
 
 import comms
 import labManager.common.network.ifs as ifs
@@ -69,9 +68,7 @@ class Sink:
                         await comms.send(writer, 'saving')
                         # save to file
                         f_name = self.data_path / f'{self.me}_{filename}'
-                        df = pd.DataFrame(tss[0:last_idx+1,:], columns = ['ts_sent', 'ts_received'])
-                        df.index.name = 'idx'
-                        df.to_csv(str(f_name), sep='\t', na_rep='nan', float_format="%.8f")
+                        np.savetxt(str(f_name), tss[:last_idx+1,:], delimiter='\t', fmt='%.8f', header='ts_sent\tts_received', comments='')
                         print(f'done: {filename}')
                         await comms.send(writer, 'done')
                     case 'quit':
