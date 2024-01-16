@@ -75,7 +75,6 @@ class MainGUI:
         self._main_dock_node_id = None
         # debug window
         self.show_demo_window = False
-        self._test_engine_context: imgui.test_engine.TestEngine = None
 
         self.selected_computers: dict[int, bool] = {k:False for k in self.master.clients}
         # NB: use self.master.clients_lock also for self.selected_computers, extra safety
@@ -1864,9 +1863,6 @@ class MainGUI:
         utils.handle_popup_stack(self.popup_stack)
         # also handle showing of debug windows
         if self.show_demo_window:
-            if not self._test_engine_context:
-                self._test_engine_context = imgui.test_engine.create_context()
-                imgui.test_engine.start(self._test_engine_context, imgui.get_current_context())
             self.show_demo_window = imgui.show_demo_window(self.show_demo_window)
 
         # now render actual pane
