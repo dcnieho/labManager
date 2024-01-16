@@ -435,5 +435,8 @@ def create_group(tsk_type: str|Type, payload: str, clients: list[int], cwd: str=
         # add to task group
         task_group.add_task(c,task)
 
-    # second return: true if whole group should be launched as one, false if tasks should be launched individually
-    return task_group, tsk_type==Type.Wake_on_LAN
+    return task_group
+
+def task_group_launch_as_group(task_group: TaskGroup):
+    # true if whole group should be launched as one, false if tasks should be launched individually
+    return task_group.type==Type.Wake_on_LAN

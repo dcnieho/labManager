@@ -697,20 +697,26 @@ class Master:
                 payload = await aiopath.AsyncPath(payload).read_text()
 
         # make task group
-        task_group, launch_group = task.create_group(tsk_type, payload, clients, cwd=cwd, env=env, interactive=interactive, python_unbuf=python_unbuf)
+        task_group = task.create_group(tsk_type, payload, clients, cwd=cwd, env=env, interactive=interactive, python_unbuf=python_unbuf)
+
+        # execute
+        return await self.execute_task_group(task_group)
+
+    async def execute_task_group(self, task_group: task.TaskGroup):
         self.task_groups[task_group.id] = task_group
 
         # start tasks
+        launch_as_group = task.task_group_launch_as_group(task_group)
         coros = []
         for c in task_group.tasks:  # NB: index is client ID
             mytask = task_group.tasks[c]
             # add to client task list
             if self.clients[c].online:
                 self.clients[c].online.tasks[mytask.id] = mytask
-            if not launch_group:
+            if not launch_as_group:
                 # send
                 coros.append(task.send(mytask, self.clients[c]))
-        if launch_group:
+        if launch_as_group:
             coros.append(task.send(task_group, self.clients))
 
         await asyncio.gather(*coros)
