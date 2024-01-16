@@ -31,7 +31,7 @@ class TaskDef:
     python_unbuf: bool      = False
 
 @dataclass
-class InteractiveHistory:
+class History:
     pos     : int = -1
     items   : list[str] = field(default_factory=lambda: [''])   # last item (pos -1) is item currently being edited
 
@@ -83,7 +83,9 @@ class MainGUI:
 
         # task GUI
         self._task_prep: TaskDef = TaskDef()
-        self._task_GUI_editor    = imgui_color_text_edit.TextEditor()   # NB: also used for the payload display on a computer pane
+        self._task_history_payload: History = History()
+        self._task_history_cwd: History = History()
+        self._task_GUI_editor = imgui_color_text_edit.TextEditor()   # NB: also used for the payload display on a computer pane
         self._task_GUI_editor.set_language_definition(self._task_GUI_editor.LanguageDefinition.python())  # there is no batch, have to live with this...
         self._task_GUI_editor_copy_t = None
         self._task_GUI_open_file_diag = None
@@ -106,7 +108,7 @@ class MainGUI:
         # computer detail GUIs
         self._computer_GUI_tasks: dict[int,list[str,int,int]|None] = {}
         self._computer_GUI_interactive_tasks: dict[tuple[int,int],str] = {}
-        self._computer_GUI_interactive_history: dict[tuple[int,int],InteractiveHistory] = {}
+        self._computer_GUI_interactive_history: dict[tuple[int,int],History] = {}
         self._computer_GUI_interactive_sent_finish: dict[tuple[int,int],bool] = {}
         self._computer_GUI_command_copy_t = None
         self._computer_GUI_cwd_copy_t = None
@@ -458,6 +460,8 @@ class MainGUI:
 
         # reset GUI
         self._task_prep = TaskDef()
+        self._task_history_payload = History()
+        self._task_history_cwd = History()
         self._window_list = [self.computer_list, self._make_main_space_window("Login", self._login_GUI)]
         self._need_set_window_title = True
 
@@ -811,6 +815,12 @@ class MainGUI:
                         self._task_GUI_selection_pos['payload'] = [0, 0]
                         self._task_GUI_cursor_pos['cwd'] = 0
                         self._task_GUI_selection_pos['cwd'] = [0, 0]
+                        if self._task_prep.type in [task.Type.Shell_command, task.Type.Process_exec, task.Type.Python_module]:
+                            self._task_history_payload.items[-1] = self._task_prep.payload_text
+                            self._task_history_payload.pos = -1
+                        if self._task_prep.type!=task.Type.Wake_on_LAN:
+                            self._task_history_cwd.items[-1] = self._task_prep.cwd
+                            self._task_history_cwd.pos = -1
             else:
                 imgui.text_wrapped('There are no preconfigured tasks. Launch your own task using the panels on the right.')
         imgui.end()
@@ -829,12 +839,45 @@ class MainGUI:
                         if t not in [task.Type.Batch_file, task.Type.Python_script]:
                             self._task_prep.payload_type = 'text'
                             self._task_prep.payload_text = utils.trim_str(self._task_prep.payload_text)
+                    if t in [task.Type.Shell_command, task.Type.Process_exec, task.Type.Python_module]:
+                        self._task_history_payload.items[-1] = self._task_prep.payload_text
+                        self._task_history_payload.pos = -1
+                    if t!=task.Type.Wake_on_LAN:
+                        self._task_history_cwd.items[-1] = self._task_prep.cwd
+                        self._task_history_cwd.pos = -1
                 utils.draw_hover_text(t.doc, text='')
         imgui.end()
         if imgui.begin('task_config_pane'):
             def edit_callback(this: MainGUI, which: str, data: imgui.InputTextCallbackData):
+                # always track cursor and selection
                 this._task_GUI_cursor_pos[which] = data.cursor_pos
                 this._task_GUI_selection_pos[which] = sorted([data.selection_start, data.selection_end])
+                # deal with history
+                if which=='payload':
+                    hist = this._task_history_payload
+                elif which=='cwd':
+                    hist = this._task_history_cwd
+                if data.event_flag==imgui.InputTextFlags_.callback_edit:
+                    # store current state to item -1 (the item currently being edited)
+                    # NB: this means that upon history navigation, current item is only replaced once a history item is edited
+                    hist.items[-1] = data.buf
+                elif data.event_flag==imgui.InputTextFlags_.callback_history:
+                    # replace current buffer with history
+                    new_hist_pos = hist.pos
+                    if data.event_key==imgui.Key.up_arrow:
+                        if new_hist_pos == -1:
+                            new_hist_pos = len(hist.items)-1 - 1    # -1 for indexing, -1 for going one back in history
+                        elif new_hist_pos>0:
+                            new_hist_pos -= 1
+                    elif data.event_key==imgui.Key.down_arrow:
+                        if new_hist_pos != -1:
+                            new_hist_pos += 1
+                            if new_hist_pos==len(hist.items)-1:
+                                new_hist_pos = -1
+                    if new_hist_pos != hist.pos:
+                        hist.pos = new_hist_pos
+                        data.delete_chars(0, data.buf_text_len)
+                        data.insert_chars(0, hist.items[hist.pos])
                 return 0
             def append_path(this: MainGUI, which: str, path: str):
                 tsk = this._task_prep
@@ -946,7 +989,7 @@ class MainGUI:
                             utils.push_popup(self, filepicker.FilePicker(title='Select path to insert', allow_multiple=False, file_action_provider=fap, callback=lambda path: append_path(self, 'payload', path)))
                         imgui.push_font(imgui_md.get_code_font())
                         imgui.set_next_item_width(width)
-                        _, self._task_prep.payload_text = imgui.input_text(f'##{field_name}', self._task_prep.payload_text, flags=imgui.InputTextFlags_.callback_always, callback=lambda x: edit_callback(self, 'payload', x))
+                        _, self._task_prep.payload_text = imgui.input_text(f'##{field_name}', self._task_prep.payload_text, flags=imgui.InputTextFlags_.callback_always|imgui.InputTextFlags_.callback_edit|imgui.InputTextFlags_.callback_history, callback=lambda x: edit_callback(self, 'payload', x))
                         imgui.pop_font()
                 else:
                     imgui.push_font(imgui_md.get_code_font())
@@ -981,7 +1024,7 @@ class MainGUI:
                     utils.push_popup(self, filepicker.FilePicker(title='Select path to insert', allow_multiple=False, file_action_provider=fap, callback=lambda path: append_path(self, 'cwd', path)))
                 imgui.push_font(imgui_md.get_code_font())
                 imgui.set_next_item_width(width)
-                _, self._task_prep.cwd = imgui.input_text('##cwd', self._task_prep.cwd, flags=imgui.InputTextFlags_.callback_always, callback=lambda x: edit_callback(self, 'cwd', x))
+                _, self._task_prep.cwd = imgui.input_text('##cwd', self._task_prep.cwd, flags=imgui.InputTextFlags_.callback_always|imgui.InputTextFlags_.callback_edit|imgui.InputTextFlags_.callback_history, callback=lambda x: edit_callback(self, 'cwd', x))
                 imgui.pop_font()
                 if (is_hovered or imgui.is_item_hovered()):
                     utils.draw_tooltip('Working directory from which the command will be executed')
@@ -1007,6 +1050,7 @@ class MainGUI:
             disabled = disabled1 or disabled2
             if disabled:
                 utils.push_disabled()
+            do_clear = False
             if imgui.button("Run"):
                 async_thread.run(
                     self.master.run_task(
@@ -1020,6 +1064,23 @@ class MainGUI:
                         self._task_prep.python_unbuf
                     )
                 )
+                # deal with history
+                if self._task_prep.type in [task.Type.Shell_command, task.Type.Process_exec, task.Type.Python_module]:
+                    self._task_history_payload.items[-1] = self._task_prep.payload_text    # should be equal, but lets be sure
+                    if len(self._task_history_payload.items)>1 and self._task_history_payload.items[-1]==self._task_history_payload.items[-2]:
+                        # if command same as previous, don't add (collapse history)
+                        self._task_history_payload.items[-1] = ''
+                    else:
+                        self._task_history_payload.items.append('')   # new command about to be edited
+                if self._task_prep.type!=task.Type.Wake_on_LAN:
+                    self._task_history_cwd.items[-1] = self._task_prep.cwd    # should be equal, but lets be sure
+                    if not self._task_prep.cwd or len(self._task_history_cwd.items)>1 and self._task_history_cwd.items[-1]==self._task_history_cwd.items[-2]:
+                        # if command same as previous, don't add (collapse history)
+                        self._task_history_cwd.items[-1] = ''
+                    else:
+                        self._task_history_cwd.items.append('')   # new command about to be edited
+                # submitting clears (which sets pos to end of history)
+                do_clear = True
             if disabled:
                 utils.pop_disabled()
                 if disabled1:
@@ -1030,11 +1091,17 @@ class MainGUI:
                 utils.draw_hover_text(reason if disabled1 else 'Provide task parameters', text='', hovered_flags=imgui.HoveredFlags_.allow_when_disabled)
             imgui.same_line(imgui.get_content_region_avail().x-imgui.calc_text_size('Clear').x-2*imgui.get_style().frame_padding.x)
             if imgui.button('Clear'):
+                do_clear = True
+            if do_clear:
                 self._task_prep = TaskDef()
                 self._task_GUI_cursor_pos['payload'] = 0
                 self._task_GUI_selection_pos['payload'] = [0, 0]
                 self._task_GUI_cursor_pos['cwd'] = 0
                 self._task_GUI_selection_pos['cwd'] = [0, 0]
+                self._task_history_payload.items[-1] = ''
+                self._task_history_payload.pos = -1
+                self._task_history_cwd.items[-1] = ''
+                self._task_history_cwd.pos = -1
         imgui.end()
 
     def _imaging_GUI(self):
@@ -1742,7 +1809,7 @@ class MainGUI:
                         if (item.id, tid[1]) not in self._computer_GUI_interactive_tasks:
                             self._computer_GUI_interactive_tasks[(item.id, tid[1])] = ''
                         if (item.id, tid[1]) not in self._computer_GUI_interactive_history:
-                            self._computer_GUI_interactive_history[(item.id, tid[1])] = InteractiveHistory()
+                            self._computer_GUI_interactive_history[(item.id, tid[1])] = History()
 
                         def handle_history(this: MainGUI, key: tuple[int, int], data: imgui.InputTextCallbackData):
                             hist = this._computer_GUI_interactive_history[key]
