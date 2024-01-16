@@ -41,7 +41,7 @@ class Source:
     def __init__(self):
         self.sinks: dict[tuple(str,int),asyncio.streams.StreamWriter] = {}
 
-        self.states: dict[tuple(str,int),str] = {}     # 'started', 'saving', or 'done' (which also means doing nothing)
+        self.states: dict[tuple(str,int),str] = {}
         self.state_waiter: threading.Event = threading.Event()
         self.state_to_await: int = ''
 
@@ -103,10 +103,10 @@ class Source:
                 match msg[0]:
                     case 'started':
                         self.states[remote_addr] = 'started'
-                    case 'saving':
-                        self.states[remote_addr] = 'saving'
-                    case 'done':
-                        self.states[remote_addr] = 'done'
+                    case 'finished':
+                        self.states[remote_addr] = 'finished'
+                    case 'saved':
+                        self.states[remote_addr] = 'saved'
                 if all([self.states[s]==self.state_to_await for s in self.states]):
                     self.state_waiter.set()
             except Exception:
@@ -209,10 +209,16 @@ if __name__ == "__main__":
             rate_wait = int(1/freq*1_000_000_000)
             sleep_ns(dur*1_000_000_000, rate_wait, fun=lambda idx: send_sample(source, idx, num_char))
 
-            # mark done, trigger saving on clients, wait till they are all done before continuing
-            async_thread.run(source.broadcast('done'))
-            print(f'done: {f_name}')
-            source.set_waiter('done')
+            # indicate we're done sending, wait till all clients indicate they are done receiving
+            async_thread.run(source.broadcast('finish'))
+            print(f'finish: {f_name}')
+            source.set_waiter('finished')
+            source.state_waiter.wait()
+
+            # trigger saving on clients, wait till they are all done before continuing
+            async_thread.run(source.broadcast('save'))
+            print(f'save: {f_name}')
+            source.set_waiter('saved')
             source.state_waiter.wait()
 
         async_thread.run(source.broadcast('quit'))

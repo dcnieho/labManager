@@ -34,9 +34,6 @@ class Sink:
         self._handler_tasks.append(asyncio.create_task(self._handle_source(source_addr, reader, writer)))
 
     async def _handle_source(self, source_addr, reader: asyncio.streams.StreamReader, writer: asyncio.streams.StreamWriter):
-        filename = ''
-        tss = None
-        last_idx = None
         connect_was_ok = False
         while True:
             try:
@@ -58,19 +55,22 @@ class Sink:
                         tss = np.empty((n_samp,2,), dtype=np.float64)
                         tss.fill(np.nan)
                         last_idx = -1
-                        print(f'starting: {filename} ({dur}s @ {freq:.2f}Hz)')
+                        print(f'receiving: {filename} ({dur}s @ {freq:.2f}Hz) ... ', end='', flush=True)
                         await comms.send(writer, 'started')
                     case 'store':
                         last_idx = int(msg[1])
                         ts_sent = msg[2]
                         tss[last_idx,:] = [ts_sent, ts_received]
-                    case 'done':
-                        await comms.send(writer, 'saving')
+                    case 'finish':
+                        print('finished')
+                        await comms.send(writer, 'finished')
+                    case 'save':
                         # save to file
+                        print(f'saving: {filename} ... ', end='', flush=True)
                         f_name = self.data_path / f'{self.me}_{filename}'
                         np.savetxt(str(f_name), tss[:last_idx+1,:], delimiter='\t', fmt='%.8f', header='ts_sent\tts_received', comments='')
-                        print(f'done: {filename}')
-                        await comms.send(writer, 'done')
+                        print('done')
+                        await comms.send(writer, 'saved')
                     case 'quit':
                         break
 
