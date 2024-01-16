@@ -20,7 +20,7 @@ def execution_monitor(fut):
         # don't wait if task finished normally, extra time to show GUI is handled there
         if errored and gui_container.gui and gui_container.gui.running:
             time.sleep(5)
-        gui_container.gui.quit()
+            gui_container.gui.quit()
 
 async def run(master: labManager.master.Master, use_GUI_login: bool = False):
     # login and start server
