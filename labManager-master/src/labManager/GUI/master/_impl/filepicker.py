@@ -560,7 +560,7 @@ class FilePicker:
                     # if a normal local path, then this means we're in a drive root
                     parent = 'root'
             else:
-                # TODO
+                # TODO: non-Windows logic
                 parent = 'root'
         return parent
 

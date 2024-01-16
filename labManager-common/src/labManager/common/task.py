@@ -25,7 +25,7 @@ class Type(enum_helper.AutoNameSpace):
     Batch_file      = auto()    # invoke batch file
     Python_module   = auto()    # sys.executable + '-m'
     Python_script   = auto()    # sys.executable, invoke python script
-    Wake_on_LAN     = auto()    # special task to broadcast WoL packets (TODO)
+    Wake_on_LAN     = auto()    # special task to broadcast WoL packets
 types = [x.value for x in Type]
 
 Type.Shell_command   .doc = 'Run command in shell'
