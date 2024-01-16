@@ -817,9 +817,10 @@ class MainGUI:
                 if imgui.radio_button(t.value, self._task_prep.type==t):
                     old_type = self._task_prep.type
                     self._task_prep.type = t
-                    # remove command if not wanted
+                    # remove command etc if not wanted
                     if t==task.Type.Wake_on_LAN:
-                        self._task_prep.payload_file = self._task_prep.payload_text = ''
+                        self._task_prep = TaskDef()
+                        self._task_prep.type = task.Type.Wake_on_LAN
                     # make sure we don't have a multiline commands in a single-line
                     # textbox
                     if old_type in [task.Type.Batch_file, task.Type.Python_script]:
