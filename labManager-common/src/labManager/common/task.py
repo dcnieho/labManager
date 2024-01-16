@@ -106,7 +106,6 @@ _task_group_id_provider = counter.CounterContext()
 @dataclass
 class TaskGroup:
     type        : Type
-    payload     : str               # command, batch file contents, python script contents
     id          : int = None
 
     # references to tasks belonging to this group
@@ -427,7 +426,7 @@ async def send_cancel(client, task: Task):
 
 def create_group(tsk_type: str|Type, payload: str, clients: list[int], cwd: str=None, env: dict=None, interactive=False, python_unbuf=False) -> tuple[TaskGroup, bool]:
     tsk_type = Type.get(tsk_type)
-    task_group = TaskGroup(tsk_type, payload)
+    task_group = TaskGroup(tsk_type)
 
     # make individual tasks
     for c in clients:
