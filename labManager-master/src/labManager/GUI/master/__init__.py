@@ -903,6 +903,10 @@ class MainGUI:
                         text_y = top_right.y + line_height * 0.2
                         imgui.set_cursor_pos((top_left.x, text_y))
                         imgui.text(field_name)
+                        imgui.same_line()
+                        if imgui.small_button("Insert path##payload"):
+                            fap = filepicker.FileActionProvider(network=config.master['network'], master=self.master)
+                            utils.push_popup(self, filepicker.FilePicker(title='Select path to insert', allow_multiple=False, file_action_provider=fap, callback=lambda path: append_path(self, 'payload', path)))
 
                         text_x = top_right.x - line_height * 6.
                         imgui.set_cursor_pos((text_x, text_y))
@@ -936,13 +940,14 @@ class MainGUI:
                         imgui.pop_id()
                     else:
                         imgui.text(field_name)
+                        imgui.same_line()
+                        if imgui.small_button("Insert path##payload"):
+                            fap = filepicker.FileActionProvider(network=config.master['network'], master=self.master)
+                            utils.push_popup(self, filepicker.FilePicker(title='Select path to insert', allow_multiple=False, file_action_provider=fap, callback=lambda path: append_path(self, 'payload', path)))
                         imgui.push_font(imgui_md.get_code_font())
                         imgui.set_next_item_width(width)
                         _, self._task_prep.payload_text = imgui.input_text(f'##{field_name}', self._task_prep.payload_text, flags=imgui.InputTextFlags_.callback_always, callback=lambda x: edit_callback(self, 'payload', x))
                         imgui.pop_font()
-                    if imgui.button("Insert path##payload"):
-                        fap = filepicker.FileActionProvider(network=config.master['network'], master=self.master)
-                        utils.push_popup(self, filepicker.FilePicker(title='Select path to insert', allow_multiple=False, file_action_provider=fap, callback=lambda path: append_path(self, 'payload', path)))
                 else:
                     imgui.push_font(imgui_md.get_code_font())
                     imgui.set_next_item_width(width)
@@ -968,17 +973,18 @@ class MainGUI:
                             utils.push_popup(self, msgbox.msgbox, "File reading error", f"Opening the file '{self._task_prep.payload_file}' has failed:\n{type(ex).__name__}: {str(ex) or 'No further details'}", msgbox.MsgBox.error)
                     if not self._task_prep.payload_file:
                         utils.pop_disabled()
-                imgui.begin_group()
                 imgui.text('Working directory')
+                is_hovered = imgui.is_item_hovered()
+                imgui.same_line()
+                if imgui.small_button("Insert path##cwd"):
+                    fap = filepicker.FileActionProvider(network=config.master['network'], master=self.master)
+                    utils.push_popup(self, filepicker.FilePicker(title='Select path to insert', allow_multiple=False, file_action_provider=fap, callback=lambda path: append_path(self, 'cwd', path)))
                 imgui.push_font(imgui_md.get_code_font())
                 imgui.set_next_item_width(width)
                 _, self._task_prep.cwd = imgui.input_text('##cwd', self._task_prep.cwd, flags=imgui.InputTextFlags_.callback_always, callback=lambda x: edit_callback(self, 'cwd', x))
                 imgui.pop_font()
-                imgui.end_group()
-                utils.draw_hover_text('Working directory from which the command will be executed',text='')
-                if imgui.button("Insert path##cwd"):
-                    fap = filepicker.FileActionProvider(network=config.master['network'], master=self.master)
-                    utils.push_popup(self, filepicker.FilePicker(title='Select path to insert', allow_multiple=False, file_action_provider=fap, callback=lambda path: append_path(self, 'cwd', path)))
+                if (is_hovered or imgui.is_item_hovered()):
+                    utils.draw_tooltip('Working directory from which the command will be executed')
                 _, self._task_prep.interactive = imgui.checkbox('Interactive', self._task_prep.interactive)
                 utils.draw_hover_text('If enabled, it is possible to send input (stdin) to the running command',text='')
                 if self._task_prep.type in [task.Type.Python_module, task.Type.Python_script]:
