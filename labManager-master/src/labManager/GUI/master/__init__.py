@@ -846,6 +846,7 @@ class MainGUI:
                         self._task_history_cwd.pos = -1
                 utils.draw_hover_text(t.doc, text='')
         imgui.end()
+        enter_pressed = False
         if imgui.begin('task_config_pane'):
             def edit_callback(this: MainGUI, which: str, data: imgui.InputTextCallbackData):
                 # always track cursor and selection
@@ -988,7 +989,7 @@ class MainGUI:
                             utils.push_popup(self, filepicker.FilePicker(title='Select path to insert', allow_multiple=False, file_action_provider=fap, callback=lambda path: append_path(self, 'payload', path)))
                         imgui.push_font(imgui_md.get_code_font())
                         imgui.set_next_item_width(width)
-                        _, self._task_prep.payload_text = imgui.input_text(f'##{field_name}', self._task_prep.payload_text, flags=imgui.InputTextFlags_.callback_always|imgui.InputTextFlags_.callback_edit|imgui.InputTextFlags_.callback_history, callback=lambda x: edit_callback(self, 'payload', x))
+                        enter_pressed, self._task_prep.payload_text = imgui.input_text(f'##{field_name}', self._task_prep.payload_text, flags=imgui.InputTextFlags_.enter_returns_true|imgui.InputTextFlags_.callback_always|imgui.InputTextFlags_.callback_edit|imgui.InputTextFlags_.callback_history, callback=lambda x: edit_callback(self, 'payload', x))
                         imgui.pop_font()
                 else:
                     imgui.push_font(imgui_md.get_code_font())
@@ -1023,7 +1024,8 @@ class MainGUI:
                     utils.push_popup(self, filepicker.FilePicker(title='Select path to insert', allow_multiple=False, file_action_provider=fap, callback=lambda path: append_path(self, 'cwd', path)))
                 imgui.push_font(imgui_md.get_code_font())
                 imgui.set_next_item_width(width)
-                _, self._task_prep.cwd = imgui.input_text('##cwd', self._task_prep.cwd, flags=imgui.InputTextFlags_.callback_always|imgui.InputTextFlags_.callback_edit|imgui.InputTextFlags_.callback_history, callback=lambda x: edit_callback(self, 'cwd', x))
+                enter_pressed2, self._task_prep.cwd = imgui.input_text('##cwd', self._task_prep.cwd, flags=imgui.InputTextFlags_.enter_returns_true|imgui.InputTextFlags_.callback_always|imgui.InputTextFlags_.callback_edit|imgui.InputTextFlags_.callback_history, callback=lambda x: edit_callback(self, 'cwd', x))
+                enter_pressed = enter_pressed or enter_pressed2
                 imgui.pop_font()
                 if (is_hovered or imgui.is_item_hovered()):
                     utils.draw_tooltip('Working directory from which the command will be executed')
@@ -1050,7 +1052,7 @@ class MainGUI:
             if disabled:
                 utils.push_disabled()
             do_clear = False
-            if imgui.button("Run"):
+            if imgui.button("Run") or (not disabled and enter_pressed):
                 async_thread.run(
                     self.master.run_task(
                         self._task_prep.type,
