@@ -30,6 +30,11 @@ class TaskDef:
     interactive : bool      = False
     python_unbuf: bool      = False
 
+@dataclass
+class InteractiveHistory:
+    pos     : int = -1
+    items   : list[str] = field(default_factory=lambda: [''])   # last item (pos -1) is item currently being edited
+
 class MainGUI:
     def __init__(self, mstr: master.Master = None, use_GUI_login=False):
         self.popup_stack = []
@@ -101,6 +106,7 @@ class MainGUI:
         # computer detail GUIs
         self._computer_GUI_tasks: dict[int,list[str,int,int]|None] = {}
         self._computer_GUI_interactive_tasks: dict[tuple[int,int],str] = {}
+        self._computer_GUI_interactive_history: dict[tuple[int,int],InteractiveHistory] = {}
         self._computer_GUI_interactive_sent_finish: dict[tuple[int,int],bool] = {}
         self._computer_GUI_command_copy_t = None
         self._computer_GUI_cwd_copy_t = None
@@ -639,6 +645,13 @@ class MainGUI:
         for t in to_del:
             del self._computer_GUI_interactive_sent_finish[t]
 
+        to_del = []
+        for t in self._computer_GUI_interactive_history:
+            if t[0]==client_id:
+                to_del.append(t)
+        for t in to_del:
+            del self._computer_GUI_interactive_history[t]
+
     def _task_status_changed(self, _, client_id: int, tsk: task.Task):
         key = (client_id, tsk.id)
         if tsk.status in [structs.Status.Finished, structs.Status.Errored]:
@@ -646,6 +659,8 @@ class MainGUI:
                 del self._computer_GUI_interactive_tasks[key]
             if key in self._computer_GUI_interactive_sent_finish:
                 del self._computer_GUI_interactive_sent_finish[key]
+            if key in self._computer_GUI_interactive_history:
+                del self._computer_GUI_interactive_history[key]
 
     def _draw_about_popup(self):
         def popup_content():
@@ -1703,15 +1718,53 @@ class MainGUI:
                     if tsk.interactive and tsk.status==structs.Status.Running and ((item.id, tid[1]) not in self._computer_GUI_interactive_sent_finish or not self._computer_GUI_interactive_sent_finish[(item.id, tid[1])]):
                         if (item.id, tid[1]) not in self._computer_GUI_interactive_tasks:
                             self._computer_GUI_interactive_tasks[(item.id, tid[1])] = ''
+                        if (item.id, tid[1]) not in self._computer_GUI_interactive_history:
+                            self._computer_GUI_interactive_history[(item.id, tid[1])] = InteractiveHistory()
+
+                        def handle_history(this: MainGUI, key: tuple[int, int], data: imgui.InputTextCallbackData):
+                            hist = this._computer_GUI_interactive_history[key]
+                            if data.event_flag==imgui.InputTextFlags_.callback_edit:
+                                # store current state to item -1 (the item currently being edited)
+                                # NB: this means that upon history navigation, current item is only replaced once a history item is edited
+                                hist.items[-1] = data.buf
+                            elif data.event_flag==imgui.InputTextFlags_.callback_history:
+                                # replace current buffer with history
+                                new_hist_pos = hist.pos
+                                if data.event_key==imgui.Key.up_arrow:
+                                    if new_hist_pos == -1:
+                                        new_hist_pos = len(hist.items)-1 - 1    # -1 for indexing, -1 for going one back in history
+                                    elif new_hist_pos>0:
+                                        new_hist_pos -= 1
+                                elif data.event_key==imgui.Key.down_arrow:
+                                    if new_hist_pos != -1:
+                                        new_hist_pos += 1
+                                        if new_hist_pos==len(hist.items)-1:
+                                            new_hist_pos = -1
+                                if new_hist_pos != hist.pos:
+                                    hist.pos = new_hist_pos
+                                    data.delete_chars(0, data.buf_text_len)
+                                    data.insert_chars(0, hist.items[hist.pos])
+                            return 0
+
                         imgui.set_next_item_width(width-imgui.calc_text_size("Send").x-2*imgui.get_style().frame_padding.x-imgui.get_style().item_spacing.x)
                         enter_pressed, self._computer_GUI_interactive_tasks[(item.id, tid[1])] = \
-                            imgui.input_text(f'##interactive_input{item.id},{tid[1]}', self._computer_GUI_interactive_tasks[(item.id, tid[1])], flags=imgui.InputTextFlags_.enter_returns_true|imgui.InputTextFlags_.escape_clears_all)
+                            imgui.input_text(f'##interactive_input{item.id},{tid[1]}', self._computer_GUI_interactive_tasks[(item.id, tid[1])], flags=imgui.InputTextFlags_.enter_returns_true|imgui.InputTextFlags_.escape_clears_all|imgui.InputTextFlags_.callback_history|imgui.InputTextFlags_.callback_edit, callback=lambda x: handle_history(self, (item.id, tid[1]), x))
                         if enter_pressed:
                             imgui.set_keyboard_focus_here(-1)   # refocus above input_text box
                         imgui.same_line()
                         if imgui.button(f'Send##{item.id},{tid[1]}') or enter_pressed:
                             # send
                             async_thread.run(task.send_input(self._computer_GUI_interactive_tasks[(item.id, tid[1])]+'\n',item,tsk))
+                            # deal with history
+                            hist = self._computer_GUI_interactive_history[(item.id, tid[1])]
+                            hist.items[-1] = self._computer_GUI_interactive_tasks[(item.id, tid[1])]    # should be equal, but lets be sure
+                            if len(hist.items)>1 and hist.items[-1]==hist.items[-2]:
+                                # if command same as previous, don't add (collapse history)
+                                hist.items[-1] = ''
+                            else:
+                                hist.items.append('')   # new command about to be edited
+                            hist.pos = -1   # submitting resets pos to end of history
+                            # done
                             self._computer_GUI_interactive_tasks[(item.id, tid[1])] = ''
         imgui.end()
 
