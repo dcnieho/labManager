@@ -206,7 +206,7 @@ class Master:
             addr[0], addr[1] = addr[1], addr[0]
         self.address = addr
 
-        # should already have started serving in asyncio.start_server, but to be save and sure:
+        # should already have started serving in asyncio.start_server, but to be safe and sure:
         await self._server.start_serving()
 
         # start SSDP server if wanted
@@ -216,8 +216,7 @@ class Master:
                 address=local_addr[0],
                 host_ip_port=self.address[0],
                 usn="humlab-b055-master::"+config.master['SSDP']['device_type'],
-                device_type=config.master['SSDP']['device_type'],
-                allow_loopback=True)
+                device_type=config.master['SSDP']['device_type'])
             await self._ssdp_server.start()  # start listening to requests and respond with info about where we are
             await self._ssdp_server.send_notification()  # send one notification upon startup
         elif announcer.casefold()=='mdns':
