@@ -87,8 +87,8 @@ class MainGUI:
         self._task_GUI_editor.set_language_definition(self._task_GUI_editor.LanguageDefinition.python())  # there is no batch, have to live with this...
         self._task_GUI_editor_copy_t = None
         self._task_GUI_open_file_diag = None
-        self._task_GUI_cursor_pos = 0
-        self._task_GUI_selection_pos = [0, 0]
+        self._task_GUI_cursor_pos = {'payload': 0, 'cwd': 0}
+        self._task_GUI_selection_pos = {'payload': [0, 0], 'cwd': [0, 0]}
 
         # image management GUI
         self._images_list = []
@@ -807,8 +807,10 @@ class MainGUI:
                         self._task_prep.env         = t['env']
                         self._task_prep.interactive = t['interactive']
                         self._task_prep.python_unbuf= t['python_unbuffered']
-                        self._task_GUI_cursor_pos = 0
-                        self._task_GUI_selection_pos = [0, 0]
+                        self._task_GUI_cursor_pos['payload'] = 0
+                        self._task_GUI_selection_pos['payload'] = [0, 0]
+                        self._task_GUI_cursor_pos['cwd'] = 0
+                        self._task_GUI_selection_pos['cwd'] = [0, 0]
             else:
                 imgui.text_wrapped('There are no preconfigured tasks. Launch your own task using the panels on the right.')
         imgui.end()
@@ -830,6 +832,26 @@ class MainGUI:
                 utils.draw_hover_text(t.doc, text='')
         imgui.end()
         if imgui.begin('task_config_pane'):
+            def edit_callback(this: MainGUI, which: str, data: imgui.InputTextCallbackData):
+                this._task_GUI_cursor_pos[which] = data.cursor_pos
+                this._task_GUI_selection_pos[which] = sorted([data.selection_start, data.selection_end])
+                return 0
+            def append_path(this: MainGUI, which: str, path: str):
+                tsk = this._task_prep
+                if which=='payload':
+                    txt = tsk.payload_text
+                elif which=='cwd':
+                    txt = tsk.cwd
+                if this._task_GUI_selection_pos[which][1]!=this._task_GUI_selection_pos[which][0]:
+                    # selection, remove that part of the text
+                    txt = tsk.payload_text[0:this._task_GUI_selection_pos[which][0]] + txt[this._task_GUI_selection_pos[which][1]:]
+                    this._task_GUI_cursor_pos[which] = this._task_GUI_selection_pos[which][0] # would be at wrong position if selection was grown right-to-left
+                txt = txt[:this._task_GUI_cursor_pos[which]] + str(path[0]) + txt[this._task_GUI_cursor_pos[which]:]
+                if which=='payload':
+                    tsk.payload_text = txt
+                elif which=='cwd':
+                    tsk.cwd = txt
+
             if self._task_prep.type==task.Type.Wake_on_LAN:
                 imgui.text('Wake on LAN action has no parameters')
             else:
@@ -913,25 +935,14 @@ class MainGUI:
                         imgui.end_group()
                         imgui.pop_id()
                     else:
-                        def edit_callback(this: MainGUI, data: imgui.InputTextCallbackData):
-                            this._task_GUI_cursor_pos = data.cursor_pos
-                            this._task_GUI_selection_pos = sorted([data.selection_start, data.selection_end])
-                            return 0
                         imgui.text(field_name)
                         imgui.push_font(imgui_md.get_code_font())
                         imgui.set_next_item_width(width)
-                        _, self._task_prep.payload_text = imgui.input_text(f'##{field_name}', self._task_prep.payload_text, flags=imgui.InputTextFlags_.callback_always, callback=lambda x: edit_callback(self, x))
+                        _, self._task_prep.payload_text = imgui.input_text(f'##{field_name}', self._task_prep.payload_text, flags=imgui.InputTextFlags_.callback_always, callback=lambda x: edit_callback(self, 'payload', x))
                         imgui.pop_font()
-                    if imgui.button("Insert path"):
-                        def append_path(this: MainGUI, path: str):
-                            tsk = this._task_prep
-                            if this._task_GUI_selection_pos[1]!=this._task_GUI_selection_pos[0]:
-                                # selection, remove that part of the text
-                                tsk.payload_text = tsk.payload_text[0:this._task_GUI_selection_pos[0]] + tsk.payload_text[this._task_GUI_selection_pos[1]:]
-                                this._task_GUI_cursor_pos = this._task_GUI_selection_pos[0] # would be at wrong position if selection was grown right-to-left
-                            tsk.payload_text = tsk.payload_text[:this._task_GUI_cursor_pos] + str(path[0]) + tsk.payload_text[this._task_GUI_cursor_pos:]
+                    if imgui.button("Insert path##payload"):
                         fap = filepicker.FileActionProvider(network=config.master['network'], master=self.master)
-                        utils.push_popup(self, filepicker.FilePicker(title='Select path to append', allow_multiple=False, file_action_provider=fap, callback=lambda path: append_path(self, path)))
+                        utils.push_popup(self, filepicker.FilePicker(title='Select path to insert', allow_multiple=False, file_action_provider=fap, callback=lambda path: append_path(self, 'payload', path)))
                 else:
                     imgui.push_font(imgui_md.get_code_font())
                     imgui.set_next_item_width(width)
@@ -961,10 +972,13 @@ class MainGUI:
                 imgui.text('Working directory')
                 imgui.push_font(imgui_md.get_code_font())
                 imgui.set_next_item_width(width)
-                _, self._task_prep.cwd = imgui.input_text('##cwd', self._task_prep.cwd)
+                _, self._task_prep.cwd = imgui.input_text('##cwd', self._task_prep.cwd, flags=imgui.InputTextFlags_.callback_always, callback=lambda x: edit_callback(self, 'cwd', x))
                 imgui.pop_font()
                 imgui.end_group()
                 utils.draw_hover_text('Working directory from which the command will be executed',text='')
+                if imgui.button("Insert path##cwd"):
+                    fap = filepicker.FileActionProvider(network=config.master['network'], master=self.master)
+                    utils.push_popup(self, filepicker.FilePicker(title='Select path to insert', allow_multiple=False, file_action_provider=fap, callback=lambda path: append_path(self, 'cwd', path)))
                 _, self._task_prep.interactive = imgui.checkbox('Interactive', self._task_prep.interactive)
                 utils.draw_hover_text('If enabled, it is possible to send input (stdin) to the running command',text='')
                 if self._task_prep.type in [task.Type.Python_module, task.Type.Python_script]:
@@ -1011,8 +1025,10 @@ class MainGUI:
             imgui.same_line(imgui.get_content_region_avail().x-imgui.calc_text_size('Clear').x-2*imgui.get_style().frame_padding.x)
             if imgui.button('Clear'):
                 self._task_prep = TaskDef()
-                self._task_GUI_cursor_pos = 0
-                self._task_GUI_selection_pos = [0, 0]
+                self._task_GUI_cursor_pos['payload'] = 0
+                self._task_GUI_selection_pos['payload'] = [0, 0]
+                self._task_GUI_cursor_pos['cwd'] = 0
+                self._task_GUI_selection_pos['cwd'] = [0, 0]
         imgui.end()
 
     def _imaging_GUI(self):
