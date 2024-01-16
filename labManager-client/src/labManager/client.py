@@ -119,14 +119,14 @@ class Client:
             running_tasks = [t.handler for m in self.masters for t in self.masters[m].task_list]
             close_waiters = [self.masters[m].writer.wait_closed() for m in self.masters]
             master_handlers = [self.masters[m].handler for m in self.masters]
-        await asyncio.wait(
-            tasks +
-            running_tasks +
-            close_waiters +
-            master_handlers +
-            ([self._ssdp_client.stop()] if self._ssdp_client else []),
-            timeout=2   # 2 s is long enough, then just abandon this
-        )
+        all_waiters = tasks + running_tasks + close_waiters + master_handlers
+        if self._ssdp_client:
+            all_waiters.append(self._ssdp_client.stop())
+        if all_waiters:
+            await asyncio.wait(
+                all_waiters,
+                timeout=2   # 2 s is long enough, then just abandon this
+            )
         # clear out state
         self._ssdp_discovery_task = None
         self._ssdp_client = None
