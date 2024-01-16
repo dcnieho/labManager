@@ -1,6 +1,4 @@
 import asyncio
-import aioshutil
-import aiopath
 import traceback
 import platform
 import pathlib
@@ -9,7 +7,7 @@ import json
 import threading
 from dataclasses import dataclass, field
 
-from labManager.common import async_thread, config, eye_tracker, file_actions, message, share, structs, task
+from labManager.common import config, eye_tracker, file_actions, message, share, structs, task
 from labManager.common.network import comms, ifs, keepalive, mdns, nmb, ssdp
 
 
