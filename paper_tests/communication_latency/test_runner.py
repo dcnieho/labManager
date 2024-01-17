@@ -18,8 +18,11 @@ class TestTask:
     num_char: int
 
 task_list: list[TestTask] = [
-    TestTask(2., 2, 2),
-    TestTask(4., 2, 20),
+    TestTask(1200., 60, 16),
+    TestTask(1200., 60, 64),
+    TestTask(1200., 60, 256),
+    TestTask(1200., 60, 768),
+    TestTask(6000., 60, 768),
 ]
 
 gui_container = labManager.master.GUIContainer()
