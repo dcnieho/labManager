@@ -347,7 +347,7 @@ class Master:
                     # client with this name is already connected, set future done
                     waiter.fut.set_result(None)
             case structs.WaiterType.Client_Connected_Nr:
-                if len(self.clients)==parameter:
+                if len([c for c in self.clients if self.clients[c].online])==parameter:
                     # condition already met, set future done
                     waiter.fut.set_result(None)
             case structs.WaiterType.Task:
