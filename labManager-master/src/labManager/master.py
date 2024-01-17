@@ -243,6 +243,7 @@ class Master:
             await self._ssdp_server.stop()
         if self._mnds_announcer_task and not self._mnds_announcer_task.done():
             self._mnds_announcer_task.cancel()
+        await asyncio.wait([self._mnds_announcer_task], timeout=1)
 
         with self.clients_lock:
             for c in self.clients:
