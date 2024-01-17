@@ -8,6 +8,7 @@ from aiosmb.commons.interfaces.share import SMBShare
 from aiosmb.commons.connection.target import SMBTarget
 from aiosmb.wintypes.access_mask import FileAccessMask
 
+from . import utils
 from .. import structs
 
 class AccessLevel(enum.IntFlag):
@@ -46,7 +47,7 @@ def _check_access(flags: FileAccessMask, level: AccessLevel):
 async def get_shares(server: str, user: str, password: str, domain='', check_access_level: AccessLevel=None, matching='', contains=None, remove_trailing='', ignored:list[str]=['IPC$']) -> list[structs.DirEntry]:
     shares: list[structs.DirEntry] = []
 
-    domain, user = get_domain_username(user, domain)
+    domain, user = utils.get_domain_username(user, domain)
     stage = 1
     try:
         smb_mgr = SMBConnectionFactory.from_components(server,username=user,secret=password, domain=domain, dialect='smb2')
@@ -107,7 +108,7 @@ async def get_shares(server: str, user: str, password: str, domain='', check_acc
     return shares
 
 async def check_share(server: str, user: str, password: str, share_name: str, domain='', check_access_level: AccessLevel=None):
-    domain, user = get_domain_username(user, domain)
+    domain, user = utils.get_domain_username(user, domain)
     stage = 1
     try:
         smb_mgr = SMBConnectionFactory.from_components(server,username=user,secret=password, domain=domain, dialect='smb2')
@@ -137,14 +138,3 @@ async def check_share(server: str, user: str, password: str, share_name: str, do
             raise RuntimeError(f'Error connecting to share "{share_name}" on server {server} when connected using domain "{domain}", user "{user}": {exc}')
 
     return False
-
-
-def get_domain_username(user: str, default_domain: str):
-    # figure out domain from user (format domain\user)
-    # if no domain found in user string, use default_domain
-    domain = default_domain
-    if '\\' in user:
-        dom, user = user.split('\\', maxsplit=1)
-        if dom:
-            domain = dom
-    return domain, user

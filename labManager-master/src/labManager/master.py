@@ -12,6 +12,7 @@ from typing import Any, Callable
 
 from labManager.common import async_thread, config, counter, eye_tracker, file_actions, message, structs, task
 from labManager.common.network import admin_conn, comms, ifs, keepalive, mdns, smb, ssdp, toems
+from labManager.common.network import utils as net_utils
 
 __version__ = '0.9.0'
 
@@ -160,7 +161,7 @@ class Master:
             self.toems = toems_
 
             # check share access
-            domain, user = smb.get_domain_username(self.admin.user['full_name'], config.master["SMB"]["domain"])
+            domain, user = net_utils.get_domain_username(self.admin.user['full_name'], config.master["SMB"]["domain"])
             self.has_share_access = file_actions.check_share(config.master["SMB"]["server"], project+config.master["SMB"]["projects"]["remove_trailing"],
                                                              user, self.password, domain)
 
@@ -638,7 +639,7 @@ class Master:
         if self.has_share_access and 'SMB' in config.master and config.master['SMB']['mount_share_on_client']:
             # check if we're allowed to issue mount command to this client
             if (config.master['SMB']['mount_only_known_clients'] and self.clients[client_id].known) or not config.master['SMB']['mount_only_known_clients']:
-                domain, user = smb.get_domain_username(self.admin.user['full_name'], config.master["SMB"]["domain"])
+                domain, user = net_utils.get_domain_username(self.admin.user['full_name'], config.master["SMB"]["domain"])
                 await self.client_mount_share(
                     client, drive=config.master['SMB']['mount_drive_letter'],
                     share_path=f'\\\\{config.master["SMB"]["server"]}\{self.project}{config.master["SMB"]["projects"]["remove_trailing"]}',
@@ -744,8 +745,7 @@ class Master:
                                {'net_name': net_name.strip('\\/'),  # support SERVER, \\SERVER, \\SERVER\, //SERVER and //SERVER/
                                 'user': user,
                                 'password': password,
-                                'domain': domain,
-                                'access_level': access_level})
+                                'domain': domain})
 
     async def _send_file_action(self, client: structs.Client, action: message.Message, msg: dict[str, str]):
         if not client.online:
