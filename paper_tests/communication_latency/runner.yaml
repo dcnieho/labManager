@@ -3,8 +3,7 @@ network: 10.0.1.0/24
 
 service_discovery_protocol: MDNS
 MDNS:
-    service: _labManager._tcp.local.
-    name: master
+    service: _master._labManager._tcp.local.
 
 login:
     hint: lucat id, without @lu.se
