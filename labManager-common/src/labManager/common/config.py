@@ -8,7 +8,6 @@ _master_schema = s.Map({
     'service_discovery_protocol':  s.Enum(['MDNS','SSDP']),
     s.Optional('MDNS'): s.Map({
         'service': s.Str(),
-        'name': s.Str(),
     }),
     s.Optional('SSDP'): s.Map({
         'device_type': s.Str(),
@@ -76,7 +75,6 @@ _client_schema = s.Map({
     'service_discovery_protocol': s.Str(),
     s.Optional('MDNS'): s.Map({
         'service': s.Str(),
-        'name': s.Str(),
     }),
     s.Optional('SSDP'): s.Map({
         'device_type': s.Str(),

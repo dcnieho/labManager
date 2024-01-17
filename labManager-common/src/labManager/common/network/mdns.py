@@ -62,7 +62,7 @@ class Announcer:
 
 
 class Discoverer:
-    def __init__(self, ip_network: str|ipaddress.IPv4Network, service: str, wanted_name: str, response_handler = None):
+    def __init__(self, ip_network: str|ipaddress.IPv4Network, service: str, response_handler = None):
         network = ipaddress.IPv4Network(ip_network)
         if network.num_addresses > 512:
             raise ValueError(f'Too many addresses in network {ip_network}')
@@ -70,7 +70,6 @@ class Discoverer:
         self._if_ip             : str                       = None
 
         self.service            : str                       = service
-        self.wanted_name        : str                       = wanted_name
         self._response_handler                              = response_handler
         self._response_handler_tasks: set[asyncio.Future]   = set()
 
@@ -95,9 +94,6 @@ class Discoverer:
     def _on_service_state_change(self, zeroconf: Zeroconf, service_type: str, name: str, state_change: ServiceStateChange):
         # NB: updated may occur is master just disappeared without deregistering
         if state_change not in [ServiceStateChange.Added, ServiceStateChange.Updated]:
-            return
-        # check wanted service name (if looking for master of type _labManager._tcp.local. but get some other in the _labManager space, ignore)
-        if name.removesuffix('.'+service_type) != self.wanted_name:
             return
         async_thread.run(self._process_new_service(zeroconf, service_type, name))
 

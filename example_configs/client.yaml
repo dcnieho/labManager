@@ -6,7 +6,6 @@ network_retry:
 
 service_discovery_protocol: MDNS
 MDNS:
-    service: _labManager._tcp.local.
-    name: master
+    service: _master._labManager._tcp.local.
 SSDP:
     device_type: urn:schemas-upnp-org:device:labManager

@@ -6,6 +6,7 @@ import sys
 import threading
 import json
 import pathlib
+import platform
 import unicodedata
 import time
 from typing import Any, Callable
@@ -224,7 +225,7 @@ class Master:
             self._mnds_announcer = mdns.Announcer(
                 ip_network=config.master['network'],
                 service=config.master['MDNS']['service'],
-                name=config.master['MDNS']['name'],
+                name=f'{platform.node()}_{self.address[0][0].split(".")[-1]}_{self.address[0][1]}',
                 address=self.address[0])
             self._mnds_announcer_task = asyncio.create_task(self._mnds_announcer.run())
 
