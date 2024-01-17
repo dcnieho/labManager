@@ -241,6 +241,8 @@ class Master:
     async def stop_server(self):
         if self._ssdp_server is not None:
             await self._ssdp_server.stop()
+        if self._mnds_announcer_task and not self._mnds_announcer_task.done():
+            self._mnds_announcer_task.cancel()
 
         with self.clients_lock:
             for c in self.clients:
