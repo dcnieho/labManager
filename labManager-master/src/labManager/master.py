@@ -11,7 +11,7 @@ import time
 from typing import Any, Callable
 
 from labManager.common import async_thread, config, counter, eye_tracker, file_actions, message, structs, task
-from labManager.common.network import admin_conn, comms, ifs, keepalive, mdns, smb, ssdp, toems
+from labManager.common.network import admin_conn, comms, ifs, keepalive, mdns, ssdp, toems
 from labManager.common.network import utils as net_utils
 
 __version__ = '0.9.0'
@@ -737,7 +737,7 @@ class Master:
         await comms.typed_send(client.online.writer, message.Message.FILE_GET_LISTING,
                                {'path': path})
 
-    async def get_client_remote_shares(self, client: structs.Client, net_name: str, user: str = 'Guest', password: str = '', domain: str = '', access_level: smb.AccessLevel = smb.AccessLevel.READ):
+    async def get_client_remote_shares(self, client: structs.Client, net_name: str, user: str = 'Guest', password: str = '', domain: str = ''):
         # list shares on specified target machine that are accessible from this client
         if not client.online:
             return
