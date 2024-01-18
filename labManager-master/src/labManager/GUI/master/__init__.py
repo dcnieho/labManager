@@ -1364,14 +1364,14 @@ class MainGUI:
             if not self._file_commander:
                 file_action_provider_args = {'network': config.master['network'], 'master': self.master}
                 self._file_commander = file_commander.FileCommander(mainGUI=self, master=self.master, selected_clients=self.selected_computers, file_action_provider_args=file_action_provider_args, title="Start copy action")
-            win_name = f'{self._file_commander.title}##file_commander'
-            self._file_commander.win_name = win_name
-            if win := hello_imgui.get_runner_params().docking_params.dockable_window_of_name(win_name):
+                self._file_commander.win_name = f'{self._file_commander.title}##file_commander'
+            if win := hello_imgui.get_runner_params().docking_params.dockable_window_of_name(self._file_commander.win_name):
                 win.focus_window_at_next_frame = True
+                self._file_commander._is_visible = True
             else:
                 window_list = hello_imgui.get_runner_params().docking_params.dockable_windows
                 new_window = hello_imgui.DockableWindow()
-                new_window.label = win_name
+                new_window.label = self._file_commander.win_name
                 new_window.gui_function = self._file_commander.draw
                 new_window.can_be_closed = True
                 new_window.imgui_window_flags = imgui.WindowFlags_.no_collapse
@@ -1379,7 +1379,7 @@ class MainGUI:
                 new_window.window_size_condition = imgui.Cond_.appearing
                 window_list.append(new_window)
                 self._window_list = window_list
-                self._to_focus= win_name
+                self._to_focus = self._file_commander.win_name
         if disabled:
             utils.pop_disabled()
             utils.draw_hover_text('You should select at least one running client to perform the actions on', text='', hovered_flags=imgui.HoveredFlags_.allow_when_disabled)
