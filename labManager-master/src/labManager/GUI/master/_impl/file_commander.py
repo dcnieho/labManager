@@ -25,7 +25,7 @@ class FileCommander:
 
         # get first selected client, open file pickers to that location
         with self.master.clients_lock:
-            client_name = next(self.master.clients[c].name for c in self.selected_clients if self.selected_clients[c])
+            client_name = next(self.master.clients[c].name for c in self.selected_clients if self.selected_clients[c] and c in self.master.clients and self.master.clients[c].online)
         file_action_provider = filepicker.FileActionProvider(**file_action_provider_args)   # share file action provider
         self.left  = filepicker.FilePicker(start_machine=client_name, start_dir=start_dir_left , file_action_provider=file_action_provider)
         self.right = filepicker.FilePicker(start_machine=client_name, start_dir=start_dir_right, file_action_provider=file_action_provider)
