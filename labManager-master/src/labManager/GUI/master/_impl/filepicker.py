@@ -489,8 +489,6 @@ class FilePicker:
             else:
                 self.items = items.copy()
                 self.selected = {k:False for k in self.items}
-                if not self.items:
-                    self.msg = "This folder is empty!"
 
         # if refreshed the same directory, restore old selection
         self._select_paths(previously_selected)
