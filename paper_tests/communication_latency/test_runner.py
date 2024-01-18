@@ -21,8 +21,10 @@ task_list: list[TestTask] = [
     TestTask(1200., 60, 16),
     TestTask(1200., 60, 64),
     TestTask(1200., 60, 256),
-    TestTask(1200., 60, 768),
-    TestTask(6000., 60, 768),
+    TestTask(1200., 60, 1024),
+    TestTask(1200., 60, 5120),
+    TestTask(4800., 60, 1024),
+    TestTask(4800., 60, 5120),
 ]
 
 gui_container = labManager.master.GUIContainer()
