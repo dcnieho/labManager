@@ -1356,7 +1356,9 @@ class MainGUI:
         imgui.end()
 
     def _file_GUI(self):
-        if disabled := not any(self.selected_computers.values()):
+        with self.master.clients_lock:
+            selected_clients = [cid for cid in self.selected_computers if self.selected_computers[cid] and cid in self.master.clients and self.master.clients[cid].online]
+        if disabled := not selected_clients:
             utils.push_disabled()
         if imgui.button('Start new action'):
             if not self._file_commander:
@@ -1380,7 +1382,7 @@ class MainGUI:
                 self._to_focus= win_name
         if disabled:
             utils.pop_disabled()
-            utils.draw_hover_text('You should select at least one client to perform the actions on', text='', hovered_flags=imgui.HoveredFlags_.allow_when_disabled)
+            utils.draw_hover_text('You should select at least one running client to perform the actions on', text='', hovered_flags=imgui.HoveredFlags_.allow_when_disabled)
         imgui.text('Task overview:')
         imgui.begin_child("##file_actions")
         table_flags = (
