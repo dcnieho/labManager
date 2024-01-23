@@ -698,7 +698,7 @@ class MainGUI:
             imgui.pop_text_wrap_pos()
             imgui.end_group()
             imgui.same_line()
-            imgui.dummy((_60, _230))
+            imgui.dummy((width-imgui.get_cursor_pos_x(), _230))
             imgui.end_group()
             imgui.spacing()
             btn_tot_width = (width - 2*imgui.get_style().item_spacing.x)
