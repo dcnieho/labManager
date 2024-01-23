@@ -264,6 +264,8 @@ class MainGUI:
 
     def _update_windows(self):
         if not self.running:
+            # apply theme
+            hello_imgui.apply_theme(hello_imgui.ImGuiTheme_.darcula_darker)
             # fix up the style: fully opaque window backgrounds
             window_bg = imgui.get_style().color_(imgui.Col_.window_bg)
             window_bg.w = 1
