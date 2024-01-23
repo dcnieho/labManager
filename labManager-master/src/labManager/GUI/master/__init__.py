@@ -838,6 +838,8 @@ class MainGUI:
                         if t not in [task.Type.Batch_file, task.Type.Python_script]:
                             self._task_prep.payload_type = 'text'
                             self._task_prep.payload_text = utils.trim_str(self._task_prep.payload_text)
+                            self._task_GUI_cursor_pos['payload'] = 0
+                            self._task_GUI_selection_pos['payload'] = [0, 0]
                     if t in [task.Type.Shell_command, task.Type.Process_exec, task.Type.Python_module]:
                         self._task_history_payload.items[-1] = self._task_prep.payload_text
                         self._task_history_payload.pos = -1
@@ -879,17 +881,35 @@ class MainGUI:
                         data.delete_chars(0, data.buf_text_len)
                         data.insert_chars(0, hist.items[hist.pos])
                 return 0
-            def append_path(this: MainGUI, which: str, path: str):
+            def insert_path(this: MainGUI, which: str, path: str):
                 tsk = this._task_prep
                 if which=='payload':
                     txt = tsk.payload_text
                 elif which=='cwd':
                     txt = tsk.cwd
-                if this._task_GUI_selection_pos[which][1]!=this._task_GUI_selection_pos[which][0]:
-                    # selection, remove that part of the text
-                    txt = tsk.payload_text[0:this._task_GUI_selection_pos[which][0]] + txt[this._task_GUI_selection_pos[which][1]:]
-                    this._task_GUI_cursor_pos[which] = this._task_GUI_selection_pos[which][0] # would be at wrong position if selection was grown right-to-left
-                txt = txt[:this._task_GUI_cursor_pos[which]] + str(path[0]) + txt[this._task_GUI_cursor_pos[which]:]
+                if isinstance(self._task_GUI_cursor_pos[which], list):
+                    # command_editor, has a row:column position
+                    lines = txt.splitlines(keepends=True)
+                    if this._task_GUI_editor.has_selection():
+                        # convert to indices into the whole string
+                        s1 = this._task_GUI_selection_pos[which][0]
+                        s1 = sum([len(x) for x in lines[0:s1[0]]])+s1[1]
+                        s2 = this._task_GUI_selection_pos[which][1]
+                        s2 = sum([len(x) for x in lines[0:s2[0]]])+s2[1]
+                        txt = tsk.payload_text[0:s1] + txt[s2:]
+                        this._task_GUI_cursor_pos[which] = this._task_GUI_selection_pos[which][0] # would be at wrong position if selection was grown right-to-left
+                        this._task_GUI_editor.clear_selections()
+                    # convert to indices into the whole string
+                    cp = this._task_GUI_cursor_pos[which]
+                    cp = sum([len(x) for x in lines[0:cp[0]]])+cp[1]
+                    txt = txt[:cp] + str(path[0]) + txt[cp:]
+                else:
+                    # normal edit box
+                    if this._task_GUI_selection_pos[which][1]!=this._task_GUI_selection_pos[which][0]:
+                        # selection, remove that part of the text
+                        txt = tsk.payload_text[0:this._task_GUI_selection_pos[which][0]] + txt[this._task_GUI_selection_pos[which][1]:]
+                        this._task_GUI_cursor_pos[which] = this._task_GUI_selection_pos[which][0] # would be at wrong position if selection was grown right-to-left
+                    txt = txt[:this._task_GUI_cursor_pos[which]] + str(path[0]) + txt[this._task_GUI_cursor_pos[which]:]
                 if which=='payload':
                     tsk.payload_text = txt
                 elif which=='cwd':
@@ -949,12 +969,16 @@ class MainGUI:
                         imgui.same_line()
                         if imgui.small_button("Insert path##payload"):
                             fap = filepicker.FileActionProvider(network=config.master['network'], master=self.master)
-                            utils.push_popup(self, filepicker.FilePicker(title='Select path to insert', allow_multiple=False, file_action_provider=fap, callback=lambda path: append_path(self, 'payload', path)))
+                            utils.push_popup(self, filepicker.FilePicker(title='Select path to insert', allow_multiple=False, file_action_provider=fap, callback=lambda path: insert_path(self, 'payload', path)))
 
                         text_x = top_right.x - line_height * 6.
                         imgui.set_cursor_pos((text_x, text_y))
-                        pos = self._task_GUI_editor.get_cursor_position()
-                        imgui.text(f"L:{pos.m_line+1:3d} C:{pos.m_column+1:3d}")
+                        cursor_pos = self._task_GUI_editor.get_cursor_position()
+                        imgui.text(f"L:{cursor_pos.m_line+1:3d} C:{cursor_pos.m_column+1:3d}")
+                        s1 = self._task_GUI_editor.get_selection_start()
+                        s2 = self._task_GUI_editor.get_selection_end()
+                        self._task_GUI_cursor_pos['payload'] = [cursor_pos.m_line, cursor_pos.m_column]
+                        self._task_GUI_selection_pos['payload'] = [[s1.m_line, s1.m_column], [s2.m_line, s2.m_column]]
 
                         imgui.set_cursor_pos((top_right.x - line_height * 1.5, top_right.y))
                         if imgui.button(icons_fontawesome.ICON_FA_COPY):
@@ -986,7 +1010,7 @@ class MainGUI:
                         imgui.same_line()
                         if imgui.small_button("Insert path##payload"):
                             fap = filepicker.FileActionProvider(network=config.master['network'], master=self.master)
-                            utils.push_popup(self, filepicker.FilePicker(title='Select path to insert', allow_multiple=False, file_action_provider=fap, callback=lambda path: append_path(self, 'payload', path)))
+                            utils.push_popup(self, filepicker.FilePicker(title='Select path to insert', allow_multiple=False, file_action_provider=fap, callback=lambda path: insert_path(self, 'payload', path)))
                         imgui.push_font(imgui_md.get_code_font())
                         imgui.set_next_item_width(width)
                         enter_pressed, self._task_prep.payload_text = imgui.input_text(f'##{field_name}', self._task_prep.payload_text, flags=imgui.InputTextFlags_.enter_returns_true|imgui.InputTextFlags_.callback_always|imgui.InputTextFlags_.callback_edit|imgui.InputTextFlags_.callback_history, callback=lambda x: edit_callback(self, 'payload', x))
@@ -1021,7 +1045,7 @@ class MainGUI:
                 imgui.same_line()
                 if imgui.small_button("Insert path##cwd"):
                     fap = filepicker.FileActionProvider(network=config.master['network'], master=self.master)
-                    utils.push_popup(self, filepicker.FilePicker(title='Select path to insert', allow_multiple=False, file_action_provider=fap, callback=lambda path: append_path(self, 'cwd', path)))
+                    utils.push_popup(self, filepicker.FilePicker(title='Select path to insert', allow_multiple=False, file_action_provider=fap, callback=lambda path: insert_path(self, 'cwd', path)))
                 imgui.push_font(imgui_md.get_code_font())
                 imgui.set_next_item_width(width)
                 enter_pressed2, self._task_prep.cwd = imgui.input_text('##cwd', self._task_prep.cwd, flags=imgui.InputTextFlags_.enter_returns_true|imgui.InputTextFlags_.callback_always|imgui.InputTextFlags_.callback_edit|imgui.InputTextFlags_.callback_history, callback=lambda x: edit_callback(self, 'cwd', x))
