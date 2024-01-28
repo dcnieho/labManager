@@ -2,6 +2,7 @@ name: Build readme
 
 
 on:
+  workflow_dispatch:
   push:
     paths:
       - README-source.adoc
