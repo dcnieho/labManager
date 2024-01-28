@@ -1,0 +1,16 @@
+= My test document
+
+== Header 1
+
+Some text
+
+extra text
+---
+
+:leveloffset: 1
+
+== Header 2
+
+More text
+
+:leveloffset!:
