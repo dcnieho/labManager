@@ -1,5 +1,10 @@
+include::./README-var-setup.adoc[]
+
 image:https://img.shields.io/pypi/v/labManager-{tool-name}.svg[PyPI Latest Release, link=https://pypi.org/project/labManager-{tool-name}/] image:https://img.shields.io/pypi/pyversions/labManager-{tool-name}.svg[Python version support, link=https://pypi.org/project/labManager-{tool-name}/]
 
 == labManager v1.0.0
 System for managing multi-station multi-tenant lab setups - {tool-name}
 ifdef::extra-tool-info[ {extra-tool-info}]
+
+=== Example script
+An example script for running the labManager {tool-name} script is link:{repo-home}/example-scripts/[provided here].

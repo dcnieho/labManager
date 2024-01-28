@@ -1,0 +1,2 @@
+:repo-home: https://github.com/dcnieho/labManager/tree/master
+:doc-images: https://github.com/dcnieho/labManager/raw/master/docs

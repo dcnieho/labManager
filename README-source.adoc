@@ -1,5 +1,4 @@
-:repo-home: https://github.com/dcnieho/labManager/tree/master
-:doc-images: https://github.com/dcnieho/labManager/raw/master/docs
+include::./docs/README-var-setup.adoc[]
 
 == labManager v1.0.0
 Master/client software for managing multi-station multi-tenant lab setups for image:https://img.shields.io/pypi/pyversions/labManager-common.svg[Python version support, link=https://pypi.org/project/labManager-common/].
@@ -30,7 +29,7 @@ Specifically, the labManager tools provide a way to manage lab facilities which 
 .. Launching tasks on selected computer stations. This includes interactive tasks, such as a remote shell.
 .. File management. Through a https://www.ghisler.com/[Total Commander]-like interface, users are able to execute file management actions on one or multiple computer stations. This, for instance, makes it possible to easily deploy experiment files to multiple lab computers and to collect data from multiple lab computers.
 
-The labManager master tool provides this functionality through a convenient GUI, but all its functionality is also accessible by means of Python scripts. See link:{repo-home}/example_scripts/master_from_script.py[here] and link:{repo-home}/paper_tests/communication_latency/test_runner.py[here] for example scripts.
+The labManager master tool provides this functionality through a convenient GUI, but all its functionality is also accessible by means of Python scripts. See link:{repo-home}/example-scripts/master-from-script.py[here] and link:{repo-home}/paper_tests/communication_latency/test_runner.py[here] for example scripts.
 
 To provide this functionality in a secure way, labManager makes use of LDAP for user authentication so that an institute's existing authentication infrastructure can be used instead of requiring the creation and management of credentials for users just for a specific lab facility. Through group membership information encoded in the LDAP directory, it is also possible for a user to access multiple projects, and for multiple users to share the same project. labManager master can run in a reduced functionality mode that does not require user authentication. In this mode, only the remote computer station management capabilities are available.
 
@@ -44,7 +43,7 @@ The tools are:
 . link:{repo-home}/labManager-client/[labManager client]: client software that should run on each computer station that is to be controlled by labManager master. It connects to the labManager master tool, and executes its commands.
 . link:{repo-home}/labManager-admin-server/[labManager admin-server]: an admin server tool that handles tasks that require elevated privileges, such as user authentication and certain disk image management operations. This admin server should run on a computer that is not user-accessible as its configuration requires secrets (such as credentials with admin privileges for the LDAP and Theopenem environments) that users should not be able to access.
 
-Details about each of these tools is provided in their respective READMEs (click the above links). The READMEs describe how each of these tools can be configured. Example configuration files are available link:{repo-home}/example_configs/[here].
+Details about each of these tools is provided in their respective READMEs (click the above links). The READMEs describe how each of these tools can be configured. Example configuration files are available link:{repo-home}/example-configs/[here].
 
 labManager client instances discover any running labManager master instances by means of zero configuration networking (zeroconf), either mDNS or SSDP.
 
@@ -55,10 +54,10 @@ Facility staff should perform the initial setup of the labManager tools. Specifi
 
 . Required actions:
 - Deploy https://theopenem.com[Theopenem] and the link:{repo-home}/labManager-admin-server/[labManager admin-server] to a suitable secure system.
-- Configure the labManager admin-server to point it to the Theopenem instance and to where the institute's LDAP infrastructure can be found, see link:{repo-home}/example_configs/admin_server.yaml[the example configuration file].
+- Configure the labManager admin-server to point it to the Theopenem instance and to where the institute's LDAP infrastructure can be found, see link:{repo-home}/example-configs/admin-server.yaml[the example configuration file].
 - Provide the labManager admin-server with the required credentials to the Theopenem installation and the institute's LDAP environment.
 . Recommended actions:
-- Provide a user accessible computer on which link:{repo-home}/labManager-master/[labManager master] is installed, ideally including a configuration file that tells the tool how to connect to the labManager admin-server, provides a list of known computer stations and provides pre-filled actions that users are likely to wish to perform on these computer stations. See link:{repo-home}/example_configs/master.yaml[the example configuration file].
+- Provide a user accessible computer on which link:{repo-home}/labManager-master/[labManager master] is installed, ideally including a configuration file that tells the tool how to connect to the labManager admin-server, provides a list of known computer stations and provides pre-filled actions that users are likely to wish to perform on these computer stations. See link:{repo-home}/example-configs/master.yaml[the example configuration file].
 - Provide a disk image that users of the facility can use as a basis for their own project environment. This image should have the link:{repo-home}/labManager-client/[labManager client] tool integrated, and as a service may include other tools commonly used in the facility.
 
 ==== Facility users
