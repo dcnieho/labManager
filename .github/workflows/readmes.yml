@@ -28,7 +28,6 @@ jobs:
           for i in "${myarray[@]}"; do
             echo "Processing: ${i}"
             asciidoctor-reducer -o ${i}/README.adoc ${i}/README-source.adoc
-            ls ${i}
           done
 
     # now convert asciidoc to markdown
@@ -46,13 +45,12 @@ jobs:
           for i in "${myarray[@]}"; do
             echo "Processing: ${i}"
             npx downdoc -o ${i}/README.md ${i}/README.adoc
-            ls ${i}
           done
 
     # done, commit
       - name: Commit readme
         uses: EndBug/add-and-commit@v9
         with:
-          add: '["README.adoc", "test.md"]'
+          add: '["./*README.adoc", "./*README.md"]'
           author_name: Diederick Niehorster
           author_email: dcnieho@gmail.com
