@@ -1013,10 +1013,28 @@ class MainGUI:
                         if imgui.small_button("Insert path##payload"):
                             fap = filepicker.FileActionProvider(network=config.master['network'], master=self.master)
                             utils.push_popup(self, filepicker.FilePicker(title='Select path to insert', allow_multiple=False, file_action_provider=fap, callback=lambda path: insert_path(self, 'payload', path)))
+                        imgui.set_next_item_width(width-imgui.get_frame_height_with_spacing())    # space for arrow button
                         imgui.push_font(imgui_md.get_code_font())
-                        imgui.set_next_item_width(width)
                         enter_pressed, self._task_prep.payload_text = imgui.input_text(f'##{field_name}', self._task_prep.payload_text, flags=imgui.InputTextFlags_.enter_returns_true|imgui.InputTextFlags_.callback_always|imgui.InputTextFlags_.callback_edit|imgui.InputTextFlags_.callback_history, callback=lambda x: edit_callback(self, 'payload', x))
                         imgui.pop_font()
+                        imgui.same_line()
+                        disabled = len(self._task_history_payload.items)<=1
+                        if disabled:
+                            utils.push_disabled()
+                        button_pos = imgui.get_cursor_screen_pos()
+                        if imgui.arrow_button('##payload_history_button', imgui.Dir_.down):
+                            imgui.set_next_window_pos([x+y for x,y in zip(button_pos,(0,imgui.get_frame_height_with_spacing()))])
+                            imgui.open_popup('##payload_history_popup')
+                        if imgui.begin_popup('##payload_history_popup'):
+                            idx = self._task_history_payload.pos
+                            if idx==-1:
+                                idx = len(self._task_history_payload.items)-1
+                            changed, idx = imgui.list_box('##payload_history_popup_select',idx,self._task_history_payload.items)
+                            if changed:
+                                imgui.close_current_popup()
+                            imgui.end_popup()
+                        if disabled:
+                            utils.pop_disabled()
                 else:
                     imgui.push_font(imgui_md.get_code_font())
                     imgui.set_next_item_width(width)

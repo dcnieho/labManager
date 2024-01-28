@@ -5,7 +5,10 @@ on:
   workflow_dispatch:
   push:
     paths:
-      - README-source.adoc
+      - '**.adoc'
+
+env:
+  DIRLIST: './labManager-client/README.adoc,./labManager-master/README.adoc'
 
 
 jobs:
@@ -20,7 +23,12 @@ jobs:
         uses: actions/checkout@v2
 
       - name: Reduce readme
-        run: asciidoctor-reducer -o README.adoc README-source.adoc
+        run: |
+          IFS="," read -a myarray <<< ${{ env.DIRLIST }}
+          for i in "${myarray[@]}"; do
+            echo "Processing: ${i}"
+            asciidoctor-reducer -o ${i}/README.adoc ${i}/README-source.adoc
+          done
 
     # now convert asciidoc to markdown
       - name: Install Node.js
@@ -32,7 +40,12 @@ jobs:
         run: npm i downdoc
 
       - name: Convert asciidoc to markdown
-        run: npx downdoc -o test.md README.adoc
+        run: |
+          IFS="," read -a myarray <<< ${{ env.DIRLIST }}
+          for i in "${myarray[@]}"; do
+            echo "Processing: ${i}"
+            npx downdoc -o ${i}/README.md ${i}/README.adoc
+          done
 
     # done, commit
       - name: Commit readme
