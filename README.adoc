@@ -1,9 +1,11 @@
+:repo-home: https://github.com/dcnieho/labManager/tree/master
+
 == labManager v1.0.0
 Master/client software for managing multi-station multi-tenant lab setups for image:https://img.shields.io/pypi/pyversions/labManager-common.svg[Python version support, link=https://pypi.org/project/labManager-common/].
 
-labManager consists of two tools, image:https://img.shields.io/pypi/v/labManager-master.svg?label=labManager-master[PyPI Latest Release, link=./labManager-master/] and image:https://img.shields.io/pypi/v/labManager-client.svg?label=labManager-client[PyPI Latest Release, link=./labManager-client/] and a third, optional, server component image:https://img.shields.io/pypi/v/labManager-admin-server.svg?label=labManager-admin-server[PyPI Latest Release, link=./labManager-admin-server/].
+labManager consists of two tools, image:https://img.shields.io/pypi/v/labManager-master.svg?label=labManager-master[PyPI Latest Release, link={repo-home}/labManager-master/] and image:https://img.shields.io/pypi/v/labManager-client.svg?label=labManager-client[PyPI Latest Release, link={repo-home}/labManager-client/] and a third, optional, server component image:https://img.shields.io/pypi/v/labManager-admin-server.svg?label=labManager-admin-server[PyPI Latest Release, link={repo-home}/labManager-admin-server/].
 
-Under the hood, these three tools use shared functionality provided by image:https://img.shields.io/pypi/v/labManager-common.svg?label=labManager-common[PyPI Latest Release, link=./labManager-admin-server/].
+Under the hood, these three tools use shared functionality provided by image:https://img.shields.io/pypi/v/labManager-common.svg?label=labManager-common[PyPI Latest Release, link={repo-home}/labManager-common/].
 
 Please see the readme of these respective tools for details about them. This document will describe the overall labManager functionality and architecture. For a more detailed description of its use case, please see Niehorster et al. (in prep), the paper cited below.
 
@@ -25,7 +27,18 @@ Specifically, the labManager tools provide a way to manage lab facilities which 
 .. Launching tasks on selected computer stations. This includes interactive tasks, such as a remote shell.
 .. File management. Through a https://www.ghisler.com/[Total Commander]-like interface, users are able to execute file management actions on one or multiple computer stations. This, for instance, enables to easily deploy experiment files to multiple lab computers and to collect data from multiple lab computers.
 
-The labManager master tool provides this functionality through a convenient GUI, but all its functionality is also accessible by means of Python scripts. See link:/example_scripts/master_from_script.py[here] and link:/paper_tests/communication_latency/test_runner.py[here] for example scripts.
+The labManager master tool provides this functionality through a convenient GUI, but all its functionality is also accessible by means of Python scripts. See link:{repo-home}/example_scripts/master_from_script.py[here] and link:{repo-home}/paper_tests/communication_latency/test_runner.py[here] for example scripts.
 
 To provide this functionality in a secure way, labManager makes use of LDAP for user authentication so that an institute's existing authentication infrastructure can be used instead of creating new credentials for users just for a specific lab facility. Through information encoded in the LDAP directory, it is also possible for a user to access multiple projects, and for multiple users to share the same project. labManager master can run in a reduced functionality mode without requiring user authentication. In this mode, only the remote computer station management capabilities are available.
 
+=== Architecture
+labManager consists of three tools, which are related according to the below image:
+image:{repo-home}/docs/tools.png[Tool relations]
+
+The tools are:
+
+. link:{repo-home}/labManager-master/[labManager master]: the main controller software (with optional GUI) through which users perform disk image management for their project and remotely administer computer stations.
+. link:{repo-home}/labManager-client/[labManager client]: client software that should run on each computer station that is to be controlled by labManager master.
+. link:{repo-home}/labManager-admin-server/[labManager admin-server]: an admin server tool that handles tasks that require elevated privileges, such as user authentication and certain disk image management operations. This admin server should run on a computer that is not user-accessible as its configuration requires secrets (such as credentials to the LDAP and Theopenem environments) that users should not be able to access.
+
+=== Usage
