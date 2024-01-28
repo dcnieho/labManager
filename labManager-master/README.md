@@ -1,7 +1,8 @@
 ![PyPI Latest Release](https://img.shields.io/pypi/v/labManager-master.svg) ![Python version support](https://img.shields.io/pypi/pyversions/labManager-master.svg)
 
 ## labManager v1.0.0
-System for managing multi-station multi-tenant lab setups - masterifdef::extra-tool-info[ {extra-tool-info}].
+System for managing multi-station multi-tenant lab setups - master
+.
 
 ### Standalone deployment
 One simple way to make a standalone install of the app is to download [WinPython](https://winpython.github.io/), e.g. the latest 3.10.x version.
