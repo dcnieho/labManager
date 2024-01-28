@@ -36,4 +36,8 @@ jobs:
 
     # done, commit
       - name: Commit readme
-        uses: EndBug/add-and-commit@v8
+        uses: EndBug/add-and-commit@v9
+        with:
+          add: '["README.adoc", "test.md"]'
+          author_name: Diederick Niehorster
+          author_email: dcnieho@gmail.com
