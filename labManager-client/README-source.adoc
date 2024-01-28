@@ -2,4 +2,8 @@
 
 include::../docs/README-common.adoc[]
 
+include::../docs/README-common-tools.adoc[]
+
+=== Configuration
+
 include::../docs/README-standalone.adoc[]

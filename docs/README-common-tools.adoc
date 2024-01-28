@@ -1,0 +1,2 @@
+=== Example script
+An example script for running the labManager {tool-name} script is link:{repo-home}/example-scripts/{tool-name}.py[provided here].
