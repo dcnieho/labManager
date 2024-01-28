@@ -1,4 +1,4 @@
-:tool-name: client
+:tool-name: admin-server
 
 include::../docs/README-common.adoc[]
 

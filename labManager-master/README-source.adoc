@@ -1,3 +1,5 @@
 :tool-name: master
 
-include::../README-common.adoc[]
+include::../docs/README-common.adoc[]
+
+include::../docs/README-standalone.adoc[]

@@ -1,3 +1,0 @@
-== Header 2
-
-More text

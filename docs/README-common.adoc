@@ -2,4 +2,3 @@ image:https://img.shields.io/pypi/v/labManager-{tool-name}.svg[PyPI Latest Relea
 
 == labManager v1.0.0
 System for managing multi-station multi-tenant lab setups - {tool-name}.
-
