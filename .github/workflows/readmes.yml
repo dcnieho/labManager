@@ -4,9 +4,7 @@ name: Build readme
 on:
   push:
     paths:
-      - readme-source.adoc
-    branches:
-      - '**'
+      - README-source.adoc
 
 
 jobs:
