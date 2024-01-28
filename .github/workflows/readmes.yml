@@ -8,7 +8,8 @@ on:
       - '**.adoc'
 
 env:
-  DIRLIST: './labManager-admin-server/,./labManager-client/,./labManager-common/,./labManager-master/'
+  DIRLIST: './,./labManager-admin-server/,./labManager-client/,./labManager-common/,./labManager-master/'
+  DIRLIST_MD: './labManager-admin-server/,./labManager-client/,./labManager-common/,./labManager-master/'
 
 
 jobs:
@@ -41,7 +42,7 @@ jobs:
 
       - name: Convert asciidoc to markdown
         run: |
-          IFS="," read -a myarray <<< ${{ env.DIRLIST }}
+          IFS="," read -a myarray <<< ${{ env.DIRLIST_MD }}
           for i in "${myarray[@]}"; do
             echo "Processing: ${i}"
             npx downdoc -o ${i}/README.md ${i}/README.adoc
