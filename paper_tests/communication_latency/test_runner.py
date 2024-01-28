@@ -30,7 +30,6 @@ task_list: list[TestTask] = [
 gui_container = labManager.master.GUIContainer()
 
 async def runner(master: labManager.master.Master):
-    # NB: when using GUI login flow, GUI takes care of starting server
     print('starting server for communicating with clients... ', end='')
     await master.start_server()
     print('done')
@@ -70,7 +69,7 @@ async def runner(master: labManager.master.Master):
     # schedule tasks and get task ids
     print('scheduling tasks... ', end='')
     res = await asyncio.gather(*coros)
-    task_ids = [tid  for tids in res for tid in tids[1]]
+    task_ids = [tid for tids in res for tid in tids[1]]
     print('done')
 
     # wait till all are done
