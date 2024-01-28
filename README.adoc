@@ -1,4 +1,5 @@
 :repo-home: https://github.com/dcnieho/labManager/tree/master
+:doc-images: https://github.com/dcnieho/labManager/raw/master/docs
 
 == labManager v1.0.0
 Master/client software for managing multi-station multi-tenant lab setups for image:https://img.shields.io/pypi/pyversions/labManager-common.svg[Python version support, link=https://pypi.org/project/labManager-common/].
@@ -33,7 +34,7 @@ To provide this functionality in a secure way, labManager makes use of LDAP for 
 
 === Architecture
 labManager consists of three tools, which are related according to the below image:
-image:{repo-home}/docs/tools.png[Tool relations]
+image:{doc-images}/tools.png[Tool relations]
 
 The tools are:
 
