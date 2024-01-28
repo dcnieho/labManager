@@ -3,4 +3,3 @@
 ## labManager v1.0.0
 System for managing multi-station multi-tenant lab setups - common
  utilities
-.

@@ -2,7 +2,6 @@
 
 ## labManager v1.0.0
 System for managing multi-station multi-tenant lab setups - admin-server
-.
 
 ### Standalone deployment
 One simple way to make a standalone install of the app is to download [WinPython](https://winpython.github.io/), e.g. the latest 3.10.x version.
