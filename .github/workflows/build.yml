@@ -57,8 +57,8 @@ jobs:
     # to pypi. One example of such a failure is if a classifier is
     # rejected by pypi (e.g "3 - Beta"). This would cause a failure during the
     # middle of the package upload causing the action to fail. If at the point
-    # failure some packages would have already been updated, this would be bad
-    # as we'd have mismatching versions online.
+    # of failure some packages would have already been updated, this would be
+    # bad as we'd have mismatching versions online.
     - name: Publish packages 📦 to TestPyPI
       if: github.event_name == 'release' && github.event.action == 'published'
       uses: pypa/gh-action-pypi-publish@v1.8.11
