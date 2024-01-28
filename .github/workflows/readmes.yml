@@ -22,5 +22,18 @@ jobs:
       - name: Reduce readme
         run: asciidoctor-reducer -o README.adoc README-source.adoc
 
+    # now convert asciidoc to markdown
+      - name: Install Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '16'
+
+      - name: Install dependencies
+        run: npm i downdoc
+
+      - name: Convert asciidoc to markdown
+        run: npx downdoc -o test.md README.adoc
+
+    # done, commit
       - name: Commit readme
         uses: EndBug/add-and-commit@v8
