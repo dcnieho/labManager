@@ -1,0 +1,7 @@
+:tool-name: client
+
+image::https://img.shields.io/pypi/v/labManager-{tool-name}.svg["PyPI Latest Release", link=https://pypi.org/project/labManager-{tool-name}/]
+image::https://img.shields.io/pypi/pyversions/labManager-{tool-name}.svg["image", link=https://pypi.org/project/labManager-{tool-name}/]
+
+== labManager v1.0.0
+System for managing multi-station multi-tenant lab setups - {tool-name}.
