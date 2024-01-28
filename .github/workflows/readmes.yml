@@ -8,7 +8,7 @@ on:
       - '**.adoc'
 
 env:
-  DIRLIST: './labManager-client/,./labManager-master/'
+  DIRLIST: './labManager-admin-server/,./labManager-client/,./labManager-common/,./labManager-master/'
 
 
 jobs:
