@@ -13,36 +13,40 @@ Please see the readme of these respective tools for details about them, includin
 === Citation
 _Niehorster, D.C., Gullberg, M. & Nyström, M. (in prep). Designing and running multi-user lab environments for behavioral science: infrastructure, open-source tools and practical advice_
 
+Code for the tests described in this paper is available in link:{repo-home}/paper_tests/[the `paper_tests` folder].
+
 === Functionality
 
-The labManager tools are primarily aimed at managers of behavioral science labs, or any other lab where bare-metal computer infrastructure is required. Lab facilities shared by multiple users, whether they consist of one or more computer systems, face a problem. The requirements of the users are likely different, and even if not, requirements evolve over time. This means that the software versions, drivers and configuration used by one project may not be suitable for another. If these projects are not offered isolated environments, changed made for one project may compromise the integrity of another project, causing their setup to fail, possibly in non-obvious and hard to detect ways. Similarly, comping back to an old experiment years later, one may well find that it no longer works as intended. These problems multiply when setups consist of multiple computer systems which should all be identically configured.
+The labManager tools are primarily aimed at managers of behavioral science labs, or any other lab where bare-metal computer infrastructure is required. Lab facilities shared by multiple users, whether they consist of one or more computer systems, face a problem. The requirements of the users are likely different, and even if not, requirements evolve over time. This means that the software versions, drivers and configuration used by one project may not be suitable for another. If these projects are not offered isolated environments, changes made for one project may compromise the integrity of another project, causing their setup to fail, possibly in non-obvious and hard to detect ways. Similarly, coming back to an old experiment years later, one may well find that it no longer works as intended because all the software on the machine has been upgraded in backwards-incompatible ways. These problems multiply when setups consist of multiple computer systems which should all be identically configured.
 
-To solve this problem and provide projects with a stable stable setup that can be recreated even years later, a way to create isolated environments that can be quickly deployed on bare metal is required. The labManager provide this capability, allowing projects to create their own isolated project environments that can only be accessed by them and can be freely configured without interfering with the environments of any other project. Through the labManager tools, the configuration can be persisted to a disk image that can be easily and quickly redeployed to one or multiple computer stations.
+To solve this problem and provide projects with a stable setup that can be recreated even years later, a way to create isolated environments that can be quickly deployed on bare metal is required. The labManager tools provide this capability, allowing projects to create their own isolated project environments that can only be accessed by them and can be freely configured without interfering with the environments of any other project. Through the labManager tools, a project's exact software setup can be persisted to a disk image that can be easily and quickly redeployed to one or multiple computer stations at any time in the future.
 
 Specifically, the labManager tools provide a way to manage lab facilities which includes:
 
-. Rapid and flexible disk image management, allowing users to set up their computer station(s) with any configuration they wish and recreate this configuration at any later time. The underlying functionality is provided by the open-source https://theopenem.com[Theopenem] computer asset management system. The labManager master tool provides an easy interface to its functionality.
+. Rapid and flexible disk image management, allowing users to set up their computer station(s) with any operating system, software, drivers and configuration they wish and recreate this setup at any later time. The underlying disk imaging functionality is provided by the open-source https://theopenem.com[Theopenem] computer asset management system. The labManager master tool provides an easy interface to its functionality.
 . Remote management capabilities of computer stations through the labManager master tool. This includes:
 [loweralpha]
-.. Remote starting of computer stations through Wake on LAN functionality.
+.. Remote starting of computer stations through Wake on LAN (WoL) functionality.
 .. Launching tasks on selected computer stations. This includes interactive tasks, such as a remote shell.
-.. File management. Through a https://www.ghisler.com/[Total Commander]-like interface, users are able to execute file management actions on one or multiple computer stations. This, for instance, enables to easily deploy experiment files to multiple lab computers and to collect data from multiple lab computers.
+.. File management. Through a https://www.ghisler.com/[Total Commander]-like interface, users are able to execute file management actions on one or multiple computer stations. This, for instance, makes it possible to easily deploy experiment files to multiple lab computers and to collect data from multiple lab computers.
 
 The labManager master tool provides this functionality through a convenient GUI, but all its functionality is also accessible by means of Python scripts. See link:{repo-home}/example_scripts/master_from_script.py[here] and link:{repo-home}/paper_tests/communication_latency/test_runner.py[here] for example scripts.
 
-To provide this functionality in a secure way, labManager makes use of LDAP for user authentication so that an institute's existing authentication infrastructure can be used instead of creating new credentials for users just for a specific lab facility. Through information encoded in the LDAP directory, it is also possible for a user to access multiple projects, and for multiple users to share the same project. labManager master can run in a reduced functionality mode without requiring user authentication. In this mode, only the remote computer station management capabilities are available.
+To provide this functionality in a secure way, labManager makes use of LDAP for user authentication so that an institute's existing authentication infrastructure can be used instead of requiring the creation and management of credentials for users just for a specific lab facility. Through group membership information encoded in the LDAP directory, it is also possible for a user to access multiple projects, and for multiple users to share the same project. labManager master can run in a reduced functionality mode that does not require user authentication. In this mode, only the remote computer station management capabilities are available.
 
 === Architecture
-labManager consists of three tools, which are related according to the below image:
+labManager consists of three tools, which are related and should be deployed according to the below image (where C stands for a computer station):
 image:{doc-images}/tools.png[Tool relations]
 
 The tools are:
 
-. link:{repo-home}/labManager-master/[labManager master]: the main controller software (with optional GUI) through which users perform disk image management for their project and remotely administer computer stations.
-. link:{repo-home}/labManager-client/[labManager client]: client software that should run on each computer station that is to be controlled by labManager master.
-. link:{repo-home}/labManager-admin-server/[labManager admin-server]: an admin server tool that handles tasks that require elevated privileges, such as user authentication and certain disk image management operations. This admin server should run on a computer that is not user-accessible as its configuration requires secrets (such as credentials to the LDAP and Theopenem environments) that users should not be able to access.
+. link:{repo-home}/labManager-master/[labManager master]: the main controller software (with optional GUI) through which users perform disk image management for their project and can remotely administer computer stations.
+. link:{repo-home}/labManager-client/[labManager client]: client software that should run on each computer station that is to be controlled by labManager master. It connects to the labManager master tool, and executes its commands.
+. link:{repo-home}/labManager-admin-server/[labManager admin-server]: an admin server tool that handles tasks that require elevated privileges, such as user authentication and certain disk image management operations. This admin server should run on a computer that is not user-accessible as its configuration requires secrets (such as credentials with admin privileges for the LDAP and Theopenem environments) that users should not be able to access.
 
 Details about each of these tools is provided in their respective READMEs (click the above links). The READMEs describe how each of these tools can be configured. Example configuration files are available link:{repo-home}/example_configs/[here].
+
+labManager client instances discover any running labManager master instances by means of zero configuration networking (zeroconf), either mDNS or SSDP.
 
 === Workflow
 
@@ -51,10 +55,10 @@ Facility staff should perform the initial setup of the labManager tools. Specifi
 
 . Required actions:
 - Deploy https://theopenem.com[Theopenem] and the link:{repo-home}/labManager-admin-server/[labManager admin-server] to a suitable secure system.
-- Configure the labManager admin-server as to where the Theopenem instance and the institute's LDAP infrastructure can be found, see the example configuration file.
-- Provide the labManager admin-server with the required credentials to the Theopenem installation and the institute's LDAP instance.
+- Configure the labManager admin-server to point it to the Theopenem instance and to where the institute's LDAP infrastructure can be found, see link:{repo-home}/example_configs/admin_server.yaml[the example configuration file].
+- Provide the labManager admin-server with the required credentials to the Theopenem installation and the institute's LDAP environment.
 . Recommended actions:
-- Provide a user accessible computer running on which link:{repo-home}/labManager-master/[labManager master] is installed, ideally including a configuration file that tells the tool how to connect to the labManager admin-server, provides a list of known computer stations and provides pre-filled actions that users are likely to wish to perform on these computer stations.
+- Provide a user accessible computer on which link:{repo-home}/labManager-master/[labManager master] is installed, ideally including a configuration file that tells the tool how to connect to the labManager admin-server, provides a list of known computer stations and provides pre-filled actions that users are likely to wish to perform on these computer stations. See link:{repo-home}/example_configs/master.yaml[the example configuration file].
 - Provide a disk image that users of the facility can use as a basis for their own project environment. This image should have the link:{repo-home}/labManager-client/[labManager client] tool integrated, and as a service may include other tools commonly used in the facility.
 
 ==== Facility users
@@ -62,9 +66,9 @@ Facility staff should perform the initial setup of the labManager tools. Specifi
 . First use and project setup:
 .. When users start a new project in the facility and log into the labManager master for the first time, their first action will likely be to deploy a base image provided by the lab facility staff (see above) to one computer station.
 .. The user should then customize this image to their needs, for instance by installing software they need, changing settings, and deploying the code for their experiment or recording.
-.. To persist a specific environment and make it possible to redeploy later, they can then create a disk image in the labManager master tool and start an upload of the station they just configured to this disk image. Multiple such disk images can be created, for instance to store different versions of the setup as it develops, or when a setup includes multiple stations that should be configured differently.
-.. A disk image can be redeployed on a later day and work on it continued, or it can be deleted when no longer needed.
+.. To persist a specific environment and make it possible to redeploy later, they can then create a disk image in the labManager master tool and start an upload of the station they just configured to this disk image. Multiple such disk images can be created, for instance to store different versions of the setup as it is developed, or when a setup includes multiple stations that should be configured differently.
+.. A disk image can be redeployed on a later day to continue work on it, or it can be deleted when no longer needed.
 . When users want to use a specific disk image, for instance for a data collection:
 .. After logging in to the labManager master, users can deploy their disk image to the station(s) that they want to use.
-.. The researcher can then remotely issue a command to the computer stations to run their experiment.
+.. If wanted, the researcher can then remotely issue a command to the computer stations to run their experiment.
 .. Once a data collection session is finished, the user can then use the labManager master's file manager to collect their recorded data and copy it to a single location, such as a central data storage server.
