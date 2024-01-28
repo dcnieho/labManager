@@ -1,3 +1,4 @@
 :tool-name: common
+:extra-tool-info: utilities
 
 include::../docs/README-common.adoc[]
