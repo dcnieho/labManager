@@ -5,7 +5,6 @@
 Some text
 
 extra text
----
 
 ## Header 2
 
