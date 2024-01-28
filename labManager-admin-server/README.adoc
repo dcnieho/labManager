@@ -1,4 +1,4 @@
-:tool-name: master
+:tool-name: admin-server
 
 image:https://img.shields.io/pypi/v/labManager-{tool-name}.svg[PyPI Latest Release, link=https://pypi.org/project/labManager-{tool-name}/] image:https://img.shields.io/pypi/pyversions/labManager-{tool-name}.svg[Python version support, link=https://pypi.org/project/labManager-{tool-name}/]
 
