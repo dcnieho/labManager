@@ -1,0 +1,5 @@
+= My test document
+
+include::README-part1.adoc[]
+
+include::README-part2.adoc[leveloffset=1]
