@@ -57,26 +57,6 @@ replace = "__version__ = '{new_version}'"
 
 
 [[tool.bumpversion.files]]
-filename = "README.md"
-search = "labManager v{current_version}"
-replace = "labManager v{new_version}"
-
-[[tool.bumpversion.files]]
-filename = "labManager-admin-server/README.md"
-search = "labManager v{current_version}"
-replace = "labManager v{new_version}"
-
-[[tool.bumpversion.files]]
-filename = "labManager-client/README.md"
-search = "labManager v{current_version}"
-replace = "labManager v{new_version}"
-
-[[tool.bumpversion.files]]
-filename = "labManager-common/README.md"
-search = "labManager v{current_version}"
-replace = "labManager v{new_version}"
-
-[[tool.bumpversion.files]]
-filename = "labManager-master/README.md"
+filename = "docs/README-common.adoc"
 search = "labManager v{current_version}"
 replace = "labManager v{new_version}"
