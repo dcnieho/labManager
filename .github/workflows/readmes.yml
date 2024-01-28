@@ -47,6 +47,9 @@ jobs:
             npx downdoc -o ${i}/README.md ${i}/README.adoc
           done
 
+      - name: Uninstall dependencies
+        run: npm un downdoc
+
     # done, commit
       - name: Commit readme
         uses: EndBug/add-and-commit@v9
