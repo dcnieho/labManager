@@ -1,8 +1,8 @@
 == labManager v1.0.0
 Master/client software for managing multi-station multi-tenant lab setups for image:https://img.shields.io/pypi/pyversions/labManager-common.svg[Python version support, link=https://pypi.org/project/labManager-common/].
 
-labManager consists of two tools, image:https://img.shields.io/pypi/v/labManager-master.svg?label=labManager-master[PyPI Latest Release, link=./labManager-master/] and image:https://img.shields.io/pypi/v/labManager-client.svg?label=labManager-client[PyPI Latest Release, link=./labManager-client/] and a third, optional, server component image:https://img.shields.io/pypi/v/labManager-admin-server.svg?label=labManager-admin-server[PyPI Latest Release, link=./labManager-admin-server/]
+labManager consists of two tools, image:https://img.shields.io/pypi/v/labManager-master.svg?label=labManager-master[PyPI Latest Release, link=./labManager-master/] and image:https://img.shields.io/pypi/v/labManager-client.svg?label=labManager-client[PyPI Latest Release, link=./labManager-client/] and a third, optional, server component image:https://img.shields.io/pypi/v/labManager-admin-server.svg?label=labManager-admin-server[PyPI Latest Release, link=./labManager-admin-server/].
 
-Under the hood, these three tools use shared functionality provided by image:https://img.shields.io/pypi/v/labManager-common.svg?label=labManager-common[PyPI Latest Release, link=./labManager-admin-server/]
+Under the hood, these three tools use shared functionality provided by image:https://img.shields.io/pypi/v/labManager-common.svg?label=labManager-common[PyPI Latest Release, link=./labManager-admin-server/].
 
 Please see the readme of these respective tools for details about them. This document will describe the overall labManager architecture and functionality.
