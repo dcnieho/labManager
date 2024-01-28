@@ -5,4 +5,27 @@ labManager consists of two tools, image:https://img.shields.io/pypi/v/labManager
 
 Under the hood, these three tools use shared functionality provided by image:https://img.shields.io/pypi/v/labManager-common.svg?label=labManager-common[PyPI Latest Release, link=./labManager-admin-server/].
 
-Please see the readme of these respective tools for details about them. This document will describe the overall labManager architecture and functionality.
+Please see the readme of these respective tools for details about them. This document will describe the overall labManager functionality and architecture. For a more detailed description of its use case, please see Niehorster et al. (in prep), the paper cited below.
+
+=== Citation
+_Niehorster, D.C., Gullberg, M. & Nyström, M. (in prep). Designing and running multi-user lab environments for behavioral science: infrastructure, open-source tools and practical advice_
+
+=== Functionality
+
+The labManager tools are primarily aimed at managers of behavioral science labs, or any other lab where bare-metal computer infrastructure is required. Lab facilities shared by multiple users, whether they consist of one or more computer systems, face a problem. The requirements of the users are likely different, and even if not, requirements evolve over time. This means that the software versions, drivers and configuration used by one project may not be suitable for another. If these projects are not offered isolated environments, changed made for one project may compromise the integrity of another project, causing their setup to fail, possibly in non-obvious and hard to detect ways. Similarly, comping back to an old experiment years later, one may well find that it no longer works as intended.
+
+To solve this problem and provide project with a stable stable setup that can be recreated evn years later, a way to create isolated environments that can be quickly deployed on bare metal is required. The labManager provide this capability, allowing projects to create their own isolated project environments that can only be accessed by them and can be freely configured without interfering with the environments of any other project.
+
+Specifically, the labManager tools provide a way to manage lab facilities which includes:
+
+. Rapid and flexible disk image management, allowing users to set up their computer station(s) with any configuration they wish and recreate this configuration at any later time. The underlying functionality is provided by the open-source https://theopenem.com[Theopenem] computer asset management system. The labManager master tool provides an easy interface to its functionality.
+. Remote management capabilities of computer stations through the labManager master tool. This includes:
+[loweralpha]
+.. Remote starting of computer stations through Wake on LAN functionality.
+.. Launching tasks on selected computer stations. This includes interactive tasks, such as a remote shell.
+.. File management. Through a https://www.ghisler.com/[Total Commander]-like interface, users are able to execute file management actions on one or multiple computer stations. This, for instance, enables to easily deploy experiment files to multiple lab computers and to collect data from multiple lab computers.
+
+The labManager master tool provides this functionality through a convenient GUI, but all its functionality is also accessible by means of Python scripts. See link:/example_scripts/master_from_script.py[here] and link:/paper_tests/communication_latency/test_runner.py[here] for example scripts.
+
+To provide this functionality in a secure way, labManager makes use of LDAP for user authentication so that an institute's existing authentication infrastructure can be used instead of creating new credentials for users just for a specific lab facility. Through information encoded in the LDAP directory, it is also possible for a user to access multiple projects, and for multiple users to share the same project. labManager master can run in a reduced functionality mode without requiring user authentication. In this mode, only the remote computer station management capabilities are available.
+
