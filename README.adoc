@@ -8,7 +8,7 @@ labManager consists of two tools, image:https://img.shields.io/pypi/v/labManager
 
 Under the hood, these three tools use shared functionality provided by image:https://img.shields.io/pypi/v/labManager-common.svg?label=labManager-common[PyPI Latest Release, link={repo-home}/labManager-common/].
 
-Please see the readme of these respective tools for details about them. This document will describe the overall labManager functionality and architecture. For a more detailed description of its use case, please see Niehorster et al. (in prep), the paper cited below.
+Please see the readme of these respective tools for details about them, including configuration details. This document will describe the overall labManager functionality and architecture. For a more detailed description of its use case, please see Niehorster et al. (in prep), the paper cited below.
 
 === Citation
 _Niehorster, D.C., Gullberg, M. & Nyström, M. (in prep). Designing and running multi-user lab environments for behavioral science: infrastructure, open-source tools and practical advice_
@@ -42,6 +42,8 @@ The tools are:
 . link:{repo-home}/labManager-client/[labManager client]: client software that should run on each computer station that is to be controlled by labManager master.
 . link:{repo-home}/labManager-admin-server/[labManager admin-server]: an admin server tool that handles tasks that require elevated privileges, such as user authentication and certain disk image management operations. This admin server should run on a computer that is not user-accessible as its configuration requires secrets (such as credentials to the LDAP and Theopenem environments) that users should not be able to access.
 
+Details about each of these tools is provided in their respective READMEs (click the above links). The READMEs describe how each of these tools can be configured. Example configuration files are available link:{repo-home}/example_configs/[here].
+
 === Workflow
 
 ==== Facility staff
@@ -53,7 +55,7 @@ Facility staff should perform the initial setup of the labManager tools. Specifi
 - Provide the labManager admin-server with the required credentials to the Theopenem installation and the institute's LDAP instance.
 . Recommended actions:
 - Provide a user accessible computer running on which link:{repo-home}/labManager-master/[labManager master] is installed, ideally including a configuration file that tells the tool how to connect to the labManager admin-server, provides a list of known computer stations and provides pre-filled actions that users are likely to wish to perform on these computer stations.
-- Provide a disk image that users of the facility can use as a basis for their own project environment. This image should have the labManager client application integrated, and as a service may include other tools commonly used in the facility.
+- Provide a disk image that users of the facility can use as a basis for their own project environment. This image should have the link:{repo-home}/labManager-client/[labManager client] tool integrated, and as a service may include other tools commonly used in the facility.
 
 ==== Facility users
 
@@ -61,4 +63,8 @@ Facility staff should perform the initial setup of the labManager tools. Specifi
 .. When users start a new project in the facility and log into the labManager master for the first time, their first action will likely be to deploy a base image provided by the lab facility staff (see above) to one computer station.
 .. The user should then customize this image to their needs, for instance by installing software they need, changing settings, and deploying the code for their experiment or recording.
 .. To persist a specific environment and make it possible to redeploy later, they can then create a disk image in the labManager master tool and start an upload of the station they just configured to this disk image. Multiple such disk images can be created, for instance to store different versions of the setup as it develops, or when a setup includes multiple stations that should be configured differently.
-. When users 
+.. A disk image can be redeployed on a later day and work on it continued, or it can be deleted when no longer needed.
+. When users want to use a specific disk image, for instance for a data collection:
+.. After logging in to the labManager master, users can deploy their disk image to the station(s) that they want to use.
+.. The researcher can then remotely issue a command to the computer stations to run their experiment.
+.. Once a data collection session is finished, the user can then use the labManager master's file manager to collect their recorded data and copy it to a single location, such as a central data storage server.
