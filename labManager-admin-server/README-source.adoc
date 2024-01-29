@@ -3,12 +3,3 @@
 include::../docs/README-common.adoc[]
 
 include::../docs/README-common-tools.adoc[]
-
-=== Configuration
-[source,python]
-----
-include::../labManager-common/src/labManager/common/config.py[tag=admin-server_schema]
-----
-
-include::../docs/README-standalone.adoc[]
-

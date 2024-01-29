@@ -4,6 +4,7 @@ import pathlib
 from . import task
 
 _master_schema = s.Map({
+# tag::master_schema[]
     'network': s.Str(),
     'service_discovery_protocol':  s.Enum(['MDNS','SSDP']),
     s.Optional('MDNS'): s.Map({
@@ -62,11 +63,13 @@ _master_schema = s.Map({
             s.Optional('python_unbuffered', default=False): s.Bool(),
         }),
     ),
+# end::master_schema[]
 })
 _default_master_config_file = 'master.yaml'
 master = None
 
 _client_schema = s.Map({
+# tag::client_schema[]
     'network': s.Str(),
     'network_retry': s.Map({
         'number_tries': s.Int(),
@@ -79,6 +82,7 @@ _client_schema = s.Map({
     s.Optional('SSDP'): s.Map({
         'device_type': s.Str(),
     }),
+# end::client_schema[]
 })
 _default_client_config_file = 'client.yaml'
 client = None
