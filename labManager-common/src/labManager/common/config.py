@@ -32,13 +32,13 @@ _master_schema = s.Map({
         'server': s.Str(),
         'port': s.Int(),
     }),
-    s.Optional('toems'): s.Map({    # <1>
+    s.Optional('toems'): s.Map({
         'server': s.Str(),
         'port': s.Int(),
         'images': s.Map({
             'format': s.Str(),
         }),
-        s.Optional('pre_upload_script'): s.Str(),   # <2> and some extra text
+        s.Optional('pre_upload_script'): s.Str(),
         s.Optional('image_info_script'): s.Str(),
         s.Optional('image_info_script_partition'): s.Int(),
     }),
@@ -67,12 +67,6 @@ _master_schema = s.Map({
 })
 _default_master_config_file = 'master.yaml'
 master = None
-'''
-# tag::master_schema_callouts[]
-<1> test test
-<2> another test
-# end::master_schema_callouts[]
-'''
 
 _client_schema = s.Map({
 # tag::client_schema[]
@@ -92,8 +86,6 @@ _client_schema = s.Map({
 })
 _default_client_config_file = 'client.yaml'
 client = None
-# tag::client_schema_callouts[]
-# end::client_schema_callouts[]
 
 _admin_server_schema = s.Map({
 # tag::admin-server_schema[]
@@ -123,8 +115,6 @@ _admin_server_schema = s.Map({
 })
 _default_admin_server_config_file = 'admin_server.yaml'
 admin_server = None
-# tag::admin-server_schema_callouts[]
-# end::admin-server_schema_callouts[]
 
 def load(which: str, file: str|pathlib.Path = None):
     global master, client, admin_server
