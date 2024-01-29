@@ -1031,6 +1031,11 @@ class MainGUI:
                                 idx = len(self._task_history_payload.items)-1
                             changed, idx = imgui.list_box('##payload_history_popup_select',idx,self._task_history_payload.items)
                             if changed:
+                                if idx==len(self._task_history_payload.items)-1:
+                                    self._task_history_payload.pos = -1
+                                else:
+                                    self._task_history_payload.pos = idx
+                                self._task_prep.payload_text = self._task_history_payload.items[idx]
                                 imgui.close_current_popup()
                             imgui.end_popup()
                         if disabled:
