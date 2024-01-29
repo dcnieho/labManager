@@ -12,12 +12,15 @@ System for managing multi-station multi-tenant lab setups - {tool-name}
 An example script for running the labManager {tool-name} script is link:{repo-home}/example-scripts/{tool-name}.py[provided here].
 
 === Configuration
+The below shows the schema used for parsing the configuration file, using link:https://hitchdev.com/strictyaml/[StrictYAML's notation].
+An link:link:{repo-home}/example-configs/{tool-name}.yaml[example configuration file] is also available.
+
 [source,python,indent=0]
 ----
-    'network': s.Str(),
-    'service_discovery_protocol':  s.Enum(['MDNS','SSDP']),
+    'network': s.Str(),                                                     # Network on which to discover clients, e.g. 10.0.1.0/24
+    'service_discovery_protocol': s.Enum(['MDNS','SSDP']),                  # Protocol to use for client discovery, MDNS or SSDP
     s.Optional('MDNS'): s.Map({
-        'service': s.Str(),
+        'service': s.Str(),                                                 # service name to discover when using MDNS, e.g. _master._labManager._tcp.local.
     }),
     s.Optional('SSDP'): s.Map({
         'device_type': s.Str(),
@@ -41,13 +44,13 @@ An example script for running the labManager {tool-name} script is link:{repo-ho
         'server': s.Str(),
         'port': s.Int(),
     }),
-    s.Optional('toems'): s.Map({    # <1>
+    s.Optional('toems'): s.Map({
         'server': s.Str(),
         'port': s.Int(),
         'images': s.Map({
             'format': s.Str(),
         }),
-        s.Optional('pre_upload_script'): s.Str(),   # <2> and some extra text
+        s.Optional('pre_upload_script'): s.Str(),
         s.Optional('image_info_script'): s.Str(),
         s.Optional('image_info_script_partition'): s.Int(),
     }),
@@ -73,8 +76,6 @@ An example script for running the labManager {tool-name} script is link:{repo-ho
         }),
     ),
 ----
-<1> test test
-<2> another test
 
 === Standalone deployment
 One simple way to make a standalone install of the app is to download https://winpython.github.io/[WinPython], e.g. the latest 3.10.x version.

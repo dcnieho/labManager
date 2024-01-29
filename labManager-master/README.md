@@ -7,11 +7,14 @@ System for managing multi-station multi-tenant lab setups - master
 An example script for running the labManager master script is [provided here](https://github.com/dcnieho/labManager/tree/master/example-scripts/master.py).
 
 ### Configuration
+The below shows the schema used for parsing the configuration file, using [StrictYAML’s notation](https://hitchdev.com/strictyaml/).
+An [example configuration file](link:https://github.com/dcnieho/labManager/tree/master/example-configs/master.yaml) is also available.
+
 ```python
-'network': s.Str(),
-'service_discovery_protocol':  s.Enum(['MDNS','SSDP']),
+'network': s.Str(),                                                     # Network on which to discover clients, e.g. 10.0.1.0/24
+'service_discovery_protocol': s.Enum(['MDNS','SSDP']),                  # Protocol to use for client discovery, MDNS or SSDP
 s.Optional('MDNS'): s.Map({
-    'service': s.Str(),
+    'service': s.Str(),                                                 # service name to discover when using MDNS, e.g. _master._labManager._tcp.local.
 }),
 s.Optional('SSDP'): s.Map({
     'device_type': s.Str(),
@@ -35,13 +38,13 @@ s.Optional('admin'): s.Map({
     'server': s.Str(),
     'port': s.Int(),
 }),
-s.Optional('toems'): s.Map({    # ①
+s.Optional('toems'): s.Map({
     'server': s.Str(),
     'port': s.Int(),
     'images': s.Map({
         'format': s.Str(),
     }),
-    s.Optional('pre_upload_script'): s.Str(),   # <2> and some extra text
+    s.Optional('pre_upload_script'): s.Str(),
     s.Optional('image_info_script'): s.Str(),
     s.Optional('image_info_script_partition'): s.Int(),
 }),
@@ -67,8 +70,6 @@ s.Optional('tasks'): s.Seq(
     }),
 ),
 ```
-1. test test
-2. another test
 
 ### Standalone deployment
 One simple way to make a standalone install of the app is to download [WinPython](https://winpython.github.io/), e.g. the latest 3.10.x version.
