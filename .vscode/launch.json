@@ -8,7 +8,7 @@
             "name": "Python: master.py",
             "type": "python",
             "request": "launch",
-            "program": "${workspaceFolder}\\example_scripts\\master.py",
+            "program": "${workspaceFolder}\\example-scripts\\master.py",
             "console": "integratedTerminal",
             "justMyCode": true
         }
