@@ -1072,13 +1072,36 @@ class MainGUI:
                 if imgui.small_button("Insert path##cwd"):
                     fap = filepicker.FileActionProvider(network=config.master['network'], master=self.master)
                     utils.push_popup(self, filepicker.FilePicker(title='Select path to insert', allow_multiple=False, file_action_provider=fap, callback=lambda path: insert_path(self, 'cwd', path)))
+                imgui.set_next_item_width(width-imgui.get_frame_height_with_spacing())    # space for arrow button
                 imgui.push_font(imgui_md.get_code_font())
-                imgui.set_next_item_width(width)
                 enter_pressed2, self._task_prep.cwd = imgui.input_text('##cwd', self._task_prep.cwd, flags=imgui.InputTextFlags_.enter_returns_true|imgui.InputTextFlags_.callback_always|imgui.InputTextFlags_.callback_edit|imgui.InputTextFlags_.callback_history, callback=lambda x: edit_callback(self, 'cwd', x))
                 enter_pressed = enter_pressed or enter_pressed2
                 imgui.pop_font()
                 if (is_hovered or imgui.is_item_hovered()):
                     utils.draw_tooltip('Working directory from which the command will be executed')
+                imgui.same_line()
+                disabled = len(self._task_history_cwd.items)<=1
+                if disabled:
+                    utils.push_disabled()
+                button_pos = imgui.get_cursor_screen_pos()
+                if imgui.arrow_button('##cwd_history_button', imgui.Dir_.down):
+                    imgui.set_next_window_pos([x+y for x,y in zip(button_pos,(0,imgui.get_frame_height_with_spacing()))])
+                    imgui.open_popup('##cwd_history_popup')
+                if imgui.begin_popup('##cwd_history_popup'):
+                    idx = self._task_history_cwd.pos
+                    if idx==-1:
+                        idx = len(self._task_history_cwd.items)-1
+                    changed, idx = imgui.list_box('##cwd_history_popup_select',idx,self._task_history_cwd.items)
+                    if changed:
+                        if idx==len(self._task_history_cwd.items)-1:
+                            self._task_history_cwd.pos = -1
+                        else:
+                            self._task_history_cwd.pos = idx
+                        self._task_prep.cwd = self._task_history_cwd.items[idx]
+                        imgui.close_current_popup()
+                    imgui.end_popup()
+                if disabled:
+                    utils.pop_disabled()
                 _, self._task_prep.interactive = imgui.checkbox('Interactive', self._task_prep.interactive)
                 utils.draw_hover_text('If enabled, it is possible to send input (stdin) to the running command',text='')
                 if self._task_prep.type in [task.Type.Python_module, task.Type.Python_script]:
@@ -1870,6 +1893,7 @@ class MainGUI:
                                 # store current state to item -1 (the item currently being edited)
                                 # NB: this means that upon history navigation, current item is only replaced once a history item is edited
                                 hist.items[-1] = data.buf
+                                hist.pos = -1
                             elif data.event_flag==imgui.InputTextFlags_.callback_history:
                                 # replace current buffer with history
                                 new_hist_pos = hist.pos
@@ -1889,11 +1913,34 @@ class MainGUI:
                                     data.insert_chars(0, hist.items[hist.pos])
                             return 0
 
-                        imgui.set_next_item_width(width-imgui.calc_text_size("Send").x-2*imgui.get_style().frame_padding.x-imgui.get_style().item_spacing.x)
+                        imgui.set_next_item_width(width-imgui.calc_text_size("Send").x-2*imgui.get_style().frame_padding.x-2*imgui.get_style().item_spacing.x-imgui.get_frame_height_with_spacing())  # space for send button and for arrow button
                         enter_pressed, self._computer_GUI_interactive_tasks[(item.id, tid[1])] = \
                             imgui.input_text(f'##interactive_input{item.id},{tid[1]}', self._computer_GUI_interactive_tasks[(item.id, tid[1])], flags=imgui.InputTextFlags_.enter_returns_true|imgui.InputTextFlags_.escape_clears_all|imgui.InputTextFlags_.callback_history|imgui.InputTextFlags_.callback_edit, callback=lambda x: handle_history(self, (item.id, tid[1]), x))
                         if enter_pressed:
                             imgui.set_keyboard_focus_here(-1)   # refocus above input_text box
+                        imgui.same_line()
+                        disabled = len(self._computer_GUI_interactive_history[(item.id, tid[1])].items)<=1
+                        if disabled:
+                            utils.push_disabled()
+                        button_pos = imgui.get_cursor_screen_pos()
+                        if imgui.arrow_button('##interactive_history_button', imgui.Dir_.down):
+                            imgui.set_next_window_pos([x+y for x,y in zip(button_pos,(0,imgui.get_frame_height_with_spacing()))])
+                            imgui.open_popup('##interactive_history_popup')
+                        if imgui.begin_popup('##interactive_history_popup'):
+                            idx = self._computer_GUI_interactive_history[(item.id, tid[1])].pos
+                            if idx==-1:
+                                idx = len(self._computer_GUI_interactive_history[(item.id, tid[1])].items)-1
+                            changed, idx = imgui.list_box('##interactive_history_popup_select',idx,self._computer_GUI_interactive_history[(item.id, tid[1])].items)
+                            if changed:
+                                if idx==len(self._computer_GUI_interactive_history[(item.id, tid[1])].items)-1:
+                                    self._computer_GUI_interactive_history[(item.id, tid[1])].pos = -1
+                                else:
+                                    self._computer_GUI_interactive_history[(item.id, tid[1])].pos = idx
+                                self._computer_GUI_interactive_tasks[(item.id, tid[1])] = self._computer_GUI_interactive_history[(item.id, tid[1])].items[idx]
+                                imgui.close_current_popup()
+                            imgui.end_popup()
+                        if disabled:
+                            utils.pop_disabled()
                         imgui.same_line()
                         if imgui.button(f'Send##{item.id},{tid[1]}') or enter_pressed:
                             # send
