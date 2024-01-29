@@ -84,6 +84,7 @@ _default_client_config_file = 'client.yaml'
 client = None
 
 _admin_server_schema = s.Map({
+# tag::admin-server_schema[]
     'LDAP': s.Map({
         'server': s.Str(),
         'projects': s.Map({
@@ -106,6 +107,7 @@ _admin_server_schema = s.Map({
             ),
         }),
     }),
+# end::admin-server_schema[]
 })
 _default_admin_server_config_file = 'admin_server.yaml'
 admin_server = None
