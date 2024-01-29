@@ -1,4 +1,4 @@
-![PyPI Latest Release](https://img.shields.io/pypi/v/labManager-master.svg) ![Python version support](https://img.shields.io/pypi/pyversions/labManager-master.svg)
+![Downloads](https://static.pepy.tech/badge/labManager-master.svg) ![PyPI Latest Release](https://img.shields.io/pypi/v/labManager-master.svg) ![Python version support](https://img.shields.io/pypi/pyversions/labManager-master.svg)
 
 ## labManager v1.0.0
 System for managing multi-station multi-tenant lab setups - master
