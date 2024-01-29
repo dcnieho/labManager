@@ -98,7 +98,7 @@ master = None
 
 _client_schema = s.Map({
 # tag::client_schema[]
-    'network': s.Str(),
+    'network': s.Str(),                         # Network on which to discover clients, e.g. 10.0.1.0/24
     'network_retry': s.Map({
         'number_tries': s.Int(),
         'wait': s.Int(),
