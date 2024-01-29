@@ -87,10 +87,11 @@ _master_schema = s.Map({
             s.Optional('interactive', default=False):       # Boolean indicating whether this is an interactive task. If true,
                 s.Bool(),                                   # users can send commands to the task as it is running (e.g., use cmd
                                                             # as a remote shell)
-            s.Optional('python_unbuffered', default=False): # if true, appends the -u flag to commands running the python executable
-                s.Bool(),                                   # to put it in unbuffered mode, so that any output is directly written to
-        }),                                                 # stdout/stderr and can be remotely monitored. Does nothing for task
-    ),                                                      # types other than task.Type.Python_module and task.Type.Python_script
+            s.Optional('python_unbuffered', default=False): # if true, appends the -u flag to commands running the python
+                s.Bool(),                                   # executable to put it in unbuffered mode, so that any output is
+        }),                                                 # directly written to stdout/stderr and can be remotely monitored. Does
+    ),                                                      # nothing for task types other than task.Type.Python_module and
+                                                            # task.Type.Python_script
 # end::master_schema[]
 })
 _default_master_config_file = 'master.yaml'
