@@ -1,5 +1,7 @@
 include::./docs/README-var-setup.adoc[]
 
+image:https://static.pepy.tech/badge/labManager-{tool-name}.svg[Downloads, link=https://pepy.tech/project/labManager-{tool-name}/] image:https://img.shields.io/pypi/pyversions/labManager-common.svg[Python version support, link=https://pypi.org/project/labManager-common/] image:https://img.shields.io/pypi/v/labManager-common.svg?label=labManager-common[PyPI Latest Release, link={repo-home}/labManager-common/]
+
 == labManager v1.0.0
 Master/client software for managing multi-station multi-tenant lab setups for image:https://img.shields.io/pypi/pyversions/labManager-common.svg[Python version support, link=https://pypi.org/project/labManager-common/].
 
