@@ -174,6 +174,8 @@ def load(which: str, file: str|pathlib.Path = None):
                 raise ValueError("If the key 'service_discovery_protocol' is set to 'MDNS', the 'MDNS' key is required, but it was not found")
             elif config['service_discovery_protocol']=='SSDP' and 'SSDP' not in config:
                 raise ValueError("If the key 'service_discovery_protocol' is set to 'SSDP', the 'SSDP' key is required, but it was not found")
+            if 'toems' in config and 'image_info_script' in config['toems'] and not 'image_info_script_partition' in config['toems']:
+                raise ValueError("If toems.image_info_script is specified, toems.image_info_script_partition should also be specified")
             master = config
         case 'client':
             # extra validation
