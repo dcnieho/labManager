@@ -12,70 +12,91 @@ An [example configuration file](https://github.com/dcnieho/labManager/tree/maste
 
 ```python
 'network': s.Str(),                                     # Network on which to discover clients, e.g. 10.0.1.0/24
+
 'service_discovery_protocol':                           # Protocol to use for client discovery, MDNS or SSDP
     s.Enum(['MDNS','SSDP']),
+
 s.Optional('MDNS'): s.Map({
-    'service': s.Str(),                                 # service name to discover when using MDNS, e.g., _master._labManager._tcp.local.
-}),
+    'service': s.Str(),                                 # Service name to discover when using MDNS, e.g.,
+}),                                                     # _master._labManager._tcp.local.
+
 s.Optional('SSDP'): s.Map({
-    'device_type': s.Str(),                             # device type to announce and listen for when using SSDP, e.g., urn:schemas-upnp-org:device:labManager
+    'device_type': s.Str(),                             # Device type to announce and listen for when using SSDP, e.g.,
+}),                                                     # urn:schemas-upnp-org:device:labManager
+
+s.Optional('projects'): s.Map({                         # Table of alias names for projects (to enable showing more friendly
+                                                        # names)
+    'name_table': s.MapPattern(s.Str(), s.Str()),       # Example entry: `0000-01: Demo environment`
 }),
-s.Optional('projects'): s.Map({                         # table of alias names for projects (to enable showing more friendly names)
-    'name_table': s.MapPattern(s.Str(), s.Str()),       # example entry: `0000-01: Demo environment`
-}),
-s.Optional('base_image_name_table'):                    # table of alias names for disk images (to enable showing more friendly names)
-    s.MapPattern(s.Str(), s.Str()),                     # example entry: `station_base: Windows station`
-s.Optional('SMB'): s.Map({
-    'server': s.Str(),
-    'domain': s.Str(),
-    'projects': s.Map({
-        'format': s.Str(),
-        s.Optional('remove_trailing', default=''):
-            s.Str(),
+
+s.Optional('base_image_name_table'):                    # Table of alias names for disk images (to enable showing more friendly
+                                                        # names)
+    s.MapPattern(s.Str(), s.Str()),                     # Example entry: `station_base: Windows station`
+s.Optional('SMB'): s.Map({                              # If users have access to a central storage facility using an SMB,
+                                                        # configuration about the server and how project shares are named on it
+    'server': s.Str(),                                  # Server FQDN or IP address
+    'domain': s.Str(),                                  # Domain in which users are found (may be overridden by LDAP reply)
+    'projects': s.Map({                                 # Project-to-SMB share mapping config
+        'format': s.Str(),                              # Regex to match shares that are for projects
+        s.Optional('remove_trailing', default=''):      # Characters to remove from end of project share name to map the to
+            s.Str(),                                    # project names
     }),
-    'mount_share_on_client': s.Bool(),
-    'mount_drive_letter': s.Str(),
-    'mount_only_known_clients': s.Bool(),
+    'mount_share_on_client': s.Bool(),                  # Boolean indicating whether the project share should be mounted as a
+                                                        # network drive on client machines once the client connects to this
+                                                        # master.
+    'mount_drive_letter': s.Str(),                      # Drive letter for mapping the network drive, if
+                                                        # `mount_share_on_client` is enabled
+    'mount_only_known_clients': s.Bool(),               # Issue command to mount the network share only for known clients (i.e.
+}),                                                     # clients listed in the clients configuration section below), not for
+                                                        # other machines that run a labManager client (to prevent snooping of
+                                                        # the user's credentials)
+
+s.Optional('admin'): s.Map({                            # Configuration about the labManager admin-server
+    'server': s.Str(),                                  # Server FQDN or IP address
+    'port': s.Int(),                                    # Server port
 }),
-s.Optional('admin'): s.Map({
-    'server': s.Str(),
-    'port': s.Int(),
-}),
-s.Optional('toems'): s.Map({
-    'server': s.Str(),
-    'port': s.Int(),
-    'images': s.Map({
-        'format': s.Str(),
+
+s.Optional('toems'): s.Map({                            # Configuration about the Theopenem instance
+    'server': s.Str(),                                  # Server FQDN or IP address
+    'port': s.Int(),                                    # Server port
+    'images': s.Map({                                   # Project-to-disk image mapping config
+        'format': s.Str(),                              # Regex to match disk images that are beloing to a project
     }),
-    s.Optional('pre_upload_script'): s.Str(),
-    s.Optional('image_info_script'): s.Str(),
-    s.Optional('image_info_script_partition'):
-        s.Int(),
+    s.Optional('pre_upload_script'): s.Str(),           # Script that will be configured to run in Theopenem's LIE imaging
+                                                        # environment when uploading a disk image (at the BeforeImaging stage)
+    s.Optional('image_info_script'): s.Str(),           # Script that will be configured to run in Theopenem's LIE imaging
+                                                        # environment when deploying a disk image (at the AfterFileCopy stage)
+    s.Optional('image_info_script_partition'):          # Partition on the disk image for which the `image_info_script` should
+        s.Int(),                                        # run.
 }),
+
 s.Optional('login'): s.Map({
-    'hint': s.Str(),
+    'hint': s.Str(),                                    # login hint to show in the labManager master GUI
 }),
-s.Optional('clients'): s.Seq(
+
+s.Optional('clients'): s.Seq(                           # Configuration for known clients, e.g., fixed stations in a lab setup
     s.Map({
-        'name': s.Str(),
-        'MAC' : s.CommaSeparated(s.Str()),
-    })
+        'name': s.Str(),                                # Name by which station should be known. Example entry: STATION01
+        'MAC' : s.CommaSeparated(s.Str()),              # One or multiple MAC addresses of the station. Example entry:
+    })                                                  # 0C:9D:92:1F:E6:04, F4:E9:D4:73:6F:EC, F4:E9:D4:73:6F:ED
 ),
-s.Optional('tasks'): s.Seq(
+
+s.Optional('tasks'): s.Seq(                             # preconfigured tasks to be shown in the labManager master GUI
     s.Map({
-        'name': s.Str(),
-        'type': s.Enum(task.types),
-        s.Optional('payload', default=''): s.Str(),
-        s.Optional('payload_type', default='text'):
-            s.Enum(['text','file']),
-        s.Optional('cwd', default=''): s.Str(),
-        s.Optional('env', default=''): s.Str(),
-        s.Optional('interactive', default=False):
-            s.Bool(),
-        s.Optional('python_unbuffered', default=False):
-            s.Bool(),
-    }),
-),
+        'name': s.Str(),                                # Name to show in task GUI, should be descriptive
+        'type': s.Enum(task.types),                     # Task type, one of labManager.common.task.Type
+        s.Optional('payload', default=''): s.Str(),     # Command or other payload to execute
+        s.Optional('payload_type', default='text'):     # Payload type, either as text to directly execute or path to a file to
+            s.Enum(['text','file']),                    # load the payload from
+        s.Optional('cwd', default=''): s.Str(),         # CWD in which to execute the command
+        s.Optional('env', default=''): s.Str(),         # environment variables to set when executing the command
+        s.Optional('interactive', default=False):       # Boolean indicating whether this is an interactive task. If true,
+            s.Bool(),                                   # users can send commands to the task as it is running (e.g., use cmd
+                                                        # as a remote shell)
+        s.Optional('python_unbuffered', default=False): # if true, appends the -u flag to commands running the python executable
+            s.Bool(),                                   # to put it in unbuffered mode, so that any output is directly written to
+    }),                                                 # stdout/stderr and can be remotely monitored. Does nothing for task
+),                                                      # types other than task.Type.Python_module and task.Type.Python_script
 ```
 
 ### Standalone deployment
