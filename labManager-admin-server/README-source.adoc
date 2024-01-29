@@ -3,3 +3,14 @@
 include::../docs/README-common.adoc[]
 
 include::../docs/README-common-tools.adoc[]
+
+==== Secrets file
+Besides the configuration yaml file, the admin-server tool also needs a secrets file containing credentials with admin privileges for the LDAP and Theopenem environments.
+It should be formatted as follows:
+
+[source,dosini]
+----
+include::../example-configs/example.env[]
+----
+
+include::../docs/README-standalone.adoc[]
