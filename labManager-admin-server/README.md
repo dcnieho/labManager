@@ -7,6 +7,30 @@ System for managing multi-station multi-tenant lab setups - admin-server
 An example script for running the labManager admin-server script is [provided here](https://github.com/dcnieho/labManager/tree/master/example-scripts/admin-server.py).
 
 ### Configuration
+```python
+    'LDAP': s.Map({
+        'server': s.Str(),
+        'projects': s.Map({
+            'format': s.Str(),
+        }),
+    }),
+    'toems': s.Map({
+        'server': s.Str(),
+        'port': s.Int(),
+        'images': s.Map({
+            'format': s.Str(),
+            'file_copy_actions': s.Seq(
+                s.Map({
+                    'name': s.Str(),
+                    'partition_id': s.Int(),
+                }),
+            ),
+            'standard': s.Seq(
+                s.Str(),
+            ),
+        }),
+    }),
+```
 
 ### Standalone deployment
 One simple way to make a standalone install of the app is to download [WinPython](https://winpython.github.io/), e.g. the latest 3.10.x version.
