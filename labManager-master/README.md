@@ -3,6 +3,8 @@
 ## labManager v1.0.0
 System for managing multi-station multi-tenant lab setups - master
 
+This package is part of the [labManager tools](https://github.com/dcnieho/labManager/tree/master), a collection of tools for managing behavioral research setups. Please see [here](https://github.com/dcnieho/labManager/tree/master) for more information.
+
 ### Example script
 An example script for running the labManager master script is [provided here](https://github.com/dcnieho/labManager/tree/master/example-scripts/master.py).
 
@@ -111,3 +113,7 @@ Do as follows:
 3. Take the python folder from the unzipped files (e.g. `python-3.10.11.amd64`), you do not need the rest. This is your python distribution. Put it where you want on the disk.
 4. Open a command prompt in the root of the Python installation. Install the wanted labManager packages into it using, e.g., `.\python.exe -m pip install labManager-master`.
 5. Finally use the `python.exe` in the folder to execute your script, such the [example script](https://github.com/dcnieho/labManager/tree/master/example-scripts/master.py) to launch this tool.
+
+### Acknowledgements
+
+This project was made possible by funding from the [LMK foundation, Sweden](https://lmkstiftelsen.se/).
