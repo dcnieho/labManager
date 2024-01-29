@@ -865,6 +865,7 @@ class MainGUI:
                     # store current state to item -1 (the item currently being edited)
                     # NB: this means that upon history navigation, current item is only replaced once a history item is edited
                     hist.items[-1] = data.buf
+                    hist.pos = -1
                 elif data.event_flag==imgui.InputTextFlags_.callback_history:
                     # replace current buffer with history
                     new_hist_pos = hist.pos
