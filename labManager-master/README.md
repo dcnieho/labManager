@@ -7,28 +7,31 @@ System for managing multi-station multi-tenant lab setups - master
 An example script for running the labManager master script is [provided here](https://github.com/dcnieho/labManager/tree/master/example-scripts/master.py).
 
 ### Configuration
-The below shows the schema used for parsing the configuration file, using [StrictYAML’s notation](https://hitchdev.com/strictyaml/).
-An [example configuration file](link:https://github.com/dcnieho/labManager/tree/master/example-configs/master.yaml) is also available.
+The below shows the schema used for parsing the configuration file for labManager master, using [StrictYAML’s notation](https://hitchdev.com/strictyaml/).
+An [example configuration file](https://github.com/dcnieho/labManager/tree/master/example-configs/master.yaml) is also available.
 
 ```python
-'network': s.Str(),                                                     # Network on which to discover clients, e.g. 10.0.1.0/24
-'service_discovery_protocol': s.Enum(['MDNS','SSDP']),                  # Protocol to use for client discovery, MDNS or SSDP
+'network': s.Str(),                                     # Network on which to discover clients, e.g. 10.0.1.0/24
+'service_discovery_protocol':                           # Protocol to use for client discovery, MDNS or SSDP
+    s.Enum(['MDNS','SSDP']),
 s.Optional('MDNS'): s.Map({
-    'service': s.Str(),                                                 # service name to discover when using MDNS, e.g. _master._labManager._tcp.local.
+    'service': s.Str(),                                 # service name to discover when using MDNS, e.g., _master._labManager._tcp.local.
 }),
 s.Optional('SSDP'): s.Map({
-    'device_type': s.Str(),
+    'device_type': s.Str(),                             # device type to announce and listen for when using SSDP, e.g., urn:schemas-upnp-org:device:labManager
 }),
-s.Optional('projects'): s.Map({
-    'name_table': s.MapPattern(s.Str(), s.Str()),
+s.Optional('projects'): s.Map({                         # table of alias names for projects (to enable showing more friendly names)
+    'name_table': s.MapPattern(s.Str(), s.Str()),       # example entry: `0000-01: Demo environment`
 }),
-s.Optional('base_image_name_table'): s.MapPattern(s.Str(), s.Str()),
+s.Optional('base_image_name_table'):                    # table of alias names for disk images (to enable showing more friendly names)
+    s.MapPattern(s.Str(), s.Str()),                     # example entry: `station_base: Windows station`
 s.Optional('SMB'): s.Map({
     'server': s.Str(),
     'domain': s.Str(),
     'projects': s.Map({
         'format': s.Str(),
-        s.Optional('remove_trailing', default=''): s.Str(),
+        s.Optional('remove_trailing', default=''):
+            s.Str(),
     }),
     'mount_share_on_client': s.Bool(),
     'mount_drive_letter': s.Str(),
@@ -46,7 +49,8 @@ s.Optional('toems'): s.Map({
     }),
     s.Optional('pre_upload_script'): s.Str(),
     s.Optional('image_info_script'): s.Str(),
-    s.Optional('image_info_script_partition'): s.Int(),
+    s.Optional('image_info_script_partition'):
+        s.Int(),
 }),
 s.Optional('login'): s.Map({
     'hint': s.Str(),
@@ -62,11 +66,14 @@ s.Optional('tasks'): s.Seq(
         'name': s.Str(),
         'type': s.Enum(task.types),
         s.Optional('payload', default=''): s.Str(),
-        s.Optional('payload_type', default='text'): s.Enum(['text','file']),
+        s.Optional('payload_type', default='text'):
+            s.Enum(['text','file']),
         s.Optional('cwd', default=''): s.Str(),
         s.Optional('env', default=''): s.Str(),
-        s.Optional('interactive', default=False): s.Bool(),
-        s.Optional('python_unbuffered', default=False): s.Bool(),
+        s.Optional('interactive', default=False):
+            s.Bool(),
+        s.Optional('python_unbuffered', default=False):
+            s.Bool(),
     }),
 ),
 ```

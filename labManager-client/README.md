@@ -7,8 +7,8 @@ System for managing multi-station multi-tenant lab setups - client
 An example script for running the labManager client script is [provided here](https://github.com/dcnieho/labManager/tree/master/example-scripts/client.py).
 
 ### Configuration
-The below shows the schema used for parsing the configuration file, using [StrictYAML’s notation](https://hitchdev.com/strictyaml/).
-An [example configuration file](link:https://github.com/dcnieho/labManager/tree/master/example-configs/client.yaml) is also available.
+The below shows the schema used for parsing the configuration file for labManager client, using [StrictYAML’s notation](https://hitchdev.com/strictyaml/).
+An [example configuration file](https://github.com/dcnieho/labManager/tree/master/example-configs/client.yaml) is also available.
 
 ```python
 'network': s.Str(),

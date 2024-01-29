@@ -7,8 +7,8 @@ System for managing multi-station multi-tenant lab setups - admin-server
 An example script for running the labManager admin-server script is [provided here](https://github.com/dcnieho/labManager/tree/master/example-scripts/admin-server.py).
 
 ### Configuration
-The below shows the schema used for parsing the configuration file, using [StrictYAML’s notation](https://hitchdev.com/strictyaml/).
-An [example configuration file](link:https://github.com/dcnieho/labManager/tree/master/example-configs/admin-server.yaml) is also available.
+The below shows the schema used for parsing the configuration file for labManager admin-server, using [StrictYAML’s notation](https://hitchdev.com/strictyaml/).
+An [example configuration file](https://github.com/dcnieho/labManager/tree/master/example-configs/admin-server.yaml) is also available.
 
 ```python
 'LDAP': s.Map({
