@@ -1,0 +1,3 @@
+=== Acknowledgements
+
+This project was made possible by funding from the link:https://lmkstiftelsen.se/[LMK foundation, Sweden].

@@ -5,3 +5,5 @@ include::../docs/README-common.adoc[]
 include::../docs/README-common-tools.adoc[]
 
 include::../docs/README-standalone.adoc[]
+
+include::../docs/README-acknowledgement.adoc[]

@@ -2,3 +2,5 @@
 :extra-tool-info: utilities
 
 include::../docs/README-common.adoc[]
+
+include::../docs/README-acknowledgement.adoc[]

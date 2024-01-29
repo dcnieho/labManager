@@ -71,3 +71,5 @@ Facility staff should perform the initial setup of the labManager tools. Specifi
 .. After logging in to the labManager master, users can deploy their disk image to the station(s) that they want to use.
 .. If wanted, the researcher can then remotely issue a command to the computer stations to run their experiment.
 .. Once a data collection session is finished, the user can then use the labManager master's file manager to collect their recorded data and copy it to a single location, such as a central data storage server.
+
+include::./docs/README-acknowledgement.adoc[]

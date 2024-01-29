@@ -14,3 +14,5 @@ include::../example-configs/example.env[]
 ----
 
 include::../docs/README-standalone.adoc[]
+
+include::../docs/README-acknowledgement.adoc[]
