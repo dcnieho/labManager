@@ -6,7 +6,7 @@ on:
   push:
     paths:
       - '**.adoc'
-      - 'config.py'
+      - 'labManager-common/src/labManager/common/config.py'
 
 env:
   DIRLIST: './,./labManager-admin-server/,./labManager-client/,./labManager-common/,./labManager-master/'
