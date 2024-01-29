@@ -5,3 +5,5 @@ image:https://img.shields.io/pypi/v/labManager-{tool-name}.svg[PyPI Latest Relea
 == labManager v1.0.0
 System for managing multi-station multi-tenant lab setups - {tool-name}
 ifdef::extra-tool-info[ {extra-tool-info}]
+
+This package is part of the link:{repo-home}[labManager tools], a collection of tools for managing behavioral research setups. Please see link:{repo-home}[here] for more information.
