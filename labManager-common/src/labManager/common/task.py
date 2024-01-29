@@ -338,6 +338,8 @@ class Executor:
         if interactive:
             self._input = running_task.input = asyncio.Queue()
 
+        # TODO: deal with env argument. Should probably get current env and append to it/overwrite, not replace
+
         # create coro to execute the command, await it to execute it
         try:
             return await self._stream_subprocess(
