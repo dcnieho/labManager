@@ -12,7 +12,7 @@ System for managing multi-station multi-tenant lab setups - {tool-name}
 An example script for running the labManager {tool-name} script is link:{repo-home}/example-scripts/{tool-name}.py[provided here].
 
 === Configuration
-[source,python]
+[source,python,indent=0]
 ----
     'LDAP': s.Map({
         'server': s.Str(),

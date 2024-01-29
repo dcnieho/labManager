@@ -12,6 +12,21 @@ System for managing multi-station multi-tenant lab setups - {tool-name}
 An example script for running the labManager {tool-name} script is link:{repo-home}/example-scripts/{tool-name}.py[provided here].
 
 === Configuration
+[source,python,indent=0]
+----
+    'network': s.Str(),
+    'network_retry': s.Map({
+        'number_tries': s.Int(),
+        'wait': s.Int(),
+    }),
+    'service_discovery_protocol': s.Str(),
+    s.Optional('MDNS'): s.Map({
+        'service': s.Str(),
+    }),
+    s.Optional('SSDP'): s.Map({
+        'device_type': s.Str(),
+    }),
+----
 
 === Standalone deployment
 One simple way to make a standalone install of the app is to download https://winpython.github.io/[WinPython], e.g. the latest 3.10.x version.

@@ -7,6 +7,20 @@ System for managing multi-station multi-tenant lab setups - client
 An example script for running the labManager client script is [provided here](https://github.com/dcnieho/labManager/tree/master/example-scripts/client.py).
 
 ### Configuration
+```python
+'network': s.Str(),
+'network_retry': s.Map({
+    'number_tries': s.Int(),
+    'wait': s.Int(),
+}),
+'service_discovery_protocol': s.Str(),
+s.Optional('MDNS'): s.Map({
+    'service': s.Str(),
+}),
+s.Optional('SSDP'): s.Map({
+    'device_type': s.Str(),
+}),
+```
 
 ### Standalone deployment
 One simple way to make a standalone install of the app is to download [WinPython](https://winpython.github.io/), e.g. the latest 3.10.x version.

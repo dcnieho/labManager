@@ -8,28 +8,28 @@ An example script for running the labManager admin-server script is [provided he
 
 ### Configuration
 ```python
-    'LDAP': s.Map({
-        'server': s.Str(),
-        'projects': s.Map({
-            'format': s.Str(),
-        }),
+'LDAP': s.Map({
+    'server': s.Str(),
+    'projects': s.Map({
+        'format': s.Str(),
     }),
-    'toems': s.Map({
-        'server': s.Str(),
-        'port': s.Int(),
-        'images': s.Map({
-            'format': s.Str(),
-            'file_copy_actions': s.Seq(
-                s.Map({
-                    'name': s.Str(),
-                    'partition_id': s.Int(),
-                }),
-            ),
-            'standard': s.Seq(
-                s.Str(),
-            ),
-        }),
+}),
+'toems': s.Map({
+    'server': s.Str(),
+    'port': s.Int(),
+    'images': s.Map({
+        'format': s.Str(),
+        'file_copy_actions': s.Seq(
+            s.Map({
+                'name': s.Str(),
+                'partition_id': s.Int(),
+            }),
+        ),
+        'standard': s.Seq(
+            s.Str(),
+        ),
     }),
+}),
 ```
 
 ### Standalone deployment
