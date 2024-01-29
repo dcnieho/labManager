@@ -1,4 +1,4 @@
-![Downloads](https://static.pepy.tech/badge/labManager-client.svg) ![PyPI Latest Release](https://img.shields.io/pypi/v/labManager-client.svg) ![Python version support](https://img.shields.io/pypi/pyversions/labManager-client.svg)
+![Downloads](https://static.pepy.tech/badge/labManager-client) ![PyPI Latest Release](https://img.shields.io/pypi/v/labManager-client.svg) ![Python version support](https://img.shields.io/pypi/pyversions/labManager-client.svg)
 
 ## labManager v1.0.0
 System for managing multi-station multi-tenant lab setups - client
