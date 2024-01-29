@@ -35,6 +35,19 @@ An [example configuration file](https://github.com/dcnieho/labManager/tree/maste
 }),
 ```
 
+#### Secrets file
+Besides the configuration yaml file, the admin-server tool also needs a secrets file containing credentials with admin privileges for the LDAP and Theopenem environments.
+It should be formatted as follows:
+
+```dosini
+LDAP_ACCOUNT    = username
+LDAP_PASSWORD   = password
+LDAP_SEARCH_BASE= OU=something,DC=something
+
+TOEMS_ACCOUNT   = username
+TOEMS_PASSWORD  = password
+```
+
 ### Standalone deployment
 One simple way to make a standalone install of the app is to download [WinPython](https://winpython.github.io/), e.g. the latest 3.10.x version.
 I think this is recommended instead of using a system-wide or user installation of Python, so that users of the computer are unlikely to accidentally interfere with the Python distribution that runs the management tools.
