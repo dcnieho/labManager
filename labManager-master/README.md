@@ -35,13 +35,13 @@ s.Optional('admin'): s.Map({
     'server': s.Str(),
     'port': s.Int(),
 }),
-s.Optional('toems'): s.Map({
+s.Optional('toems'): s.Map({    # ①
     'server': s.Str(),
     'port': s.Int(),
     'images': s.Map({
         'format': s.Str(),
     }),
-    s.Optional('pre_upload_script'): s.Str(),
+    s.Optional('pre_upload_script'): s.Str(),   # <2> and some extra text
     s.Optional('image_info_script'): s.Str(),
     s.Optional('image_info_script_partition'): s.Int(),
 }),
@@ -67,6 +67,8 @@ s.Optional('tasks'): s.Seq(
     }),
 ),
 ```
+1. test test
+2. another test
 
 ### Standalone deployment
 One simple way to make a standalone install of the app is to download [WinPython](https://winpython.github.io/), e.g. the latest 3.10.x version.

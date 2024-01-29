@@ -41,13 +41,13 @@ An example script for running the labManager {tool-name} script is link:{repo-ho
         'server': s.Str(),
         'port': s.Int(),
     }),
-    s.Optional('toems'): s.Map({
+    s.Optional('toems'): s.Map({    # <1>
         'server': s.Str(),
         'port': s.Int(),
         'images': s.Map({
             'format': s.Str(),
         }),
-        s.Optional('pre_upload_script'): s.Str(),
+        s.Optional('pre_upload_script'): s.Str(),   # <2> and some extra text
         s.Optional('image_info_script'): s.Str(),
         s.Optional('image_info_script_partition'): s.Int(),
     }),
@@ -73,6 +73,8 @@ An example script for running the labManager {tool-name} script is link:{repo-ho
         }),
     ),
 ----
+<1> test test
+<2> another test
 
 === Standalone deployment
 One simple way to make a standalone install of the app is to download https://winpython.github.io/[WinPython], e.g. the latest 3.10.x version.
