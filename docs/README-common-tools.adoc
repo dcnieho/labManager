@@ -2,8 +2,8 @@
 An example script for running the labManager {tool-name} script is link:{repo-home}/example-scripts/{tool-name}.py[provided here].
 
 === Configuration
-The below shows the schema used for parsing the configuration file, using link:https://hitchdev.com/strictyaml/[StrictYAML's notation].
-An link:link:{repo-home}/example-configs/{tool-name}.yaml[example configuration file] is also available.
+The below shows the schema used for parsing the configuration file for labManager {tool-name}, using link:https://hitchdev.com/strictyaml/[StrictYAML's notation].
+An link:{repo-home}/example-configs/{tool-name}.yaml[example configuration file] is also available.
 
 [source,python,indent=0]
 ----
