@@ -11,26 +11,26 @@ The below shows the schema used for parsing the configuration file for labManage
 An [example configuration file](https://github.com/dcnieho/labManager/tree/master/example-configs/admin-server.yaml) is also available.
 
 ```python
-'LDAP': s.Map({
-    'server': s.Str(),
+'LDAP': s.Map({                             # Configuration about the LDAP server and querying it
+    'server': s.Str(),                      # Server FQDN or IP address
     'projects': s.Map({
-        'format': s.Str(),
+        'format': s.Str(),                  # Regex to match projects in memberOf field of found user
     }),
 }),
-'toems': s.Map({
-    'server': s.Str(),
-    'port': s.Int(),
+'toems': s.Map({                            # Configuration about the Theopenem instance
+    'server': s.Str(),                      # Server FQDN or IP address
+    'port': s.Int(),                        # Server port
     'images': s.Map({
-        'format': s.Str(),
-        'file_copy_actions': s.Seq(
-            s.Map({
-                'name': s.Str(),
-                'partition_id': s.Int(),
-            }),
+        'format': s.Str(),                  # Regex to match disk images that belong to a project
+        'file_copy_actions': s.Seq(         # List of file copy actions to activate when a new disk
+            s.Map({                         # image is created
+                'name': s.Str(),            # Name in Theopenem of a file_copy action
+                'partition_id': s.Int(),    # Partition on the disk image for which the action should
+            }),                             # be run
         ),
-        'standard': s.Seq(
-            s.Str(),
-        ),
+        'standard': s.Seq(                  # list of "standard" disk images that should be visible
+            s.Str(),                        # (read only) to all projects. Use to, for instance,
+        ),                                  # provide a base image that new projects can start from.
     }),
 }),
 ```

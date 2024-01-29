@@ -60,7 +60,7 @@ s.Optional('toems'): s.Map({                            # Configuration about th
     'server': s.Str(),                                  # Server FQDN or IP address
     'port': s.Int(),                                    # Server port
     'images': s.Map({                                   # Project-to-disk image mapping config
-        'format': s.Str(),                              # Regex to match disk images that are beloing to a project
+        'format': s.Str(),                              # Regex to match disk images that belong to a project
     }),
     s.Optional('pre_upload_script'): s.Str(),           # Script that will be configured to run in Theopenem's LIE imaging
                                                         # environment when uploading a disk image (at the BeforeImaging stage)
