@@ -100,17 +100,23 @@ master = None
 _client_schema = s.Map({
 # tag::client_schema[]
     'network': s.Str(),                         # Network on which to discover clients, e.g. 10.0.1.0/24
-    'network_retry': s.Map({
-        'number_tries': s.Int(),
-        'wait': s.Int(),
+    'network_retry': s.Map({                    # Configuration for retrying to get network connection on startup.
+                                                # Useful whenit may take some time for the network connection to
+                                                # come up after the computer station starts
+        'number_tries': s.Int(),                # Number of times to try
+        'wait': s.Int(),                        # Wait duration (s) between tries
     }),
-    'service_discovery_protocol': s.Str(),
+
+    'service_discovery_protocol':               # Protocol to use for client discovery, MDNS or SSDP
+        s.Enum(['MDNS','SSDP']),
+
     s.Optional('MDNS'): s.Map({
-        'service': s.Str(),
-    }),
+        'service': s.Str(),                     # Service name to discover when using MDNS, e.g.,
+    }),                                         # _master._labManager._tcp.local.
+
     s.Optional('SSDP'): s.Map({
-        'device_type': s.Str(),
-    }),
+        'device_type': s.Str(),                 # Device type to announce and listen for when using SSDP, e.g.,
+    }),                                         # urn:schemas-upnp-org:device:labManager
 # end::client_schema[]
 })
 _default_client_config_file = 'client.yaml'
