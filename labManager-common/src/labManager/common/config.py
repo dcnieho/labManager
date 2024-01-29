@@ -5,10 +5,10 @@ from . import task
 
 _master_schema = s.Map({
 # tag::master_schema[]
-    'network': s.Str(),
-    'service_discovery_protocol':  s.Enum(['MDNS','SSDP']),
+    'network': s.Str(),                                                     # Network on which to discover clients, e.g. 10.0.1.0/24
+    'service_discovery_protocol': s.Enum(['MDNS','SSDP']),                  # Protocol to use for client discovery, MDNS or SSDP
     s.Optional('MDNS'): s.Map({
-        'service': s.Str(),
+        'service': s.Str(),                                                 # service name to discover when using MDNS, e.g. _master._labManager._tcp.local.
     }),
     s.Optional('SSDP'): s.Map({
         'device_type': s.Str(),
