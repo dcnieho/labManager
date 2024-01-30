@@ -1737,7 +1737,12 @@ class MainGUI:
                             if imgui.button(f'{lbl}##{tsk.id}'):
                                 self._computer_GUI_tasks[item.id] = ['task',id,0]
                             imgui.pop_style_color(3)
-                            if imgui.is_item_hovered():
+                            if imgui.begin_popup_context_item(f'##{lbl}_{tsk.id}_context'):
+                                if imgui.selectable(f"Copy task##button", False)[0]:
+                                    self._set_task_prep(tsk)
+                                    self._to_focus = 'Tasks'
+                                imgui.end_popup()
+                            elif imgui.is_item_hovered():
                                 # show no more than 10 lines
                                 lines = hover_text.splitlines()
                                 to_show = '\n'.join(lines[0:10])
