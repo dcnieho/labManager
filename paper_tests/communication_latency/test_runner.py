@@ -96,6 +96,8 @@ async def runner(master: labManager.master.Master):
 
 if __name__ == "__main__":
     config_file = pathlib.Path('runner.yaml').resolve()
+    if not config_file.exists():
+        config_file = pathlib.Path('.').resolve() / 'paper_tests' / 'communication_latency' / 'runner.yaml'
     labManager.common.config.load('master', config_file)
 
     # start master
