@@ -40,6 +40,11 @@ async def runner(master: labManager.master.Master):
     await asyncio.wait_for(master.add_waiter('client-connected-nr', n_clients), timeout=None)
     print('all clients have connected')
 
+    # stop time service on all machines as we don't want it adjusting the clocks during our measurement
+    tg_id, _ = await master.run_task('Shell command', 'net stop w32time', '*')
+    await asyncio.wait_for(master.add_waiter('task-group', tg_id), timeout=None)
+
+    # get what clients we have
     ports = [BASE_PORT+i for i in range(n_clients-1)]
     with master.clients_lock:
         client_ids = [master.clients[c].id for c in master.clients]
