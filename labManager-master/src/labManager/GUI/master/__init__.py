@@ -20,17 +20,6 @@ from ... import master
 from ._impl import computer_list, file_commander, filepicker, msgbox, utils
 
 @dataclass
-class TaskDef:
-    type        : task.Type = task.Type.Shell_command   # good default
-    payload_type: str       = 'text'
-    payload_text: str       = ''
-    payload_file: str       = ''
-    cwd         : str       = ''
-    env         : dict      = field(default_factory=dict)
-    interactive : bool      = False
-    python_unbuf: bool      = False
-
-@dataclass
 class History:
     pos     : int = -1
     items   : list[str] = field(default_factory=lambda: [''])   # last item (pos -1) is item currently being edited
@@ -81,7 +70,7 @@ class MainGUI:
         self.computer_lister  = computer_list.ComputerList(self.master.clients, self.master.clients_lock, self.selected_computers, info_callback=self._open_computer_detail)
 
         # task GUI
-        self._task_prep: TaskDef = TaskDef()
+        self._task_prep: task.TaskDef = task.TaskDef()
         self._task_history_payload: History = History()
         self._task_history_cwd: History = History()
         self._task_GUI_editor = imgui_color_text_edit.TextEditor()   # NB: also used for the payload display on a computer pane
@@ -460,7 +449,7 @@ class MainGUI:
         self.computer_lister.set_project(self.project)
 
         # reset GUI
-        self._task_prep = TaskDef()
+        self._task_prep = task.TaskDef()
         self._task_history_payload = History()
         self._task_history_cwd = History()
         self._window_list = [self.computer_list, self._make_main_space_window("Login", self._login_GUI)]
@@ -757,6 +746,19 @@ class MainGUI:
             imgui.pop_text_wrap_pos()
         return utils.popup("About labManager", popup_content, closable=True, outside=True)
 
+    def _set_task_prep(self, tsk: task.TaskDef | task.Task):
+        self._task_prep = tsk if isinstance(tsk, task.TaskDef) else task.TaskDef.fromtask(tsk)
+        self._task_GUI_cursor_pos['payload'] = 0
+        self._task_GUI_selection_pos['payload'] = [0, 0]
+        self._task_GUI_cursor_pos['cwd'] = 0
+        self._task_GUI_selection_pos['cwd'] = [0, 0]
+        if self._task_prep.type in [task.Type.Shell_command, task.Type.Process_exec, task.Type.Python_module]:
+            self._task_history_payload.items[-1] = self._task_prep.payload_text
+            self._task_history_payload.pos = -1
+        if self._task_prep.type!=task.Type.Wake_on_LAN:
+            self._task_history_cwd.items[-1] = self._task_prep.cwd
+            self._task_history_cwd.pos = -1
+
     def _task_GUI(self):
         if not self._main_dock_node_id:
             # this window is docked to the right dock node, if we don't
@@ -801,27 +803,8 @@ class MainGUI:
         if imgui.begin('task_list_pane'):
             if 'tasks' in config.master:
                 for t in config.master['tasks']:
-                    if imgui.button(t['name']):
-                        self._task_prep.type        = task.Type(t['type'])
-                        self._task_prep.payload_type= t['payload_type']
-                        if t['payload_type']=='text':
-                            self._task_prep.payload_text = t['payload']
-                        else:
-                            self._task_prep.payload_file = t['payload']
-                        self._task_prep.cwd         = t['cwd']
-                        self._task_prep.env         = t['env']
-                        self._task_prep.interactive = t['interactive']
-                        self._task_prep.python_unbuf= t['python_unbuffered']
-                        self._task_GUI_cursor_pos['payload'] = 0
-                        self._task_GUI_selection_pos['payload'] = [0, 0]
-                        self._task_GUI_cursor_pos['cwd'] = 0
-                        self._task_GUI_selection_pos['cwd'] = [0, 0]
-                        if self._task_prep.type in [task.Type.Shell_command, task.Type.Process_exec, task.Type.Python_module]:
-                            self._task_history_payload.items[-1] = self._task_prep.payload_text
-                            self._task_history_payload.pos = -1
-                        if self._task_prep.type!=task.Type.Wake_on_LAN:
-                            self._task_history_cwd.items[-1] = self._task_prep.cwd
-                            self._task_history_cwd.pos = -1
+                    if imgui.button(t.name):
+                        self._set_task_prep(t)
             else:
                 imgui.text_wrapped('There are no preconfigured tasks. Launch your own task using the panels on the right.')
         imgui.end()
@@ -832,7 +815,7 @@ class MainGUI:
                     self._task_prep.type = t
                     # remove command etc if not wanted
                     if t==task.Type.Wake_on_LAN:
-                        self._task_prep = TaskDef()
+                        self._task_prep = task.TaskDef()
                         self._task_prep.type = task.Type.Wake_on_LAN
                     # make sure we don't have a multiline commands in a single-line
                     # textbox
@@ -1014,6 +997,8 @@ class MainGUI:
                         if imgui.small_button("Insert path##payload"):
                             fap = filepicker.FileActionProvider(network=config.master['network'], master=self.master)
                             utils.push_popup(self, filepicker.FilePicker(title='Select path to insert', allow_multiple=False, file_action_provider=fap, callback=lambda path: insert_path(self, 'payload', path)))
+                        if self._task_history_payload.pos==-1 and self._task_prep.payload_text != self._task_history_payload.items[-1]:
+                            self._task_history_payload.items[-1] = self._task_prep.payload_text
                         imgui.set_next_item_width(width-imgui.get_frame_height_with_spacing())    # space for arrow button
                         imgui.push_font(imgui_md.get_code_font())
                         enter_pressed, self._task_prep.payload_text = imgui.input_text(f'##{field_name}', self._task_prep.payload_text, flags=imgui.InputTextFlags_.enter_returns_true|imgui.InputTextFlags_.callback_always|imgui.InputTextFlags_.callback_edit|imgui.InputTextFlags_.callback_history, callback=lambda x: edit_callback(self, 'payload', x))
@@ -1072,6 +1057,8 @@ class MainGUI:
                 if imgui.small_button("Insert path##cwd"):
                     fap = filepicker.FileActionProvider(network=config.master['network'], master=self.master)
                     utils.push_popup(self, filepicker.FilePicker(title='Select path to insert', allow_multiple=False, file_action_provider=fap, callback=lambda path: insert_path(self, 'cwd', path)))
+                if self._task_history_cwd.pos==-1 and self._task_prep.cwd != self._task_history_cwd.items[-1]:
+                    self._task_history_cwd.items[-1] = self._task_prep.cwd
                 imgui.set_next_item_width(width-imgui.get_frame_height_with_spacing())    # space for arrow button
                 imgui.push_font(imgui_md.get_code_font())
                 enter_pressed2, self._task_prep.cwd = imgui.input_text('##cwd', self._task_prep.cwd, flags=imgui.InputTextFlags_.enter_returns_true|imgui.InputTextFlags_.callback_always|imgui.InputTextFlags_.callback_edit|imgui.InputTextFlags_.callback_history, callback=lambda x: edit_callback(self, 'cwd', x))
@@ -1167,15 +1154,7 @@ class MainGUI:
             if imgui.button('Clear'):
                 do_clear = True
             if do_clear:
-                self._task_prep = TaskDef()
-                self._task_GUI_cursor_pos['payload'] = 0
-                self._task_GUI_selection_pos['payload'] = [0, 0]
-                self._task_GUI_cursor_pos['cwd'] = 0
-                self._task_GUI_selection_pos['cwd'] = [0, 0]
-                self._task_history_payload.items[-1] = ''
-                self._task_history_payload.pos = -1
-                self._task_history_cwd.items[-1] = ''
-                self._task_history_cwd.pos = -1
+                self._set_task_prep(task.TaskDef())
         imgui.end()
 
     def _imaging_GUI(self):

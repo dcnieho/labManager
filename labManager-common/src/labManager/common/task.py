@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import aiopath
 import aioshutil
+import copy
 import shlex
 import shutil
 import pathlib
@@ -93,6 +94,39 @@ class Task:
 
     def is_done(self):
         return self.status in [structs.Status.Finished, structs.Status.Errored]
+
+@dataclass
+class TaskDef:
+    name        : str       = ''    # just for showing in GUI
+    type        : Type      = Type.Shell_command   # good default
+    payload_type: str       = 'text'
+    payload_text: str       = ''
+    payload_file: str       = ''
+    cwd         : str       = ''
+    env         : dict      = field(default_factory=dict)
+    interactive : bool      = False
+    python_unbuf: bool      = False
+
+    @classmethod
+    def fromtask(cls, task: Task):
+        "Initialize TaskDef from a Task"
+        return cls(type=task.type, payload_text=task.payload, cwd=task.cwd, env=copy.deepcopy(task.env), interactive=task.interactive, python_unbuf=task.python_unbuf)
+
+    @classmethod
+    def fromdict(cls, task: dict):
+        tdef = cls(type=Type(task['type']))
+        if 'name' in task:
+            tdef.name = task['name']
+        tdef.payload_type= task['payload_type']
+        if task['payload_type']=='text':
+            tdef.payload_text = task['payload']
+        else:
+            tdef.payload_file = task['payload']
+        tdef.cwd         = task['cwd']
+        tdef.env         = task['env']
+        tdef.interactive = task['interactive']
+        tdef.python_unbuf= task['python_unbuffered']
+        return tdef
 
 @dataclass
 class RunningTask:

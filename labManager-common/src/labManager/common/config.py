@@ -175,13 +175,16 @@ def load(which: str, file: str|pathlib.Path = None):
 
     match which:
         case 'master':
-            # extra validation
+            # extra validation and processing
             if config['service_discovery_protocol']=='MDNS' and 'MDNS' not in config:
                 raise ValueError("If the key 'service_discovery_protocol' is set to 'MDNS', the 'MDNS' key is required, but it was not found")
             elif config['service_discovery_protocol']=='SSDP' and 'SSDP' not in config:
                 raise ValueError("If the key 'service_discovery_protocol' is set to 'SSDP', the 'SSDP' key is required, but it was not found")
             if 'toems' in config and 'image_info_script' in config['toems'] and not 'image_info_script_partition' in config['toems']:
                 raise ValueError("If toems.image_info_script is specified, toems.image_info_script_partition should also be specified")
+            if 'tasks' in config:
+                for i,t in enumerate(config['tasks']):
+                    config['tasks'][i] = task.TaskDef.fromdict(t)
             master = config
         case 'client':
             # extra validation
