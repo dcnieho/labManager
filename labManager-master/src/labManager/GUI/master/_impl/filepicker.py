@@ -783,14 +783,14 @@ class FilePicker:
                     self.path_bar_popup['which']==i-1 and \
                     imgui.is_popup_open('##dir_list_popup'):
                     lbl = 'v'
-                clicked = False
+                clicked_button = False
                 if lbl=='>':
-                    clicked = imgui.arrow_button(id_str,imgui.Dir_.right)
+                    clicked_button = imgui.arrow_button(id_str,imgui.Dir_.right)
                 elif lbl=='v':
-                    clicked = imgui.arrow_button(id_str,imgui.Dir_.down)
+                    clicked_button = imgui.arrow_button(id_str,imgui.Dir_.down)
                 else:
-                    clicked = imgui.button(lbl+id_str)
-                if clicked:
+                    clicked_button = imgui.button(lbl+id_str)
+                if clicked_button:
                     if isinstance(b[0],str):
                         if i==0:
                             # if remote machines potentially available,
