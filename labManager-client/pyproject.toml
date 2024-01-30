@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "labManager-client"
-version = "1.0.2"
+version = "1.0.3"
 description = "System for managing multi-station multi-tenant lab setups - client."
 readme = "README.md"
 license = "MIT"
@@ -24,7 +24,7 @@ classifiers = [
     "Topic :: Utilities",
 ]
 dependencies = [
-    "labManager-common==1.0.2"
+    "labManager-common==1.0.3"
 ]
 
 [project.optional-dependencies]
