@@ -955,7 +955,10 @@ class MainGUI:
                         imgui.same_line()
                         if imgui.small_button("Insert path##payload"):
                             fap = filepicker.FileActionProvider(network=config.master['network'], master=self.master)
-                            utils.push_popup(self, filepicker.FilePicker(title='Select path to insert', allow_multiple=False, file_action_provider=fap, callback=lambda path: insert_path(self, 'payload', path)))
+                            with self.master.clients_lock:
+                                clients = [self.master.clients[cid].name for cid in self.master.clients if self.master.clients[cid].online]
+                            client_name = clients[0] if clients else None
+                            utils.push_popup(self, filepicker.FilePicker(title='Select path to insert', start_machine=client_name, allow_multiple=False, file_action_provider=fap, callback=lambda path: insert_path(self, 'payload', path)))
 
                         text_x = top_right.x - line_height * 6.
                         imgui.set_cursor_pos((text_x, text_y))
@@ -996,7 +999,10 @@ class MainGUI:
                         imgui.same_line()
                         if imgui.small_button("Insert path##payload"):
                             fap = filepicker.FileActionProvider(network=config.master['network'], master=self.master)
-                            utils.push_popup(self, filepicker.FilePicker(title='Select path to insert', allow_multiple=False, file_action_provider=fap, callback=lambda path: insert_path(self, 'payload', path)))
+                            with self.master.clients_lock:
+                                clients = [self.master.clients[cid].name for cid in self.master.clients if self.master.clients[cid].online]
+                            client_name = clients[0] if clients else None
+                            utils.push_popup(self, filepicker.FilePicker(title='Select path to insert', start_machine=client_name, allow_multiple=False, file_action_provider=fap, callback=lambda path: insert_path(self, 'payload', path)))
                         if self._task_history_payload.pos==-1 and self._task_prep.payload_text != self._task_history_payload.items[-1]:
                             self._task_history_payload.items[-1] = self._task_prep.payload_text
                         imgui.set_next_item_width(width-imgui.get_frame_height_with_spacing())    # space for arrow button
@@ -1056,7 +1062,10 @@ class MainGUI:
                 imgui.same_line()
                 if imgui.small_button("Insert path##cwd"):
                     fap = filepicker.FileActionProvider(network=config.master['network'], master=self.master)
-                    utils.push_popup(self, filepicker.FilePicker(title='Select path to insert', allow_multiple=False, file_action_provider=fap, callback=lambda path: insert_path(self, 'cwd', path)))
+                    with self.master.clients_lock:
+                        clients = [self.master.clients[cid].name for cid in self.master.clients if self.master.clients[cid].online]
+                    client_name = clients[0] if clients else None
+                    utils.push_popup(self, filepicker.FilePicker(title='Select path to insert', start_machine=client_name, allow_multiple=False, file_action_provider=fap, callback=lambda path: insert_path(self, 'cwd', path)))
                 if self._task_history_cwd.pos==-1 and self._task_prep.cwd != self._task_history_cwd.items[-1]:
                     self._task_history_cwd.items[-1] = self._task_prep.cwd
                 imgui.set_next_item_width(width-imgui.get_frame_height_with_spacing())    # space for arrow button
