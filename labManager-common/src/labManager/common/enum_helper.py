@@ -11,6 +11,7 @@ def get(cls):
                 return getattr(cls, name_value)
             if name_value in [e.value for e in cls]:
                 return cls(name_value)
+            raise ValueError(f"The provided input should be a string identifying a known {cls.__module__}.{cls.__name__}.\nUnderstood values: {[e.value for e in cls]}.\nGot: {name_value}")
         else:
             raise ValueError(f"The provided input should be a string identifying a known {cls.__module__}.{cls.__name__}.\nUnderstood values: {[e.value for e in cls]}.\nGot: {name_value}")
 
