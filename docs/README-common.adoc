@@ -2,7 +2,7 @@ include::./README-var-setup.adoc[]
 
 image:https://static.pepy.tech/badge/labManager-{tool-name}[Downloads, link=https://pepy.tech/project/labManager-{tool-name}/] image:https://img.shields.io/pypi/v/labManager-{tool-name}.svg[PyPI Latest Release, link=https://pypi.org/project/labManager-{tool-name}/] image:https://img.shields.io/pypi/pyversions/labManager-{tool-name}.svg[Python version support, link=https://pypi.org/project/labManager-{tool-name}/]
 
-== labManager v1.0.0
+== labManager v1.0.1
 System for managing multi-station multi-tenant lab setups - {tool-name}
 ifdef::extra-tool-info[ {extra-tool-info}]
 
