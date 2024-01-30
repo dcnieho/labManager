@@ -1,6 +1,6 @@
 ![Downloads](https://static.pepy.tech/badge/labManager-common) ![PyPI Latest Release](https://img.shields.io/pypi/v/labManager-common.svg) ![Python version support](https://img.shields.io/pypi/pyversions/labManager-common.svg)
 
-## labManager v1.0.0
+## labManager v1.0.1
 System for managing multi-station multi-tenant lab setups - common
  utilities
 
