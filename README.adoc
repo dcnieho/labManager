@@ -4,7 +4,7 @@
 
 image:https://static.pepy.tech/badge/labManager-common[Downloads, link=https://pepy.tech/project/labManager-{tool-name}/] image:https://img.shields.io/pypi/pyversions/labManager-common.svg[Python version support, link=https://pypi.org/project/labManager-common/] image:https://img.shields.io/pypi/v/labManager-common.svg?label=labManager-common[PyPI Latest Release, link={repo-home}/labManager-common/]
 
-== labManager :version:
+== labManager {version}
 Master/client software for managing multi-station multi-tenant lab setups for image:https://img.shields.io/pypi/pyversions/labManager-common.svg[Python version support, link=https://pypi.org/project/labManager-common/].
 
 labManager consists of two tools, image:https://img.shields.io/pypi/v/labManager-master.svg?label=labManager-master[PyPI Latest Release, link={repo-home}/labManager-master/] and image:https://img.shields.io/pypi/v/labManager-client.svg?label=labManager-client[PyPI Latest Release, link={repo-home}/labManager-client/] and a third, optional, server component image:https://img.shields.io/pypi/v/labManager-admin-server.svg?label=labManager-admin-server[PyPI Latest Release, link={repo-home}/labManager-admin-server/].

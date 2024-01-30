@@ -1,6 +1,6 @@
 ![Downloads](https://static.pepy.tech/badge/labManager-admin-server) ![PyPI Latest Release](https://img.shields.io/pypi/v/labManager-admin-server.svg) ![Python version support](https://img.shields.io/pypi/pyversions/labManager-admin-server.svg)
 
-## labManager :version:
+## labManager v1.0.5
 System for managing multi-station multi-tenant lab setups - admin-server
 
 This package is part of the [labManager tools](https://github.com/dcnieho/labManager/tree/master), a collection of tools for managing behavioral research setups. Please see [here](https://github.com/dcnieho/labManager/tree/master) for more information.
