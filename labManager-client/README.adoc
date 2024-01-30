@@ -5,10 +5,19 @@
 
 image:https://static.pepy.tech/badge/labManager-{tool-name}[Downloads, link=https://pepy.tech/project/labManager-{tool-name}/] image:https://img.shields.io/pypi/v/labManager-{tool-name}.svg[PyPI Latest Release, link=https://pypi.org/project/labManager-{tool-name}/] image:https://img.shields.io/pypi/pyversions/labManager-{tool-name}.svg[Python version support, link=https://pypi.org/project/labManager-{tool-name}/]
 
-== labManager v1.0.2
+== labManager v1.0.3
 System for managing multi-station multi-tenant lab setups - {tool-name}
 
 This package is part of the link:{repo-home}[labManager tools], a collection of tools for managing behavioral research setups. Please see link:{repo-home}[here] for more information.
+
+=== Installation
+[source, bash]
+----
+pip install labManager-client
+# or
+pip install labManager-client[eye-tracker] # <1>
+----
+<1> use the `eye-tracker` extra to enable support for reporting the status of Tobii Pro eye trackers to the labManager-master tool.
 
 === Example script
 An example script for running the labManager {tool-name} script is link:{repo-home}/example-scripts/{tool-name}.py[provided here].

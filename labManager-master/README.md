@@ -1,9 +1,17 @@
 ![Downloads](https://static.pepy.tech/badge/labManager-master) ![PyPI Latest Release](https://img.shields.io/pypi/v/labManager-master.svg) ![Python version support](https://img.shields.io/pypi/pyversions/labManager-master.svg)
 
-## labManager v1.0.2
+## labManager v1.0.3
 System for managing multi-station multi-tenant lab setups - master
 
 This package is part of the [labManager tools](https://github.com/dcnieho/labManager/tree/master), a collection of tools for managing behavioral research setups. Please see [here](https://github.com/dcnieho/labManager/tree/master) for more information.
+
+### Installation
+```bash
+pip install labManager-master
+# or
+pip install labManager-master[GUI] # ①
+```
+1. use the `GUI` extra to install labManager-master’s GUI.
 
 ### Example script
 An example script for running the labManager master script is [provided here](https://github.com/dcnieho/labManager/tree/master/example-scripts/master.py).

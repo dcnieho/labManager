@@ -1,9 +1,17 @@
 ![Downloads](https://static.pepy.tech/badge/labManager-client) ![PyPI Latest Release](https://img.shields.io/pypi/v/labManager-client.svg) ![Python version support](https://img.shields.io/pypi/pyversions/labManager-client.svg)
 
-## labManager v1.0.2
+## labManager v1.0.3
 System for managing multi-station multi-tenant lab setups - client
 
 This package is part of the [labManager tools](https://github.com/dcnieho/labManager/tree/master), a collection of tools for managing behavioral research setups. Please see [here](https://github.com/dcnieho/labManager/tree/master) for more information.
+
+### Installation
+```bash
+pip install labManager-client
+# or
+pip install labManager-client[eye-tracker] # ①
+```
+1. use the `eye-tracker` extra to enable support for reporting the status of Tobii Pro eye trackers to the labManager-master tool.
 
 ### Example script
 An example script for running the labManager client script is [provided here](https://github.com/dcnieho/labManager/tree/master/example-scripts/client.py).
