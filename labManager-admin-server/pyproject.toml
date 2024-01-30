@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "labManager-admin-server"
-version = "1.0.4"
+version = "1.0.5"
 description = "System for managing multi-station multi-tenant lab setups - admin server."
 readme = "README.md"
 license = "MIT"
@@ -24,7 +24,7 @@ classifiers = [
     "Topic :: Utilities",
 ]
 dependencies = [
-    "labManager-common==1.0.4",
+    "labManager-common==1.0.5",
     "fastapi",
     "uvicorn[standard]",
     "python-dotenv",

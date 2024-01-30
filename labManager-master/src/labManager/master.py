@@ -15,7 +15,7 @@ from labManager.common import async_thread, config, counter, eye_tracker, file_a
 from labManager.common.network import admin_conn, comms, ifs, keepalive, mdns, ssdp, toems
 from labManager.common.network import utils as net_utils
 
-__version__ = '1.0.4'
+__version__ = '1.0.5'
 
 
 
