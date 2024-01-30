@@ -1747,9 +1747,21 @@ class MainGUI:
                                 self._computer_GUI_tasks[item.id] = ['task',id,0]
                             imgui.pop_style_color(3)
                             if imgui.begin_popup_context_item(f'##{lbl}_{tsk.id}_context'):
-                                if imgui.selectable(f"Copy task##button", False)[0]:
+                                if imgui.selectable(f"Copy task##selectable", False)[0]:
                                     self._set_task_prep(tsk)
                                     self._to_focus = 'Tasks'
+                                if tsk.status in [structs.Status.Pending, structs.Status.Running]:
+                                    if tsk.status==structs.Status.Pending:
+                                        action_txt = 'Cancel'
+                                    else:
+                                        if tsk.interactive and (item.id, id) not in self._computer_GUI_interactive_sent_finish:
+                                            action_txt = 'Finish'
+                                        else:
+                                            action_txt = 'Stop'
+                                    if imgui.selectable(f'{action_txt}##{id}', False)[0]:
+                                        async_thread.run(task.send_cancel(item,tsk))
+                                        if tsk.interactive:
+                                            self._computer_GUI_interactive_sent_finish[(item.id, id)] = True
                                 imgui.end_popup()
                             elif imgui.is_item_hovered():
                                 # show no more than 10 lines
