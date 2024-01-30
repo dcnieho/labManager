@@ -2,6 +2,15 @@
 
 include::../docs/README-common.adoc[]
 
+=== Installation
+[source, bash]
+----
+pip install labManager-master
+# or
+pip install labManager-master[GUI] # <1>
+----
+<1> use the `GUI` extra to install labManager-master's GUI.
+
 include::../docs/README-common-tools.adoc[]
 
 include::../docs/README-standalone.adoc[]

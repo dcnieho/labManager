@@ -2,6 +2,12 @@
 
 include::../docs/README-common.adoc[]
 
+=== Installation
+[source, bash]
+----
+pip install labManager-admin-server
+----
+
 include::../docs/README-common-tools.adoc[]
 
 ==== Secrets file

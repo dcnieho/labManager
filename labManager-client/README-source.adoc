@@ -2,6 +2,15 @@
 
 include::../docs/README-common.adoc[]
 
+=== Installation
+[source, bash]
+----
+pip install labManager-client
+# or
+pip install labManager-client[eye-tracker] # <1>
+----
+<1> use the `eye-tracker` extra to enable support for reporting the status of Tobii Pro eye trackers to the labManager-master tool.
+
 include::../docs/README-common-tools.adoc[]
 
 include::../docs/README-standalone.adoc[]
