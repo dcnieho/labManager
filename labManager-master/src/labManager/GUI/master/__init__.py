@@ -1831,7 +1831,7 @@ class MainGUI:
                                 imgui.set_tooltip("Copy")
                     imgui.align_text_to_frame_padding()
                     imgui.text(tsk.status.value)
-                    if tsk.return_code:
+                    if tsk.return_code is not None:
                         imgui.text(f'return code: {tsk.return_code}')
                     if tsk.status in [structs.Status.Pending, structs.Status.Running]:
                         imgui.same_line()
