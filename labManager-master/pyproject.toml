@@ -5,13 +5,13 @@ build-backend = "hatchling.build"
 [project]
 name = "labManager-master"
 version = "1.0.1"
+description = "System for managing multi-station multi-tenant lab setups - master."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.10"
 authors = [
     { name = "Diederick Niehorster", email = "diederick_c.niehorster@humlab.lu.se" },
 ]
-readme = "../README.md"
-description = "System for managing multi-station multi-tenant lab setups - master."
-requires-python = ">=3.10"
-license = "MIT"
 classifiers = [
     "Intended Audience :: Science/Research",
     "Intended Audience :: System Administrators",
