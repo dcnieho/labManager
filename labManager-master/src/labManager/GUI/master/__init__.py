@@ -214,7 +214,7 @@ class MainGUI:
         self.computer_list = hello_imgui.DockableWindow()
         self.computer_list.label = "Computers"
         self.computer_list.dock_space_name = "LeftSpace"
-        self.computer_list.gui_function = self._computer_pane
+        self.computer_list.gui_function = self._computer_list_pane
         self.computer_list.can_be_closed = False
 
         # Finally, transmit these windows to HelloImGui
@@ -1952,7 +1952,7 @@ class MainGUI:
         imgui.end()
 
 
-    def _computer_pane(self):
+    def _computer_list_pane(self):
         # this pane is always visible, so we handle popups here
         utils.handle_popup_stack(self.popup_stack)
         # also handle showing of debug windows
