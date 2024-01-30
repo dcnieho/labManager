@@ -87,7 +87,8 @@ async def runner(master: labManager.master.Master):
     print('copying data to server... ', end='')
     coros = [master.copy_client_file_folder(master.clients[cid], f"{CWD}\\data", "\\\\SERVER\\scratch\\Dee\\time_data", dirs_exist_ok=True) for cid in client_ids]
     action_ids = await asyncio.gather(*coros)
-    # NB: no need to wait, user can just see in GUI whether tasks are done, and close GUI to end this program once done. But lets do it anyway
+    # NB: actually no need to wait, since user can just see in GUI whether tasks are done and close GUI to
+    # end this program once done. But lets do it anyway to be safe that our transfer doesn't get interrupted.
     waiters = [master.add_waiter('file-action', aid) for aid in action_ids]
     await asyncio.gather(*waiters)
     print('done')
