@@ -11,7 +11,7 @@ from labManager.common import config, eye_tracker, file_actions, message, share,
 from labManager.common.network import comms, ifs, keepalive, mdns, nmb, ssdp
 
 
-__version__ = '1.0.1'
+__version__ = '1.0.2'
 
 
 @dataclass
