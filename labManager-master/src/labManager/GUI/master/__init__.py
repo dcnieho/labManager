@@ -1407,9 +1407,9 @@ class MainGUI:
                         if self._selected_image_id in self._active_upload_tasks:
                             utils.draw_hover_text('Cannot upload image, upload task is already running', text='', hovered_flags=imgui.HoveredFlags_.allow_when_disabled)
 
-                    imgui.push_style_color(imgui.Col_.button, imgui.ImVec4(*imgui.ImColor.hsv(0.9667,.88,.43)))
+                    imgui.push_style_color(imgui.Col_.button,         imgui.ImVec4(*imgui.ImColor.hsv(0.9667,.88,.43)))
                     imgui.push_style_color(imgui.Col_.button_hovered, imgui.ImVec4(*imgui.ImColor.hsv(0.9667,.88,.64)))
-                    imgui.push_style_color(imgui.Col_.button_active, imgui.ImVec4(*imgui.ImColor.hsv(0.9667,.88,.93)))
+                    imgui.push_style_color(imgui.Col_.button_active,  imgui.ImVec4(*imgui.ImColor.hsv(0.9667,.88,.93)))
                     if imgui.button('Delete'):
                         async_thread.run(self.master.toems_delete_disk_image(im['Name']),
                                         lambda fut: self._image_action_result('delete',fut))
@@ -1686,10 +1686,10 @@ class MainGUI:
         if not imgui.internal.dock_builder_get_node(dock_space_id):
             # first time this GUI is shown, set up as follows:
             #    ____________________________________
-            #    |  Task  |        Task result      |
+            #    |  Task  |       Task result       |
             #    |   +    |-------------------------|
             #    |  Event |           Log           |
-            #    |  List  |          Details        |
+            #    |  List  |         Details         |
             #    ------------------------------------
             imgui.internal.dock_builder_remove_node(dock_space_id)
             imgui.internal.dock_builder_add_node(dock_space_id)
