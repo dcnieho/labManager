@@ -1580,7 +1580,23 @@ class MainGUI:
         self._active_imaging_tasks_updater_should_stop = False
         while not self._active_imaging_tasks_updater_should_stop:
             # NB: this is and must remain an atomic update, so its not possible to read incomplete state elsewhere
-            self._active_imaging_tasks = await self.master.toems_get_active_imaging_tasks()
+            temp = await self.master.toems_get_active_imaging_tasks()
+            old_names = set([t['ComputerName'] for t in self._active_imaging_tasks])
+            new_names = set([t['ComputerName'] for t in temp])
+            common = old_names.intersection(new_names)
+            added  = new_names.difference(common)
+            lost   = old_names.difference(common)
+            for n in added:
+                for t in temp:
+                    if t['ComputerName']==n:
+                        t['StartTime_lm'] = time.monotonic()
+            # report on finished tasks
+            for n in lost:
+                for t in self._active_imaging_tasks:
+                    if t['ComputerName']==n:
+                        print(f"Computer {t['ComputerName']} finished in {time.monotonic()-t['StartTime_lm']} seconds")
+            # done, atomic update
+            self._active_imaging_tasks = temp
 
             # check if an upload task has just finished. If so, trigger image refresh
             to_del = []
