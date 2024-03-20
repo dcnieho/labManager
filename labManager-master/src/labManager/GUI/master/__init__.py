@@ -1590,6 +1590,12 @@ class MainGUI:
                 for t in temp:
                     if t['ComputerName']==n:
                         t['StartTime_lm'] = time.monotonic()
+            for n in common:
+                for t in temp:
+                    if t['ComputerName']==n:
+                        for t2 in self._active_imaging_tasks:
+                            if t2['ComputerName']==n:
+                                t['StartTime_lm'] = t2['StartTime_lm']
             # report on finished tasks
             for n in lost:
                 for t in self._active_imaging_tasks:
