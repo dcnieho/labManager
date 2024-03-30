@@ -920,9 +920,9 @@ class Master:
 
         if not self.toems:
             return
-        comp = await self.toems.computer_get(self.client[client])
+        comp = await self.toems.computer_get(self.clients[client].name)
         if comp is None:
-            raise RuntimeError(f"can't upload: computer with name '{self.client[client].name}' not found or not known to Toems")
+            raise RuntimeError(f"can't upload: computer with name '{self.clients[client].name}' not found or not known to Toems")
         comp_id  = comp['Id']
         if not self.admin:
             return
