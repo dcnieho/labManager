@@ -724,13 +724,13 @@ class MainGUI:
             #imgui.pop_font()
             imgui.spacing()
             imgui.spacing()
-            reference         = r"Niehorster, D.C., Gullberg, M. & Nyström, M. (2024). Designing and running multi-user lab environments for behavioral science: infrastructure, open-source tools and practical advice. Behavior Research Methods. doi: 10.3758/s13428-024-02467-4"
+            reference         = r"Niehorster, D.C., Gullberg, M. & Nyström, M. (2024). Behavioral science labs: How to solve the multi-user problem. Behavior Research Methods. doi: 10.3758/s13428-024-02467-4"
             reference_bibtex  = r"""@article{niehorster2024labmanager,
     Author = {Niehorster, Diederick C. and Gullberg, Marianne and Nystr{\"o}m, Marcus},
     Journal = {Behavior Research Methods},
     Number = {},
     Pages = {},
-    Title = {Designing and running multi-user lab environments for behavioral science: infrastructure, open-source tools and practical advice},
+    Title = {Behavioral science labs: How to solve the multi-user problem},
     Year = {2024},
     doi = {10.3758/s13428-024-02467-4}
 }
