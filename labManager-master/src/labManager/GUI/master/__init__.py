@@ -696,7 +696,7 @@ class MainGUI:
             imgui.same_line()
             utils.push_disabled()
             if imgui.button("Paper", size=(btn_tot_width/6, 0)):
-                pass
+                webbrowser.open("https://doi.org/10.3758/s13428-024-02467-4")
             utils.pop_disabled()
             imgui.same_line()
             if imgui.button("GitHub repo", size=(btn_tot_width/3, 0)):
@@ -724,14 +724,15 @@ class MainGUI:
             #imgui.pop_font()
             imgui.spacing()
             imgui.spacing()
-            reference         = r"Niehorster, D.C., Gullberg, M. & Nyström, M. (in prep). Designing and running multi-user lab environments for behavioral science: infrastructure, open-source tools and practical advice."
+            reference         = r"Niehorster, D.C., Gullberg, M. & Nyström, M. (2024). Designing and running multi-user lab environments for behavioral science: infrastructure, open-source tools and practical advice. Behavior Research Methods. doi: 10.3758/s13428-024-02467-4"
             reference_bibtex  = r"""@article{niehorster2024labmanager,
     Author = {Niehorster, Diederick C. and Gullberg, Marianne and Nystr{\"o}m, Marcus},
-    Journal = {},
+    Journal = {Behavior Research Methods},
     Number = {},
     Pages = {},
     Title = {Designing and running multi-user lab environments for behavioral science: infrastructure, open-source tools and practical advice},
-    Year = {in prep}
+    Year = {2024},
+    doi = {10.3758/s13428-024-02467-4}
 }
 """
             imgui.text(reference)
