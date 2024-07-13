@@ -5,7 +5,7 @@
 :doc-images: https://github.com/dcnieho/labManager/raw/master/docs
 :version: v1.0.5
 
-image:https://static.pepy.tech/badge/labManager-{tool-name}[Downloads, link=https://pepy.tech/project/labManager-{tool-name}/] image:https://img.shields.io/pypi/v/labManager-{tool-name}.svg[PyPI Latest Release, link=https://pypi.org/project/labManager-{tool-name}/] image:https://img.shields.io/pypi/pyversions/labManager-{tool-name}.svg[Python version support, link=https://pypi.org/project/labManager-{tool-name}/] image:https://zenodo.org/badge/DOI/10.3758/s13428-023-02105-5.svg[Published paper, link=https://doi.org/10.3758/s13428-023-02105-5]
+image:https://static.pepy.tech/badge/labManager-{tool-name}[Downloads, link=https://pepy.tech/project/labManager-{tool-name}/] image:https://img.shields.io/pypi/v/labManager-{tool-name}.svg[PyPI Latest Release, link=https://pypi.org/project/labManager-{tool-name}/] image:https://img.shields.io/pypi/pyversions/labManager-{tool-name}.svg[Python version support, link=https://pypi.org/project/labManager-{tool-name}/] image:https://zenodo.org/badge/DOI/10.3758/s13428-024-02467-4.svg[Published paper, link=https://doi.org/10.3758/s13428-024-02467-4]
 
 == labManager {version}
 System for managing multi-station multi-tenant lab setups - {tool-name}
@@ -14,7 +14,7 @@ System for managing multi-station multi-tenant lab setups - {tool-name}
 This package is part of the link:{repo-home}[labManager tools], a collection of tools for managing behavioral research setups. Please see link:{repo-home}[here] for more information.
 
 === Citation
-https://doi.org/10.3758/s13428-024-02467-4[_Niehorster, D.C., Gullberg, M. & Nyström, M. (2024). Designing and running multi-user lab environments for behavioral science: infrastructure, open-source tools and practical advice. Behavior Research Methods. doi: 10.3758/s13428-024-02467-4_]
+https://doi.org/10.3758/s13428-024-02467-4[_Niehorster, D.C., Gullberg, M. & Nyström, M. (2024). Behavioral science labs: How to solve the multi-user problem. Behavior Research Methods. doi: 10.3758/s13428-024-02467-4_]
 
 === Acknowledgements
 

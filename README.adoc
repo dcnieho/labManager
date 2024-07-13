@@ -2,7 +2,7 @@
 :doc-images: https://github.com/dcnieho/labManager/raw/master/docs
 :version: v1.0.5
 
-image:https://static.pepy.tech/badge/labManager-common[Downloads, link=https://pepy.tech/project/labManager-{tool-name}/] image:https://img.shields.io/pypi/pyversions/labManager-common.svg[Python version support, link=https://pypi.org/project/labManager-common/] image:https://img.shields.io/pypi/v/labManager-common.svg?label=labManager-common[PyPI Latest Release, link={repo-home}/labManager-common/] image:https://zenodo.org/badge/DOI/10.3758/s13428-023-02105-5.svg[Published paper, link=https://doi.org/10.3758/s13428-023-02105-5]
+image:https://static.pepy.tech/badge/labManager-common[Downloads, link=https://pepy.tech/project/labManager-{tool-name}/] image:https://img.shields.io/pypi/pyversions/labManager-common.svg[Python version support, link=https://pypi.org/project/labManager-common/] image:https://img.shields.io/pypi/v/labManager-common.svg?label=labManager-common[PyPI Latest Release, link={repo-home}/labManager-common/] image:https://zenodo.org/badge/DOI/10.3758/s13428-024-02467-4.svg[Published paper, link=https://doi.org/10.3758/s13428-024-02467-4]
 
 == labManager {version}
 Master/client software for managing multi-station multi-tenant lab setups for image:https://img.shields.io/pypi/pyversions/labManager-common.svg[Python version support, link=https://pypi.org/project/labManager-common/].
@@ -14,7 +14,7 @@ Under the hood, these three tools use shared functionality provided by image:htt
 Please see the readme of these respective tools for details about them, including configuration details. This document will describe the overall labManager functionality and architecture. For a more detailed description of its use case, please see Niehorster et al. (in prep), the paper cited below.
 
 === Citation
-https://doi.org/10.3758/s13428-024-02467-4[_Niehorster, D.C., Gullberg, M. & Nyström, M. (2024). Designing and running multi-user lab environments for behavioral science: infrastructure, open-source tools and practical advice. Behavior Research Methods. doi: 10.3758/s13428-024-02467-4_]
+https://doi.org/10.3758/s13428-024-02467-4[_Niehorster, D.C., Gullberg, M. & Nyström, M. (2024). Behavioral science labs: How to solve the multi-user problem. Behavior Research Methods. doi: 10.3758/s13428-024-02467-4_]
 
 Code for the tests described in this paper is available in link:{repo-home}/paper_tests/[the `paper_tests` folder].
 
