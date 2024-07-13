@@ -1,9 +1,12 @@
-![Downloads](https://static.pepy.tech/badge/labManager-master) ![PyPI Latest Release](https://img.shields.io/pypi/v/labManager-master.svg) ![Python version support](https://img.shields.io/pypi/pyversions/labManager-master.svg)
+![Downloads](https://static.pepy.tech/badge/labManager-master) ![PyPI Latest Release](https://img.shields.io/pypi/v/labManager-master.svg) ![Python version support](https://img.shields.io/pypi/pyversions/labManager-master.svg) ![Published paper](https://zenodo.org/badge/DOI/10.3758/s13428-023-02105-5.svg)
 
 ## labManager v1.0.5
 System for managing multi-station multi-tenant lab setups - master
 
 This package is part of the [labManager tools](https://github.com/dcnieho/labManager/tree/master), a collection of tools for managing behavioral research setups. Please see [here](https://github.com/dcnieho/labManager/tree/master) for more information.
+
+### Citation
+[_Niehorster, D.C., Gullberg, M. & Nyström, M. (2024). Designing and running multi-user lab environments for behavioral science: infrastructure, open-source tools and practical advice. Behavior Research Methods. doi: 10.3758/s13428-024-02467-4_](https://doi.org/10.3758/s13428-024-02467-4)
 
 ### Installation
 ```bash
