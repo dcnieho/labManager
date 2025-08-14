@@ -37,7 +37,62 @@ def get_ifaces(ip_network: str):
     ips, macs = zip(*[(x,y) for x,y in sorted(zip(ips, macs), key=lambda item: (*socket.inet_aton(item[0]), item[1]))])
     return ips, macs
 
-def _getNics() :
+def _getNics():
+    try:
+        nics = _getNicsWmic()
+    except:
+        # try another approach
+        nics = _getNicsPwsh()
+
+    return nics
+
+# https://stackoverflow.com/a/41420850
+def _getNicsWmic():
+    from subprocess import check_output
+    from xml.etree.ElementTree import fromstring
+    from ipaddress import IPv4Interface, IPv6Interface
+
+    cmd = 'wmic.exe nicconfig where "IPEnabled = True" get ipaddress,MACAddress,IPSubnet /format:rawxml'
+    xml_text = check_output(cmd, creationflags=8)
+    xml_root = fromstring(xml_text)
+
+    nics = []
+    keyslookup = {
+        'IPAddress' : 'ip',
+        'IPSubnet' : '_mask',
+        'MACAddress' : 'mac',
+    }
+
+    for nic in xml_root.findall("./RESULTS/CIM/INSTANCE") :
+        # parse and store nic info
+        n = {
+            'ip':[],
+            '_mask':[],
+            'mac':'',
+        }
+        for prop in nic :
+            name = keyslookup[prop.attrib['NAME']]
+            if prop.tag == 'PROPERTY':
+                if len(prop):
+                    for v in prop:
+                        n[name] = v.text
+            elif prop.tag == 'PROPERTY.ARRAY':
+                for v in prop.findall("./VALUE.ARRAY/VALUE") :
+                    n[name].append(v.text)
+        nics.append(n)
+
+        # creates python ipaddress objects from ips and masks
+        for i in range(len(n['ip'])) :
+            arg = '%s/%s'%(n['ip'][i],n['_mask'][i])
+            if ':' in n['ip'][i]:
+                n['ip'][i] = IPv6Interface(arg)
+            else:
+                n['ip'][i] = IPv4Interface(arg)
+        del n['_mask']
+
+    return nics
+
+def _getNicsPwsh() :
     import subprocess
     import json
     from ipaddress import IPv4Interface, IPv6Interface
