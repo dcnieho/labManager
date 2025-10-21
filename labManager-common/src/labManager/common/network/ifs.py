@@ -38,13 +38,16 @@ def get_ifaces(ip_network: str):
     return ips, macs
 
 def _getNics():
-    try:
-        nics = _getNicsWmic()
-    except:
-        # try another approach
-        nics = _getNicsPwsh()
-
-    return nics
+    for method in (_getNicsWmic, _getNicsPwsh, _getNicsIpconfig):
+        try:
+            nics = method()
+            if nics:
+                return nics
+        except Exception as e:
+            # Optionally log or print the error for debugging
+            # print(f"{method.__name__} failed: {e}")
+            continue
+    return []  # If all methods fail
 
 # https://stackoverflow.com/a/41420850
 def _getNicsWmic():
@@ -113,5 +116,56 @@ def _getNicsPwsh() :
         ips = [(ip,f'{ip}/{mask}') for ip,mask in zip(n["IPAddress"],n["IPSubnet"])]
         ips = [IPv6Interface(arg[1]) if ':' in arg[0] else IPv4Interface(arg[1]) for arg in ips]
         nics.append({'ip': ips, 'mac': n["MACAddress"]})
+
+    return nics
+
+def _getNicsIpconfig():
+    # NB: english Windows only, not localized
+    import subprocess
+    import re
+    from ipaddress import IPv4Interface
+
+    output = subprocess.check_output("ipconfig /all", creationflags=8).decode("utf-8", errors="ignore")
+
+    nics = []
+    current_nic = None
+    current_ip = None
+
+    for line in output.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+
+        # Start of a new NIC block
+        if re.match(r"^[^\s].*adapter", line, re.IGNORECASE):
+            if current_nic and current_nic['ip'] and current_nic['mac']:
+                nics.append(current_nic)
+            current_nic = {'ip': [], 'mac': None}
+            current_ip = None
+            continue
+
+        if current_nic is None:
+            continue
+
+        # MAC Address
+        mac_match = re.search(r"Physical Address.*?:\s+([-\w]+)", line)
+        if mac_match:
+            current_nic['mac'] = mac_match.group(1)
+
+        # IPv4 Address
+        ipv4_match = re.search(r"IPv4 Address.*?:\s+([\d\.]+)", line)
+        if ipv4_match:
+            current_ip = {'ip': ipv4_match.group(1), 'mask': None}
+
+        # Subnet Mask
+        mask_match = re.search(r"Subnet Mask.*?:\s+([\d\.]+)", line)
+        if mask_match and current_ip:
+            ip_with_mask = f"{current_ip['ip']}/{mask_match.group(1)}"
+            current_nic['ip'].append(IPv4Interface(ip_with_mask))
+            current_ip = None  # Reset for next IP
+
+    # Add last NIC if valid
+    if current_nic and current_nic['ip'] and current_nic['mac']:
+        nics.append(current_nic)
 
     return nics
