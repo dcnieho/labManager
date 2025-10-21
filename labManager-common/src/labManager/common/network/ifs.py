@@ -98,14 +98,14 @@ def _getNicsPwsh() :
     from ipaddress import IPv4Interface, IPv6Interface
 
     cmd     = 'where powershell'
-    path    = subprocess.check_output(cmd)
+    path    = subprocess.check_output(cmd, creationflags=8)
     cmd     = [path.strip(),
                '-NoProfile',
                '-Command',
                'Get-CimInstance -ClassName Win32_NetworkAdapterConfiguration -Filter "IPEnabled = True" | ',
                'Select-Object IPAddress, IPSubnet, MACAddress | ',
                'ConvertTo-Json -Compress']
-    ns      = json.loads(subprocess.check_output(cmd))
+    ns      = json.loads(subprocess.check_output(cmd, creationflags=8))
     if isinstance(ns, dict):
         ns = [ns]
     nics = []
