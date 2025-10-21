@@ -99,7 +99,12 @@ def _getNicsPwsh() :
 
     cmd     = 'where powershell'
     path    = subprocess.check_output(cmd)
-    cmd     = [path.strip(), 'Get-CimInstance -ClassName Win32_NetworkAdapterConfiguration -Filter "IPEnabled = True" | select IPAddress,IPSubnet,MACAddress | ConvertTo-JSON']
+    cmd     = [path.strip(),
+               '-NoProfile',
+               '-Command',
+               'Get-CimInstance -ClassName Win32_NetworkAdapterConfiguration -Filter "IPEnabled = True" | ',
+               'Select-Object IPAddress, IPSubnet, MACAddress | ',
+               'ConvertTo-Json -Compress']
     ns      = json.loads(subprocess.check_output(cmd))
     if isinstance(ns, dict):
         ns = [ns]
