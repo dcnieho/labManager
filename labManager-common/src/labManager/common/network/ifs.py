@@ -101,6 +101,8 @@ def _getNicsPwsh() :
     path    = subprocess.check_output(cmd)
     cmd     = [path.strip(), 'Get-CimInstance -ClassName Win32_NetworkAdapterConfiguration -Filter "IPEnabled = True" | select IPAddress,IPSubnet,MACAddress | ConvertTo-JSON']
     ns      = json.loads(subprocess.check_output(cmd))
+    if isinstance(ns, dict):
+        ns = [ns]
     nics = []
     for n in ns:
         ips = [(ip,f'{ip}/{mask}') for ip,mask in zip(n["IPAddress"],n["IPSubnet"])]
