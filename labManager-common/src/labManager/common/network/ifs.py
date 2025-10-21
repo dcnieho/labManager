@@ -48,12 +48,12 @@ def _getNics():
 
 # https://stackoverflow.com/a/41420850
 def _getNicsWmic():
-    from subprocess import check_output
+    import subprocess
     from xml.etree.ElementTree import fromstring
     from ipaddress import IPv4Interface, IPv6Interface
 
     cmd = 'wmic.exe nicconfig where "IPEnabled = True" get ipaddress,MACAddress,IPSubnet /format:rawxml'
-    xml_text = check_output(cmd, creationflags=8)
+    xml_text = subprocess.check_output(cmd, creationflags=8)
     xml_root = fromstring(xml_text)
 
     nics = []
