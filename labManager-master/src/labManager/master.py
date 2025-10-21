@@ -646,7 +646,7 @@ class Master:
                 domain, user = net_utils.get_domain_username(self.admin.user['full_name'], config.master["SMB"]["domain"])
                 await self.client_mount_share(
                     client, drive=config.master['SMB']['mount_drive_letter'],
-                    share_path=f'\\\\{config.master["SMB"]["server"]}\{self.project}{config.master["SMB"]["projects"]["remove_trailing"]}',
+                    share_path=f'\\\\{config.master["SMB"]["server"]}\\{self.project}{config.master["SMB"]["projects"]["remove_trailing"]}',
                     user=user, password=self.password, domain=domain
                 )
 
