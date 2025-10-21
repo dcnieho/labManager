@@ -654,7 +654,7 @@ class Master:
         request = {
             'drive': drive,
             'share_path': share_path,
-            'user': f'{domain}\{user}' if domain else user,
+            'user': f'{domain}\\{user}' if domain else user,
             'password': password
         }
         await comms.typed_send(client.writer, message.Message.SHARE_MOUNT, request)
