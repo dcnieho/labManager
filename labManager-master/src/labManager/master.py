@@ -1,4 +1,4 @@
-import pkg_resources
+import importlib
 import asyncio
 import aiopath
 import traceback
@@ -992,7 +992,7 @@ class Master:
 
 
 def _check_has_GUI():
-    if 'imgui-bundle' not in {pkg.key for pkg in pkg_resources.working_set}:
+    if importlib.util.find_spec('imgui_bundle') is None:
         raise RuntimeError('You must install labManager-master with the [GUI] extra if you wish to use the GUI. Required dependencies for the GUI not available...')
 
 class GUIContainer:
