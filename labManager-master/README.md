@@ -1,4 +1,4 @@
-![Downloads](https://static.pepy.tech/badge/labManager-master) ![PyPI Latest Release](https://img.shields.io/pypi/v/labManager-master.svg) ![Python version support](https://img.shields.io/pypi/pyversions/labManager-master.svg) ![Published paper](https://zenodo.org/badge/DOI/10.3758/s13428-024-02467-4.svg)
+[![Downloads](https://static.pepy.tech/badge/labManager-master)](https://pepy.tech/project/labManager-master/) [![PyPI Latest Release](https://img.shields.io/pypi/v/labManager-master.svg)](https://pypi.org/project/labManager-master/) [![Python version support](https://img.shields.io/pypi/pyversions/labManager-master.svg)](https://pypi.org/project/labManager-master/) [![Published paper](https://zenodo.org/badge/DOI/10.3758/s13428-024-02467-4.svg)](https://doi.org/10.3758/s13428-024-02467-4)
 
 ## labManager v1.0.5
 System for managing multi-station multi-tenant lab setups - master
