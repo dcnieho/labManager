@@ -1,4 +1,5 @@
-[![Downloads](https://static.pepy.tech/badge/labManager-client)](https://pepy.tech/project/labManager-client/) [![PyPI Latest Release](https://img.shields.io/pypi/v/labManager-client.svg)](https://pypi.org/project/labManager-client/) [![Python version support](https://img.shields.io/pypi/pyversions/labManager-client.svg)](https://pypi.org/project/labManager-client/) [![Published paper](https://zenodo.org/badge/DOI/10.3758/s13428-024-02467-4.svg)](https://doi.org/10.3758/s13428-024-02467-4)
+[![Downloads](https://static.pepy.tech/badge/labManager-client)](https://pepy.tech/project/labManager-client/) [![PyPI Latest Release](https://img.shields.io/pypi/v/labManager-client.svg)](https://pypi.org/project/labManager-client/) [![Python version support](https://img.shields.io/pypi/pyversions/labManager-client.svg)](https://pypi.org/project/labManager-client/)
+[![Published paper](https://img.shields.io/badge/DOI-10.3758%2Fs13428--024--02467--4-blue.svg)](https://doi.org/10.3758/s13428-024-02467-4)
 
 ## labManager v1.0.5
 System for managing multi-station multi-tenant lab setups - client
